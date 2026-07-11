@@ -30,12 +30,14 @@ export function DayView({
   slots,
   vets,
   appointments,
+  canCreate,
 }: {
   date: string;
   timezone: string;
   slots: string[];
   vets: Vet[];
   appointments: AgendaAppointment[];
+  canCreate: boolean;
 }) {
   const now = new Date();
 
@@ -90,7 +92,7 @@ export function DayView({
                   <div key={`${vet.id}-${slot}`} className={`border-b border-slate-100 p-1.5 ${past && !appointment ? "opacity-40" : ""}`}>
                     {appointment ? (
                       <AppointmentCard appointment={appointment} timezone={timezone} />
-                    ) : past ? (
+                    ) : past || !canCreate ? (
                       <div className="h-[74px]" />
                     ) : (
                       <Link

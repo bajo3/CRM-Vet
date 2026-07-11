@@ -4,7 +4,7 @@ import { DateTime } from "luxon";
 import { ChevronLeft } from "lucide-react";
 import { requireRole } from "@/lib/auth/session";
 import { AGENDA_MANAGE_ROLES } from "@/lib/auth/roles";
-import { getPrisma } from "@/lib/prisma";
+import { getClinicSettings } from "@/lib/queries/clinic";
 import { getAppointmentDetail } from "@/lib/queries/agenda";
 import { formatDateTime } from "@/lib/format";
 import { RescheduleForm } from "./reschedule-form";
@@ -13,7 +13,10 @@ export default async function ReprogramarTurnoPage({ params }: { params: Promise
   const { appointmentId } = await params;
   const session = await requireRole(AGENDA_MANAGE_ROLES, `/agenda/${appointmentId}`);
 
-  const detail = await getAppointmentDetail(session.clinicId, appointmentId);
+  const [detail, clinic] = await Promise.all([
+    getAppointmentDetail(session.clinicId, appointmentId),
+    getClinicSettings(session.clinicId),
+  ]);
   if (!detail) notFound();
   const { appointment } = detail;
 
@@ -21,7 +24,6 @@ export default async function ReprogramarTurnoPage({ params }: { params: Promise
     redirect(`/agenda/${appointmentId}`);
   }
 
-  const clinic = await getPrisma().clinic.findUnique({ where: { id: session.clinicId } });
   const timezone = clinic?.timezone ?? "America/Argentina/Buenos_Aires";
 
   return (

@@ -2,7 +2,7 @@ import Link from "next/link";
 import { ChevronLeft } from "lucide-react";
 import { requireRole } from "@/lib/auth/session";
 import { AGENDA_MANAGE_ROLES } from "@/lib/auth/roles";
-import { getPrisma } from "@/lib/prisma";
+import { getClinicSettings } from "@/lib/queries/clinic";
 import { getActiveVeterinarians, listPetsForAppointmentForm } from "@/lib/queries/agenda";
 import { todayISO } from "@/lib/services/agenda-schedule";
 import { AppointmentForm } from "./appointment-form";
@@ -13,11 +13,12 @@ export default async function NuevoTurnoPage({ searchParams }: { searchParams: P
   const session = await requireRole(AGENDA_MANAGE_ROLES, "/agenda");
   const params = await searchParams;
 
-  const prisma = getPrisma();
-  const clinic = await prisma.clinic.findUnique({ where: { id: session.clinicId } });
+  const [clinic, pets, vets] = await Promise.all([
+    getClinicSettings(session.clinicId),
+    listPetsForAppointmentForm(session.clinicId),
+    getActiveVeterinarians(session.clinicId),
+  ]);
   const timezone = clinic?.timezone ?? "America/Argentina/Buenos_Aires";
-
-  const [pets, vets] = await Promise.all([listPetsForAppointmentForm(session.clinicId), getActiveVeterinarians(session.clinicId)]);
 
   const preselectedPet = params.petId ? pets.find((pet) => pet.id === params.petId) : undefined;
 

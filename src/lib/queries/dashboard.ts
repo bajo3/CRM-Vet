@@ -13,7 +13,13 @@ export async function getDashboardData(clinicId: string, timezone: string) {
     prisma.appointment.findMany({
       where: { clinicId, startAt: { gte: dayStart, lte: dayEnd } },
       orderBy: { startAt: "asc" },
-      include: { pet: { include: { client: true } } },
+      select: {
+        id: true,
+        startAt: true,
+        status: true,
+        reason: true,
+        pet: { select: { name: true, client: { select: { name: true } } } },
+      },
     }),
     prisma.appointment.count({ where: { clinicId, startAt: { gte: dayStart, lte: dayEnd }, status: "PENDING" } }),
     prisma.medicalRecord.count({ where: { clinicId, nextDueDate: { gte: now, lte: in7Days } } }),
@@ -22,6 +28,7 @@ export async function getDashboardData(clinicId: string, timezone: string) {
       where: { clinicId, status: "REQUIRES_HUMAN" },
       orderBy: { lastMessageAt: "desc" },
       take: 5,
+      select: { id: true, contactName: true, phone: true, lastMessageAt: true },
     }),
   ]);
 

@@ -31,7 +31,7 @@ export function RescheduleForm({ appointmentId, veterinarianId, defaultDate }: {
   function loadSlots() {
     if (!date) return;
     setLoadingSlots(true);
-    getAvailableSlotsAction(veterinarianId, date).then((result) => {
+    getAvailableSlotsAction(veterinarianId, date, appointmentId).then((result) => {
       setLoadingSlots(false);
       if ("slots" in result) setSlots(result.slots);
       else setSlots([]);

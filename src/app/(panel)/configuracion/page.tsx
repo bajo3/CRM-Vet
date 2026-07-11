@@ -1,22 +1,26 @@
-import { Building2, ShieldCheck, UsersRound } from "lucide-react";
+import { notFound } from "next/navigation";
+import { Building2 } from "lucide-react";
 import { requireSession } from "@/lib/auth/session";
 import { getPrisma } from "@/lib/prisma";
-import { CLINIC_CONFIG_ROLES } from "@/lib/auth/roles";
-import { roleLabel } from "@/lib/format";
+import { getClinicSettings } from "@/lib/queries/clinic";
+import { CLINIC_CONFIG_ROLES, TEAM_MANAGE_ROLES } from "@/lib/auth/roles";
 import { ClinicForm } from "./clinic-form";
 import { WhatsappConnectionCard } from "./whatsapp-connection-card";
+import { TeamPanel } from "./team-panel";
 
 export default async function ConfiguracionPage() {
   const session = await requireSession();
   const canEdit = CLINIC_CONFIG_ROLES.includes(session.role);
+  const canManageTeam = TEAM_MANAGE_ROLES.includes(session.role);
   const [clinic, members] = await Promise.all([
-    getPrisma().clinic.findUniqueOrThrow({ where: { id: session.clinicId } }),
+    getClinicSettings(session.clinicId),
     getPrisma().clinicMember.findMany({
       where: { clinicId: session.clinicId },
-      include: { user: true },
+      select: { id: true, userId: true, role: true, active: true, user: { select: { name: true, email: true } } },
       orderBy: [{ active: "desc" }, { role: "asc" }, { user: { name: "asc" } }],
     }),
   ]);
+  if (!clinic) notFound();
 
   return (
     <div className="mx-auto max-w-6xl space-y-7 px-4 py-6 sm:px-7 lg:px-10 lg:py-9">
@@ -48,25 +52,7 @@ export default async function ConfiguracionPage() {
           editable={canEdit}
         />
 
-        <section className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
-          <div className="flex items-center gap-3 border-b border-slate-100 p-5">
-            <span className="grid size-10 place-items-center rounded-2xl bg-violet-50 text-violet-600"><UsersRound size={19} /></span>
-            <div><h2 className="font-semibold">Equipo</h2><p className="text-xs text-slate-500">{members.filter((member) => member.active).length} integrantes activos</p></div>
-          </div>
-          <div className="divide-y divide-slate-100 px-5">
-            {members.map(({ id, role, active, user }) => {
-              const initials = user.name.split(" ").map((part) => part[0]).slice(0, 2).join("").toUpperCase();
-              return (
-                <div key={id} className={`flex items-center gap-3 py-4 ${active ? "" : "opacity-50"}`}>
-                  <span className="grid size-10 shrink-0 place-items-center rounded-full bg-slate-100 text-xs font-semibold text-slate-600">{initials}</span>
-                  <div className="min-w-0 flex-1"><p className="truncate text-sm font-medium">{user.name}</p><p className="truncate text-xs text-slate-500">{user.email}</p></div>
-                  <div className="text-right"><span className="block text-xs font-medium text-slate-600">{roleLabel(role)}</span><span className={`mt-1 inline-flex items-center gap-1 text-[11px] ${active ? "text-emerald-600" : "text-slate-400"}`}><span className={`size-1.5 rounded-full ${active ? "bg-emerald-500" : "bg-slate-300"}`} />{active ? "Activo" : "Inactivo"}</span></div>
-                </div>
-              );
-            })}
-          </div>
-          <div className="flex gap-2 bg-slate-50 px-5 py-4 text-xs leading-5 text-slate-500"><ShieldCheck size={16} className="mt-0.5 shrink-0 text-emerald-600" /><span>Los permisos se aplican en el servidor según el rol de cada integrante.</span></div>
-        </section>
+        <TeamPanel members={members} canManage={canManageTeam} currentUserId={session.userId} />
       </div>
     </div>
   );

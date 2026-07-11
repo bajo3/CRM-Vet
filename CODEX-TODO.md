@@ -34,6 +34,47 @@ para que un agente (Codex) continúe el trabajo. **Leé este archivo completo an
 - WhatsApp real vía **Baileys** en worker aparte (`npm run dev:whatsapp`, escanear QR). El diseño mantiene
   contratos internos para migrar a Meta Cloud API más adelante.
 
+## Sesión adicional (11/07/2026) — bug de edición, usuarios, agenda, performance, limpieza de datos
+
+Trabajo de otro agente en paralelo (no tocó `src/lib/whatsapp/`, `worker/` ni `api/internal/whatsapp/events`,
+que son de esta lista de arriba). Resumen de lo que se hizo, para que quede registrado:
+
+- **Bug "editar clientes no funciona"**: revisado a fondo `updateClient`/`ClientForm`/`editar/page.tsx` — la
+  lógica de servidor es correcta (scope por `clinicId`, Zod, manejo de teléfono duplicado, `revalidatePath`).
+  No se encontró un bug de lógica. La reproducción en navegador fue muy poco confiable en esta sesión por dos
+  problemas de infraestructura confirmados con evidencia (ver abajo): agotamiento del pool de conexiones de
+  Supabase (`pool_size: 15`, compartido por todos los procesos — `next dev` propio, `next dev` del otro
+  agente, un `next start` de producción corriendo local, workers y tests) y páginas que se quedan colgadas en
+  el esqueleto de `loading.tsx` sin error visible cuando hay contención de build/HMR entre los dos `next dev`
+  corriendo sobre el mismo checkout. Se aplicó un fix real y verificable: `src/lib/prisma.ts` ahora limita
+  `connection_limit` a 4 por proceso (antes, sin límite explícito, Prisma abría hasta `num_cpus*2+1` — 65 en
+  esta máquina de 32 núcleos — agotando el pool con sólo 1-2 procesos activos). Recomendado: si el bug persiste
+  para el dueño en producción (un solo proceso `next start` desplegado), probablemente sea síntoma del mismo
+  agotamiento de pool bajo carga real, no un bug de código.
+- **Gestión de usuarios**: nuevo `src/lib/actions/team.ts` + `src/lib/validation/team.ts` +
+  `src/app/(panel)/configuracion/team-panel.tsx`. Alta de integrante, cambio de rol, activar/desactivar, todo
+  reservado a OWNER (`TEAM_MANAGE_ROLES`), con salvaguardas (no auto-desactivarse, no bajarse el propio rol,
+  siempre al menos un OWNER activo). Documentado en README.
+- **Agenda**: arreglado `getAvailableSlots` para excluir el turno que se está reprogramando de sus propios
+  horarios ocupados (bug real, confirmado por lectura de código — ya estaba anotado más abajo en este archivo
+  y en el README como pendiente). Arreglado que los slots vacíos / botones "Nuevo turno" de la grilla se
+  mostraran incluso para roles sin permiso de crear turnos (ahora respetan `canCreate`). WeekView/header ahora
+  preservan el filtro de veterinario al armar el link de "Nuevo turno".
+- **Performance**: paralelizado con `Promise.all` todo lo independiente en Inicio, Agenda (lista, detalle,
+  nuevo, reprogramar), ficha de mascota y Mensajes; agregado `src/lib/queries/clinic.ts` con `React.cache()`
+  para no repetir el `findUnique` de `Clinic` entre layout y página en el mismo request; reducido
+  over-fetching (selects puntuales en vez de `include` completos en clientes/agenda/mensajes/dashboard);
+  `/mensajes` ahora trae sólo la lista liviana (último mensaje, no 100) + el hilo completo únicamente de la
+  conversación seleccionada (antes traía hasta 100 mensajes × 50 conversaciones). Agregado `loading.tsx` por
+  ruta en `/agenda`, `/clientes` y `/mensajes`.
+- **Limpieza de datos demo**: `prisma/cleanup-demo.ts` (con `--dry-run`) borra sólo los 5 clientes demo del
+  seed (por nombre+teléfono exactos) y todo lo que cuelga de ellos, respetando el orden de FKs `Restrict`
+  (`Appointment.pet`). Ejecutado contra la base real: borró 5 clientes, 8 mascotas, 8 turnos, 13 actividades,
+  5 registros médicos, 11 recordatorios, 2 conversaciones y 4 mensajes de WhatsApp demo. Verificado que
+  preservó la clínica, los 4 usuarios de login, y los clientes reales ("Felipe Lentini" / "Felipe", ambos con
+  su mascota "Paco"). `prisma/seed.ts` ahora es mínimo y no destructivo (clínica + usuarios, upsert, nunca
+  borra); los datos de ejemplo se separaron a `prisma/seed-demo.ts` (`npm run db:seed:demo`).
+
 ## Estado verificado (11/07/2026)
 
 - `npm run lint` → 0 errores, 3 warnings benignos (React Compiler + `watch()` de react-hook-form).

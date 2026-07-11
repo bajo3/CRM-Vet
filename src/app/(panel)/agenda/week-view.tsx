@@ -16,11 +16,15 @@ export function WeekView({
   timezone,
   appointments,
   showVet,
+  vetId,
+  canCreate,
 }: {
   weekDates: string[];
   timezone: string;
   appointments: AgendaAppointment[];
   showVet: boolean;
+  vetId?: string;
+  canCreate: boolean;
 }) {
   const now = new Date();
   const byDate = new Map<string, AgendaAppointment[]>();
@@ -67,13 +71,15 @@ export function WeekView({
                   })
                 )}
               </div>
-              <Link
-                href={`/agenda/nuevo?date=${date}`}
-                className="flex items-center justify-center gap-1 border-t border-slate-100 p-2 text-[11px] font-medium text-emerald-600 hover:bg-emerald-50"
-              >
-                <Plus size={12} />
-                Nuevo
-              </Link>
+              {canCreate && (
+                <Link
+                  href={`/agenda/nuevo?date=${date}${vetId ? `&vetId=${vetId}` : ""}`}
+                  className="flex items-center justify-center gap-1 border-t border-slate-100 p-2 text-[11px] font-medium text-emerald-600 hover:bg-emerald-50"
+                >
+                  <Plus size={12} />
+                  Nuevo
+                </Link>
+              )}
             </div>
           );
         })}

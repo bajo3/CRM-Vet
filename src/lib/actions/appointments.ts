@@ -36,8 +36,16 @@ function revalidateAgenda(appointmentId?: string, petId?: string) {
   if (petId) revalidatePath(`/clientes/mascotas/${petId}`);
 }
 
-/** Horarios disponibles reales para un veterinario en una fecha, para poblar el selector del formulario. */
-export async function getAvailableSlotsAction(veterinarianId: string, date: string): Promise<{ ok: true; slots: string[] } | ActionFailure> {
+/**
+ * Horarios disponibles reales para un veterinario en una fecha, para poblar el selector del
+ * formulario. `excludeAppointmentId` se pasa al reprogramar, para que el turno actual no se
+ * excluya a sí mismo de las opciones.
+ */
+export async function getAvailableSlotsAction(
+  veterinarianId: string,
+  date: string,
+  excludeAppointmentId?: string
+): Promise<{ ok: true; slots: string[] } | ActionFailure> {
   const session = await getSession();
   if (!session) return NO_SESSION;
   if (!veterinarianId || !date) return { ok: true, slots: [] };
@@ -51,7 +59,7 @@ export async function getAvailableSlotsAction(veterinarianId: string, date: stri
   });
   if (!vetMember) return { ok: false, message: "Elegí un veterinario válido." };
 
-  const slots = await getAvailableSlots(clinic, veterinarianId, date);
+  const slots = await getAvailableSlots(clinic, veterinarianId, date, excludeAppointmentId);
   return { ok: true, slots };
 }
 

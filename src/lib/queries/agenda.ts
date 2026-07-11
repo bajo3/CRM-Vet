@@ -22,7 +22,17 @@ export async function getClinicScheduleConfig(clinicId: string) {
   return clinic;
 }
 
-const APPOINTMENT_INCLUDE = { pet: { include: { client: true } }, veterinarian: true } as const;
+// Solo lo que consumen day-view/week-view: nombre de mascota, tutor y veterinario. El detalle
+// completo (teléfono, email, etc.) se trae aparte en getAppointmentDetail.
+const APPOINTMENT_LIST_SELECT = {
+  id: true,
+  startAt: true,
+  endAt: true,
+  status: true,
+  veterinarianId: true,
+  pet: { select: { name: true, client: { select: { name: true } } } },
+  veterinarian: { select: { name: true } },
+} as const;
 
 /** Turnos del día (rango completo, todas las clínicas filtradas por clinicId), opcionalmente de un solo veterinario. */
 export async function getAppointmentsForDay(clinicId: string, dateISO: string, timezone: string, veterinarianId?: string) {
@@ -34,7 +44,7 @@ export async function getAppointmentsForDay(clinicId: string, dateISO: string, t
       startAt: { gte: start, lte: end },
       ...(veterinarianId ? { veterinarianId } : {}),
     },
-    include: APPOINTMENT_INCLUDE,
+    select: APPOINTMENT_LIST_SELECT,
     orderBy: { startAt: "asc" },
   });
 }
@@ -52,7 +62,7 @@ export async function getAppointmentsForWeek(clinicId: string, weekStartISO: str
       startAt: { gte: start, lte: end },
       ...(veterinarianId ? { veterinarianId } : {}),
     },
-    include: APPOINTMENT_INCLUDE,
+    select: APPOINTMENT_LIST_SELECT,
     orderBy: { startAt: "asc" },
   });
 }
@@ -67,17 +77,21 @@ export function buildDaySlots(openingHours: unknown, dateISO: string, timezone: 
 /** Detalle completo de un turno: mascota, tutor, veterinario, quién lo creó, y su historial de actividad. */
 export async function getAppointmentDetail(clinicId: string, appointmentId: string) {
   const prisma = getPrisma();
-  const appointment = await prisma.appointment.findFirst({
-    where: { id: appointmentId, clinicId },
-    include: { pet: { include: { client: true } }, veterinarian: true, createdBy: true },
-  });
+  // Las dos consultas son independientes (ninguna depende del resultado de la otra), así que se
+  // piden en paralelo aunque el turno termine no existiendo (el costo extra es despreciable frente
+  // al viaje de ida y vuelta ahorrado a la base remota).
+  const [appointment, activities] = await Promise.all([
+    prisma.appointment.findFirst({
+      where: { id: appointmentId, clinicId },
+      include: { pet: { include: { client: true } }, veterinarian: true, createdBy: true },
+    }),
+    prisma.appointmentActivity.findMany({
+      where: { clinicId, appointmentId },
+      include: { user: true },
+      orderBy: { createdAt: "desc" },
+    }),
+  ]);
   if (!appointment) return null;
-
-  const activities = await prisma.appointmentActivity.findMany({
-    where: { clinicId, appointmentId },
-    include: { user: true },
-    orderBy: { createdAt: "desc" },
-  });
 
   return { appointment, activities };
 }
@@ -89,7 +103,7 @@ export async function listPetsForAppointmentForm(clinicId: string) {
   const prisma = getPrisma();
   return prisma.pet.findMany({
     where: { clinicId },
-    include: { client: true },
+    select: { id: true, name: true, species: true, client: { select: { name: true, phone: true } } },
     orderBy: { name: "asc" },
   });
 }

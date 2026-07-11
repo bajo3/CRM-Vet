@@ -4,7 +4,7 @@ import { ChevronLeft, Clock3, PawPrint, Phone, Stethoscope, User } from "lucide-
 import type { AppointmentStatus } from "@prisma/client";
 import { requireSession, hasRole } from "@/lib/auth/session";
 import { AGENDA_MANAGE_ROLES } from "@/lib/auth/roles";
-import { getPrisma } from "@/lib/prisma";
+import { getClinicSettings } from "@/lib/queries/clinic";
 import { getAppointmentDetail } from "@/lib/queries/agenda";
 import { appointmentStatusBadge, describeAppointmentActivity, formatDateTime } from "@/lib/format";
 import { updateAppointmentStatusFormAction } from "@/lib/actions/appointments";
@@ -37,11 +37,12 @@ export default async function AppointmentDetailPage({
   const { appointmentId } = await params;
   const { ok, confirm } = await searchParams;
 
-  const detail = await getAppointmentDetail(session.clinicId, appointmentId);
+  const [detail, clinic] = await Promise.all([
+    getAppointmentDetail(session.clinicId, appointmentId),
+    getClinicSettings(session.clinicId),
+  ]);
   if (!detail) notFound();
   const { appointment, activities } = detail;
-
-  const clinic = await getPrisma().clinic.findUnique({ where: { id: session.clinicId } });
   const timezone = clinic?.timezone ?? "America/Argentina/Buenos_Aires";
 
   const isManager = hasRole(session, AGENDA_MANAGE_ROLES);

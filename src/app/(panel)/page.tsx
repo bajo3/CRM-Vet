@@ -3,7 +3,7 @@ import { DateTime } from "luxon";
 import { CalendarDays, ChevronRight, Clock3, MessageCircle, PawPrint, Plus, Search } from "lucide-react";
 import { requireSession, hasRole } from "@/lib/auth/session";
 import { AGENDA_MANAGE_ROLES } from "@/lib/auth/roles";
-import { getPrisma } from "@/lib/prisma";
+import { getClinicSettings } from "@/lib/queries/clinic";
 import { getDashboardData } from "@/lib/queries/dashboard";
 import { appointmentStatusBadge, capitalize, formatTime } from "@/lib/format";
 
@@ -15,8 +15,7 @@ function greeting(hour: number) {
 
 export default async function InicioPage() {
   const session = await requireSession();
-  const prisma = getPrisma();
-  const clinic = await prisma.clinic.findUnique({ where: { id: session.clinicId } });
+  const clinic = await getClinicSettings(session.clinicId);
   const timezone = clinic?.timezone ?? "America/Argentina/Buenos_Aires";
 
   const { todayAppointments, pendingTodayCount, upcomingControlsCount, overdueControlsCount, requiresHumanConversations } = await getDashboardData(

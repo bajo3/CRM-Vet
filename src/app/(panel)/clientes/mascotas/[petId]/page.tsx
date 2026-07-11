@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import { CalendarDays, ChevronLeft, Pencil, Phone, PawPrint, Stethoscope, Weight } from "lucide-react";
 import { requireSession, hasRole } from "@/lib/auth/session";
 import { CLIENT_MANAGE_ROLES, AGENDA_MANAGE_ROLES } from "@/lib/auth/roles";
-import { getPrisma } from "@/lib/prisma";
+import { getClinicSettings } from "@/lib/queries/clinic";
 import { getPetDetail } from "@/lib/queries/pet";
 import { ageFromBirthDate, formatDate, formatDateShort, formatTime, medicalRecordTypeLabel } from "@/lib/format";
 import { RegisterVisitPanel } from "./register-visit-panel";
@@ -19,11 +19,11 @@ export default async function FichaMascotaPage({
   const { petId } = await params;
   const { ok } = await searchParams;
 
-  const prisma = getPrisma();
-  const clinic = await prisma.clinic.findUnique({ where: { id: session.clinicId } });
+  const [clinic, detail] = await Promise.all([
+    getClinicSettings(session.clinicId),
+    getPetDetail(session.clinicId, petId),
+  ]);
   const timezone = clinic?.timezone ?? "America/Argentina/Buenos_Aires";
-
-  const detail = await getPetDetail(session.clinicId, petId);
   if (!detail) notFound();
   const { pet, medicalRecords, nextAppointment, nextControlRecord, lastVisit, lastKnownWeight } = detail;
 

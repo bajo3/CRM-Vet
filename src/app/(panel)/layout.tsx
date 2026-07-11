@@ -3,13 +3,14 @@ import { requireSession } from "@/lib/auth/session";
 import { logout } from "@/lib/actions/auth";
 import { roleLabel } from "@/lib/format";
 import { getPrisma } from "@/lib/prisma";
+import { getClinicSettings } from "@/lib/queries/clinic";
 import { SidebarNav, BottomNav } from "./nav-links";
 
 export default async function PanelLayout({ children }: { children: React.ReactNode }) {
   const session = await requireSession();
   const prisma = getPrisma();
   const [clinic, unreadConversations] = await Promise.all([
-    prisma.clinic.findUnique({ where: { id: session.clinicId }, select: { name: true } }),
+    getClinicSettings(session.clinicId),
     prisma.whatsappConversation.count({ where: { clinicId: session.clinicId, status: "REQUIRES_HUMAN" } }),
   ]);
 

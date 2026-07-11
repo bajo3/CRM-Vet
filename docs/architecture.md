@@ -16,8 +16,9 @@ La aplicación web y la lógica de negocio viven en Next.js. Baileys se ejecuta 
 
 - `worker/whatsapp.ts`: transporte. Recibe el mensaje, normaliza el sobre y envía la respuesta devuelta por el CRM.
 - `src/app/api/internal/whatsapp/events`: autenticación y validación del contrato.
-- `src/lib/whatsapp/flow.ts`: lógica conversacional. Delega disponibilidad y reservas a `src/lib/services/`; no repite reglas de negocio.
-- `src/lib/whatsapp/intent.ts`: clasificación conservadora. Cualquier señal médica o sensible se deriva.
+- `src/lib/whatsapp/flow.ts`: lógica conversacional en lenguaje natural (entiende frases libres, saltea preguntas ya respondidas en la misma frase y ofrece alternativas reales cuando no hay lugar). Delega disponibilidad y reservas a `src/lib/services/`; no repite reglas de negocio.
+- `src/lib/whatsapp/intent.ts`: clasificación conservadora de intención (reserva, confirmar, reprogramar, cancelar, urgencia). Cualquier señal médica o sensible se deriva; la urgencia veterinaria real (`isUrgent`) se deriva de inmediato pidiendo acudir a la clínica/guardia, sin dar indicación médica.
+- `src/lib/whatsapp/date-parser.ts`: fechas y horarios en lenguaje natural (es-AR), sin dependencias nuevas (luxon + regex). Funciones puras, testeadas con un reloj inyectable.
 - `src/lib/services/`: dominio compartido por WhatsApp y (a futuro) la UI web. Ver más abajo.
 - `worker/reminders.ts`: cron del motor de recordatorios (turnos próximos y controles médicos vencidos).
 - `prisma/schema.prisma`: organizaciones, usuarios, clientes, mascotas, turnos, historia clínica, recordatorios, actividad de turnos y mensajería.

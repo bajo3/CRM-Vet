@@ -58,8 +58,16 @@ export function theoreticalSlotsForDay(openingHours: Prisma.JsonValue, date: str
 /**
  * Horarios disponibles para un veterinario en una fecha: excluye horarios pasados y los que
  * se solapan con turnos PENDING/CONFIRMED existentes.
+ *
+ * `excludeAppointmentId` se usa al reprogramar: el turno que se está moviendo no debe contar como
+ * "ocupado" contra sí mismo, si no su propio horario actual nunca aparecería como opción.
  */
-export async function getAvailableSlots(clinic: ClinicScheduleConfig, veterinarianId: string, date: string): Promise<string[]> {
+export async function getAvailableSlots(
+  clinic: ClinicScheduleConfig,
+  veterinarianId: string,
+  date: string,
+  excludeAppointmentId?: string
+): Promise<string[]> {
   const prisma = getPrisma();
   const slots = theoreticalSlotsForDay(clinic.openingHours, date, clinic.timezone, clinic.defaultAppointmentDuration);
   if (slots.length === 0) return [];
@@ -67,7 +75,14 @@ export async function getAvailableSlots(clinic: ClinicScheduleConfig, veterinari
   const dayStart = DateTime.fromISO(date, { zone: clinic.timezone }).startOf("day").toUTC().toJSDate();
   const dayEnd = DateTime.fromISO(date, { zone: clinic.timezone }).endOf("day").toUTC().toJSDate();
   const booked = await prisma.appointment.findMany({
-    where: { clinicId: clinic.id, veterinarianId, status: { in: ["PENDING", "CONFIRMED"] }, startAt: { lte: dayEnd }, endAt: { gte: dayStart } },
+    where: {
+      clinicId: clinic.id,
+      veterinarianId,
+      status: { in: ["PENDING", "CONFIRMED"] },
+      startAt: { lte: dayEnd },
+      endAt: { gte: dayStart },
+      ...(excludeAppointmentId ? { id: { not: excludeAppointmentId } } : {}),
+    },
     select: { startAt: true, endAt: true },
   });
 

@@ -3,7 +3,8 @@ import { DateTime } from "luxon";
 import { ArrowLeft, Bot, Check, CheckCheck, ChevronRight, MessageCircle, PawPrint, UserRound } from "lucide-react";
 import type { ConversationStatus } from "@prisma/client";
 import { requireSession } from "@/lib/auth/session";
-import { getPrisma } from "@/lib/prisma";
+import { getClinicSettings } from "@/lib/queries/clinic";
+import { listConversationsForInbox, getConversationDetail } from "@/lib/queries/messages";
 import { openConversation, resolveConversation, returnConversationToAutomation } from "@/lib/actions/messages";
 import { MessageComposer } from "./message-composer";
 import { ConversationReadMarker } from "./conversation-read-marker";
@@ -29,21 +30,19 @@ export default async function MensajesPage({ searchParams }: { searchParams: Pro
   const validStatus = ["AUTOMATED", "REQUIRES_HUMAN", "HUMAN_ACTIVE", "RESOLVED"].includes(query.status ?? "")
     ? query.status as ConversationStatus
     : undefined;
-  const prisma = getPrisma();
-  const clinic = await prisma.clinic.findUnique({ where: { id: session.clinicId }, select: { timezone: true } });
+
+  const [clinic, conversations] = await Promise.all([
+    getClinicSettings(session.clinicId),
+    listConversationsForInbox(session.clinicId, validStatus),
+  ]);
   const timezone = clinic?.timezone ?? "America/Argentina/Buenos_Aires";
-  const conversations = await prisma.whatsappConversation.findMany({
-    where: { clinicId: session.clinicId, ...(validStatus ? { status: validStatus } : {}) },
-    include: {
-      client: true,
-      pet: true,
-      assignedUser: true,
-      messages: { orderBy: { createdAt: "asc" }, take: 100 },
-    },
-    orderBy: { lastMessageAt: "desc" },
-    take: 50,
-  });
-  const selected = conversations.find((item) => item.id === query.conversation) ?? conversations[0];
+
+  // Solo se trae el hilo completo (hasta 100 mensajes) de la conversación efectivamente
+  // seleccionada, no de las 50 que aparecen en la lista.
+  const selectedId = (query.conversation && conversations.some((item) => item.id === query.conversation))
+    ? query.conversation
+    : conversations[0]?.id;
+  const selected = selectedId ? await getConversationDetail(session.clinicId, selectedId) : null;
   const mobileHasSelection = Boolean(query.conversation && selected);
 
   return (
@@ -64,7 +63,7 @@ export default async function MensajesPage({ searchParams }: { searchParams: Pro
             <div className="grid min-h-72 place-items-center p-8 text-center"><div><MessageCircle size={36} className="mx-auto text-slate-200" /><p className="mt-3 text-sm font-medium text-slate-700">No hay conversaciones</p><p className="mt-1 text-xs leading-5 text-slate-400">Las conversaciones de WhatsApp aparecerán acá.</p></div></div>
           ) : conversations.map((conversation) => {
             const meta = STATUS_META[conversation.status];
-            const lastMessage = conversation.messages.at(-1);
+            const lastMessage = conversation.messages[0];
             const initials = (conversation.contactName || conversation.client?.name || conversation.phone).split(" ").map((part) => part[0]).slice(0, 2).join("").toUpperCase();
             return (
               <Link key={conversation.id} href={`/mensajes?conversation=${conversation.id}${validStatus ? `&status=${validStatus}` : ""}`} className={`group grid grid-cols-[44px_1fr_auto] gap-3 border-b border-slate-100 p-4 transition hover:bg-slate-50 ${selected?.id === conversation.id ? "bg-emerald-50/70 lg:border-l-2 lg:border-l-emerald-500" : ""}`}>

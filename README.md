@@ -18,7 +18,7 @@ Base funcional de un CRM veterinario multiempresa con un canal de WhatsApp para 
 - Protección transaccional (Serializable) contra turnos simultáneos para el mismo profesional, reforzada por una exclusion constraint a nivel de base (`btree_gist`).
 - Capa de servicios de dominio (`src/lib/services/`): disponibilidad derivada de `openingHours`, alta/reprogramación/cambio de estado de turnos con actividad auditada, historia clínica con generación automática de recordatorios de control, y motor de recordatorios con reintentos.
 - Motor de recordatorios (turno próximo y control médico vencido) con plantillas en español y worker cron dedicado.
-- Seed realista de Veterinaria Patitas (2 veterinarios, 2 no veterinarios, 5 clientes, 8 mascotas, turnos en varios estados, historia clínica y recordatorios).
+- Seed separado en dos comandos: `db:seed` (clínica + usuarios, no destructivo) y `db:seed:demo` (5 clientes, 8 mascotas, turnos en varios estados, historia clínica y recordatorios de ejemplo, sobre la clínica de Veterinaria Patitas). `prisma/cleanup-demo.ts` borra sólo esos datos de ejemplo de una base que además tenga datos reales.
 
 ## Requisitos
 
@@ -45,6 +45,25 @@ lectura a "Clientes y mascotas" (no puede crear/editar clientes ni mascotas, per
 Necesitás además `SESSION_SECRET` en `.env` (una cadena larga y aleatoria, por ejemplo `openssl rand -base64 32`)
 para firmar la sesión JWT.
 
+## Gestión de usuarios (Configuración → Equipo)
+
+Decisión de producto: **la administración de usuarios queda reservada a OWNER** (`TEAM_MANAGE_ROLES` en
+`src/lib/auth/roles.ts`). El spec le da explícitamente a OWNER esa responsabilidad; ADMIN puede editar la
+clínica y los horarios (`CLINIC_CONFIG_ROLES`) pero no da ni quita accesos al equipo.
+
+Desde `/configuracion`, un OWNER puede:
+
+- **Agregar un integrante**: nombre, correo, contraseña temporal y rol (los 4 roles). Si el correo ya existe
+  como `User` global (por ejemplo, ya es parte de otra clínica), sólo se crea la membresía en esta clínica —
+  no se toca su contraseña ni sus datos.
+- **Cambiar el rol** de cualquier integrante (menos el propio).
+- **Activar/desactivar** cualquier integrante (menos a sí mismo).
+
+Salvaguardas server-side (`src/lib/actions/team.ts`): nadie puede bajarse el propio rol ni desactivarse a sí
+mismo, y siempre tiene que quedar al menos un OWNER activo en la clínica (no se puede degradar ni desactivar
+al último). Un veterinario inactivo no se ofrece como opción en la Agenda (`getActiveVeterinarians` ya filtra
+por `active: true`).
+
 ## Agenda (`/agenda`)
 
 Grilla propia en Tailwind (sin librería de calendario), sobre los servicios de dominio `src/lib/services/appointments.ts` y `availability.ts` (ya existentes y probados desde la etapa anterior).
@@ -64,13 +83,23 @@ Grilla propia en Tailwind (sin librería de calendario), sobre los servicios de 
 npm install
 npm run db:generate
 npm run db:migrate
-npm run db:seed
+npm run db:seed        # clínica + 4 usuarios de login (sin datos de ejemplo)
+npm run db:seed:demo   # opcional: agrega clientes/mascotas/turnos de ejemplo
 npm run dev:all
 ```
 
+`db:seed` es mínimo y no destructivo: crea la clínica y los 4 usuarios sólo si no existen (nunca borra nada),
+así que es seguro correrlo de nuevo en una base con datos reales. `db:seed:demo` agrega el set de datos de
+ejemplo (5 clientes, 8 mascotas, turnos, historia clínica, recordatorios y un par de conversaciones de
+WhatsApp) sobre la clínica que ya exista; si detecta que esos clientes demo ya están cargados, no los duplica.
+Para borrar sólo los datos de ejemplo de una base que ya tiene datos reales mezclados (por ejemplo, después de
+probar en producción), usar `npx tsx prisma/cleanup-demo.ts --dry-run` primero para revisar qué borraría, y
+sin el flag para borrar de verdad — identifica los clientes demo por nombre+teléfono exactos del seed y nunca
+toca clientes/mascotas/conversaciones que no matcheen esa lista.
+
 4. Abrir `http://localhost:3000`.
 5. Escanear el QR impreso por el proceso `whatsapp` desde **WhatsApp > Dispositivos vinculados**.
-6. Desde otro teléfono, escribir `turno` al número conectado.
+6. Desde otro teléfono, escribir algo natural como `hola` o `quiero un turno para mañana` al número conectado.
 
 Para ejecutar cada proceso por separado:
 
@@ -92,11 +121,16 @@ Cada recordatorio se reclama de forma atómica (`status: PENDING` como condició
 
 ## Cómo probar el flujo
 
-- `turno`: inicia una reserva.
-- `confirmar`: confirma el próximo turno activo del contacto.
-- `cancelar`: cancela el próximo turno activo del contacto.
-- `hablar con una persona`: detiene el bot y deriva la conversación.
-- Una frase médica como `mi perro vomita`: no ofrece diagnóstico; deriva a una persona.
+El bot entiende lenguaje natural en cualquier punto de la conversación (`src/lib/whatsapp/flow.ts`, `intent.ts` y `date-parser.ts`), y el menú numerado (1-5) queda solo como respaldo del saludo inicial o si el bot no entiende:
+
+- `quiero un turno para mañana` / `necesito llevar al perro el lunes`: arranca una reserva y ya extrae fecha (y motivo, si lo menciona) de la misma frase. Fechas naturales aceptadas: `hoy`, `mañana`, `pasado mañana`, días de la semana (`el lunes`, `miercoles` sin tilde), `15/7`, `15-07`, `15/07/2026`, y el legacy `AAAA-MM-DD`. Horarios: número de la lista, `16`, `16hs`, `16:00`, `16.30`.
+- Si el cliente no tiene mascotas registradas, el bot solo pide el nombre (`¿Cómo se llama tu mascota?`) y crea una mascota mínima (`species: "A confirmar"`) para completar en el local. Si tiene una sola mascota, la usa directo sin preguntar; si tiene varias, ofrece la lista.
+- Si el día pedido no tiene lugares, el bot busca automáticamente los próximos 3 días con disponibilidad real y los ofrece (nunca es un callejón sin salida). `cuanto antes` / `lo antes posible` pide directamente el primer horario libre.
+- `confirmar` / `cancelame el turno` / `puedo cambiar el turno?`: confirma, cancela o deriva la reprogramación del próximo turno activo del contacto, mencionando siempre su fecha y hora.
+- Vocabulario de urgencia veterinaria (`urgencia`, `se muere`, `convulsion`, `atropellaron`, `no respira`, `vomita sangre`, `veneno`, etc.): deriva de inmediato con un mensaje que pide acudir a la clínica o guardia más cercana; nunca da indicación médica.
+- Una consulta médica no urgente como `mi perro vomita`: tampoco ofrece diagnóstico; deriva a una persona.
+- `salir` / `menu`: reinicia el flujo. `cancelar` a secas dentro de una reserva en curso pregunta si se quiere cancelar la reserva en armado o un turno ya existente.
+- Dos mensajes seguidos que el bot no entiende: deriva a una persona en vez de repetir el menú.
 - Enviar dos veces el mismo `eventId` al endpoint interno: la segunda respuesta indica `duplicate: true`.
 
 ## Seguridad operativa
@@ -131,11 +165,9 @@ contra una base remota son más lentos que un `sqlite`/`pg` local; por eso corre
 
 ## Pendientes reales
 
-- Agenda: `getAvailableSlots` no excluye el turno que se está reprogramando, así que al reprogramar el horario actual del turno nunca aparece como opción (hay que elegir otro horario, aunque sea unos minutos distinto) — no se tocó el servicio por no ser una necesidad real de esta etapa.
 - Agenda: la grilla diaria muestra un solo turno por celda (hora × veterinario); si alguna vez hay un turno cancelado y otro activo en el mismo slot exacto, la celda no distingue ambos (caso borde, no se da con la duración fija actual).
-- Mensajes: bandeja operativa con filtros, asignación humana, respuestas, resolución, retorno a automatización y estados de entrega legibles.
-- Configuración: edición de clínica y horarios, equipo en modo lectura y estado en vivo del bridge con vinculación segura por QR.
 - Multiempresa real: hoy la sesión fija la primera membresía activa del usuario; falta selector de clínica para usuarios con más de una membresía.
+- Infraestructura: el pooler de Supabase corre en modo sesión con `pool_size: 15` compartido entre todos los procesos (dev, start, workers, tests, y cualquier otro checkout corriendo en simultáneo). Cada `PrismaClient` ahora limita su propio `connection_limit` a 4 (`src/lib/prisma.ts`), pero si corren muchos procesos a la vez el pool igual puede saturarse — considerar un pooler dedicado (PgBouncer en modo transacción) o subir `pool_size` en Supabase si esto seguís viéndolo seguido.
 - Reprogramación automática por WhatsApp (hoy se deriva a recepción; `rescheduleAppointment` ya se usa desde la Agenda del CRM).
 - Envío real de recordatorios: reemplazar `MockWhatsAppProvider` por un proveedor que use Baileys (o Meta Cloud API) una vez definido el canal productivo.
 - Rate limiting distribuido y métricas operativas.
