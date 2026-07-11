@@ -5,7 +5,7 @@ Base funcional de un CRM veterinario multiempresa con un canal de WhatsApp para 
 ## Qué incluye esta etapa
 
 - Panel web con autenticación (email + contraseña, sesión JWT en cookie httpOnly) y aislamiento total por `clinicId`/rol de sesión.
-- Navegación del panel: Inicio, Agenda, Clientes y mascotas, Mensajes (placeholder), Configuración (placeholder).
+- Navegación del panel: Inicio, Agenda, Clientes y mascotas, bandeja humana de Mensajes y Configuración con estado de WhatsApp.
 - Agenda completa (`/agenda`): vista diaria (horarios × veterinario, derivados de `openingHours`) y semanal (lunes a domingo), navegación anterior/hoy/siguiente + selector de fecha, filtro por veterinario, todo con estado en la URL (`?view=&date=&vet=`). Alta de turno con buscador de mascota, motivo por chips, y horarios realmente disponibles (`getAvailableSlots`); detalle de turno con acciones según estado y rol (confirmar/atender/ausente/cancelar/reprogramar) e historial de `AppointmentActivity` en español.
 - Sección completa de "Clientes y mascotas": buscador único (cliente, mascota o teléfono), alta/edición de clientes y mascotas, ficha de mascota de una sola pantalla con historial clínico, registro rápido de atenciones y próximo control con opciones rápidas, con accesos directos a la Agenda (nuevo turno / próximo turno).
 - Inicio con datos reales de la clínica de la sesión (turnos de hoy, pendientes de confirmar, próximos controles, controles vencidos, conversaciones que requieren atención).
@@ -111,7 +111,7 @@ Cada recordatorio se reclama de forma atómica (`status: PENDING` como condició
 
 Baileys automatiza WhatsApp Web; no es la API oficial de Meta. Puede sufrir cierres de sesión o cambios incompatibles y existe riesgo operativo para el número. Por eso este MVP conserva el canal detrás de contratos internos y ejecuta Baileys en un worker persistente. La web puede alojarse en Vercel, pero el worker debe vivir en un servicio con disco persistente (por ejemplo Railway, Render o una VPS). Para una versión productiva estable, la migración recomendada es a Meta WhatsApp Cloud API.
 
-Más detalles en [docs/architecture.md](docs/architecture.md) y [docs/whatsapp-baileys.md](docs/whatsapp-baileys.md).
+Más detalles en [docs/architecture.md](docs/architecture.md), [docs/whatsapp-baileys.md](docs/whatsapp-baileys.md) y [docs/deployment.md](docs/deployment.md).
 
 ## Verificación
 
@@ -133,8 +133,8 @@ contra una base remota son más lentos que un `sqlite`/`pg` local; por eso corre
 
 - Agenda: `getAvailableSlots` no excluye el turno que se está reprogramando, así que al reprogramar el horario actual del turno nunca aparece como opción (hay que elegir otro horario, aunque sea unos minutos distinto) — no se tocó el servicio por no ser una necesidad real de esta etapa.
 - Agenda: la grilla diaria muestra un solo turno por celda (hora × veterinario); si alguna vez hay un turno cancelado y otro activo en el mismo slot exacto, la celda no distingue ambos (caso borde, no se da con la duración fija actual).
-- Mensajes: placeholder; falta la bandeja interactiva para respuestas humanas sobre `WhatsappConversation`/`WhatsappMessage`.
-- Configuración: placeholder; falta UI para datos de la clínica, horarios, usuarios/roles.
+- Mensajes: bandeja operativa con filtros, asignación humana, respuestas, resolución, retorno a automatización y estados de entrega legibles.
+- Configuración: edición de clínica y horarios, equipo en modo lectura y estado en vivo del bridge con vinculación segura por QR.
 - Multiempresa real: hoy la sesión fija la primera membresía activa del usuario; falta selector de clínica para usuarios con más de una membresía.
 - Reprogramación automática por WhatsApp (hoy se deriva a recepción; `rescheduleAppointment` ya se usa desde la Agenda del CRM).
 - Envío real de recordatorios: reemplazar `MockWhatsAppProvider` por un proveedor que use Baileys (o Meta Cloud API) una vez definido el canal productivo.
