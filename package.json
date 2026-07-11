@@ -4,23 +4,53 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
+    "dev:all": "concurrently -n web,whatsapp -c cyan,green \"npm:dev\" \"npm:dev:whatsapp\"",
+    "dev:whatsapp": "tsx watch worker/whatsapp.ts",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "start:whatsapp": "tsx worker/whatsapp.ts",
+    "lint": "eslint",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "db:generate": "prisma generate",
+    "db:migrate": "prisma migrate deploy",
+    "db:push": "prisma db push",
+    "db:seed": "tsx prisma/seed.ts",
+    "reminders:run": "tsx worker/reminders.ts --once",
+    "reminders:watch": "tsx watch worker/reminders.ts"
   },
   "dependencies": {
+    "@hookform/resolvers": "^5.4.0",
+    "@prisma/client": "^6.19.3",
+    "@whiskeysockets/baileys": "^6.7.23",
+    "bcryptjs": "^3.0.3",
+    "dotenv": "^17.4.2",
+    "jose": "^6.2.3",
+    "lucide-react": "^1.24.0",
+    "luxon": "^3.7.2",
     "next": "16.2.10",
+    "pino": "^10.3.1",
+    "qrcode-terminal": "^0.12.0",
     "react": "19.2.4",
-    "react-dom": "19.2.4"
+    "react-dom": "19.2.4",
+    "react-hook-form": "^7.81.0",
+    "zod": "^4.4.3"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
+    "@types/bcryptjs": "^2.4.6",
+    "@types/luxon": "^3.7.2",
     "@types/node": "^20",
+    "@types/qrcode-terminal": "^0.12.2",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "concurrently": "^10.0.3",
     "eslint": "^9",
     "eslint-config-next": "16.2.10",
+    "prisma": "^6.19.3",
     "tailwindcss": "^4",
-    "typescript": "^5"
+    "tsx": "^4.23.0",
+    "typescript": "^5",
+    "vitest": "^4.1.10"
   }
 }

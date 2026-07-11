@@ -1,0 +1,300 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  OWNER
+  ADMIN
+  VETERINARIAN
+  RECEPTIONIST
+}
+
+enum AppointmentStatus {
+  PENDING
+  CONFIRMED
+  ATTENDED
+  CANCELLED
+  NO_SHOW
+}
+
+enum AppointmentSource {
+  CRM
+  WHATSAPP
+}
+
+enum ConversationStatus {
+  AUTOMATED
+  REQUIRES_HUMAN
+  HUMAN_ACTIVE
+  RESOLVED
+}
+
+enum MessageDirection {
+  INBOUND
+  OUTBOUND
+}
+
+enum MedicalRecordType {
+  CONSULTATION
+  VACCINE
+  TREATMENT
+  CONTROL
+  OTHER
+}
+
+enum ReminderType {
+  CONTROL_DUE
+  APPOINTMENT_REMINDER
+}
+
+enum ReminderStatus {
+  PENDING
+  SENT
+  CANCELLED
+  FAILED
+}
+
+model Clinic {
+  id                         String                 @id @default(cuid())
+  name                       String
+  phone                      String?
+  timezone                   String                 @default("America/Argentina/Buenos_Aires")
+  openingHours               Json
+  defaultAppointmentDuration Int                    @default(30)
+  whatsappSessionKey         String?                @unique
+  whatsappPhoneNumberId      String?
+  whatsappBusinessAccountId  String?
+  createdAt                  DateTime               @default(now())
+  updatedAt                  DateTime               @updatedAt
+  members                    ClinicMember[]
+  clients                    Client[]
+  pets                       Pet[]
+  appointments               Appointment[]
+  conversations              WhatsappConversation[]
+  messages                   WhatsappMessage[]
+  webhookEvents              WebhookEvent[]
+  medicalRecords             MedicalRecord[]
+  reminders                  Reminder[]
+  appointmentActivities      AppointmentActivity[]
+}
+
+model User {
+  id                    String                 @id @default(cuid())
+  name                  String
+  email                 String                 @unique
+  passwordHash          String?
+  memberships           ClinicMember[]
+  appointments          Appointment[]          @relation("VeterinarianAppointments")
+  createdAppointments   Appointment[]          @relation("AppointmentCreatedBy")
+  assignedConversations WhatsappConversation[]
+  medicalRecords        MedicalRecord[]
+  appointmentActivities AppointmentActivity[]
+}
+
+model ClinicMember {
+  id       String  @id @default(cuid())
+  clinicId String
+  userId   String
+  role     Role
+  active   Boolean @default(true)
+  clinic   Clinic  @relation(fields: [clinicId], references: [id], onDelete: Cascade)
+  user     User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([clinicId, userId])
+  @@index([clinicId, role, active])
+}
+
+model Client {
+  id               String                 @id @default(cuid())
+  clinicId         String
+  name             String
+  phone            String
+  email            String?
+  address          String?
+  remindersEnabled Boolean                @default(true)
+  createdAt        DateTime               @default(now())
+  updatedAt        DateTime               @updatedAt
+  clinic           Clinic                 @relation(fields: [clinicId], references: [id], onDelete: Cascade)
+  pets             Pet[]
+  conversations    WhatsappConversation[]
+  reminders        Reminder[]
+
+  @@unique([clinicId, phone])
+  @@index([clinicId, name])
+}
+
+model Pet {
+  id             String                 @id @default(cuid())
+  clinicId       String
+  clientId       String
+  name           String
+  species        String
+  breed          String?
+  sex            String?
+  birthDate      DateTime?
+  approximateAge String?
+  photoUrl       String?
+  weight         Decimal?               @db.Decimal(6, 2)
+  notes          String?
+  createdAt      DateTime               @default(now())
+  updatedAt      DateTime               @updatedAt
+  clinic         Clinic                 @relation(fields: [clinicId], references: [id], onDelete: Cascade)
+  client         Client                 @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  appointments   Appointment[]
+  conversations  WhatsappConversation[]
+  medicalRecords MedicalRecord[]
+  reminders      Reminder[]
+
+  @@index([clinicId, name])
+}
+
+model Appointment {
+  id             String                @id @default(cuid())
+  clinicId       String
+  petId          String
+  veterinarianId String
+  createdById    String?
+  reason         String
+  startAt        DateTime
+  endAt          DateTime
+  status         AppointmentStatus     @default(PENDING)
+  source         AppointmentSource     @default(CRM)
+  createdAt      DateTime              @default(now())
+  updatedAt      DateTime              @updatedAt
+  clinic         Clinic                @relation(fields: [clinicId], references: [id], onDelete: Cascade)
+  pet            Pet                   @relation(fields: [petId], references: [id], onDelete: Restrict)
+  veterinarian   User                  @relation("VeterinarianAppointments", fields: [veterinarianId], references: [id], onDelete: Restrict)
+  createdBy      User?                 @relation("AppointmentCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  medicalRecords MedicalRecord[]
+  reminders      Reminder[]
+  activities     AppointmentActivity[]
+
+  @@index([clinicId, veterinarianId, startAt, endAt])
+  @@index([clinicId, petId, startAt])
+}
+
+model WhatsappConversation {
+  id             String             @id @default(cuid())
+  clinicId       String
+  clientId       String?
+  petId          String?
+  assignedUserId String?
+  phone          String
+  contactName    String?
+  status         ConversationStatus @default(AUTOMATED)
+  flowState      Json?
+  unreadCount    Int                @default(0)
+  lastMessageAt  DateTime           @default(now())
+  createdAt      DateTime           @default(now())
+  updatedAt      DateTime           @updatedAt
+  clinic         Clinic             @relation(fields: [clinicId], references: [id], onDelete: Cascade)
+  client         Client?            @relation(fields: [clientId], references: [id], onDelete: SetNull)
+  pet            Pet?               @relation(fields: [petId], references: [id], onDelete: SetNull)
+  assignedUser   User?              @relation(fields: [assignedUserId], references: [id], onDelete: SetNull)
+  messages       WhatsappMessage[]
+
+  @@unique([clinicId, phone])
+  @@index([clinicId, status, lastMessageAt])
+}
+
+model WhatsappMessage {
+  id                String               @id @default(cuid())
+  clinicId          String
+  conversationId    String
+  direction         MessageDirection
+  content           String
+  messageType       String               @default("text")
+  externalMessageId String?
+  status            String
+  createdAt         DateTime             @default(now())
+  clinic            Clinic               @relation(fields: [clinicId], references: [id], onDelete: Cascade)
+  conversation      WhatsappConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  @@unique([clinicId, externalMessageId])
+  @@index([clinicId, conversationId, createdAt])
+}
+
+model MedicalRecord {
+  id            String            @id @default(cuid())
+  clinicId      String
+  petId         String
+  userId        String
+  appointmentId String?
+  type          MedicalRecordType
+  reason        String
+  notes         String?
+  weight        Decimal?          @db.Decimal(6, 2)
+  treatment     String?
+  nextDueDate   DateTime?
+  createdAt     DateTime          @default(now())
+  updatedAt     DateTime          @updatedAt
+  clinic        Clinic            @relation(fields: [clinicId], references: [id], onDelete: Cascade)
+  pet           Pet               @relation(fields: [petId], references: [id], onDelete: Cascade)
+  user          User              @relation(fields: [userId], references: [id], onDelete: Restrict)
+  appointment   Appointment?      @relation(fields: [appointmentId], references: [id], onDelete: SetNull)
+  reminders     Reminder[]
+
+  @@index([clinicId, petId, createdAt])
+  @@index([clinicId, nextDueDate])
+}
+
+model Reminder {
+  id                String         @id @default(cuid())
+  clinicId          String
+  clientId          String
+  petId             String
+  medicalRecordId   String?
+  appointmentId     String?
+  type              ReminderType
+  scheduledAt       DateTime
+  status            ReminderStatus @default(PENDING)
+  attempts          Int            @default(0)
+  sentAt            DateTime?
+  failedAt          DateTime?
+  errorMessage      String?
+  externalMessageId String?
+  deduplicationKey  String         @unique
+  createdAt         DateTime       @default(now())
+  updatedAt         DateTime       @updatedAt
+  clinic            Clinic         @relation(fields: [clinicId], references: [id], onDelete: Cascade)
+  client            Client         @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  pet               Pet            @relation(fields: [petId], references: [id], onDelete: Cascade)
+  medicalRecord     MedicalRecord? @relation(fields: [medicalRecordId], references: [id], onDelete: SetNull)
+  appointment       Appointment?   @relation(fields: [appointmentId], references: [id], onDelete: SetNull)
+
+  @@index([status, scheduledAt])
+  @@index([clinicId, petId, type, status])
+}
+
+model AppointmentActivity {
+  id            String      @id @default(cuid())
+  clinicId      String
+  appointmentId String
+  userId        String?
+  action        String
+  details       Json?
+  createdAt     DateTime    @default(now())
+  clinic        Clinic      @relation(fields: [clinicId], references: [id], onDelete: Cascade)
+  appointment   Appointment @relation(fields: [appointmentId], references: [id], onDelete: Cascade)
+  user          User?       @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([clinicId, appointmentId, createdAt])
+}
+
+model WebhookEvent {
+  id              String    @id @default(cuid())
+  clinicId        String
+  externalEventId String
+  eventType       String
+  payload         Json
+  processedAt     DateTime?
+  createdAt       DateTime  @default(now())
+  clinic          Clinic    @relation(fields: [clinicId], references: [id], onDelete: Cascade)
+
+  @@unique([clinicId, externalEventId])
+}
