@@ -1,6 +1,8 @@
 import { beforeEach, describe, expect, it } from "vitest";
+import { DateTime } from "luxon";
 import { createAppointment, rescheduleAppointment, updateAppointmentStatus } from "../src/lib/services/appointments";
 import { createMedicalRecord } from "../src/lib/services/medical-records";
+import { getAvailableSlots } from "../src/lib/services/availability";
 import { AppointmentConflictError } from "../src/lib/services/errors";
 import { createTestClient, createTestClinic, createTestPet, createTestVet, resetDatabase } from "./setup/db";
 
@@ -93,6 +95,25 @@ describe("appointments: solapamiento y concurrencia", () => {
 
     const activities = await (await import("../src/lib/prisma")).getPrisma().appointmentActivity.findMany({ where: { appointmentId: apptA.id } });
     expect(activities.some((a) => a.action === "RESCHEDULED")).toBe(true);
+  });
+
+  it("getAvailableSlots excluye el propio turno al reprogramar: su horario actual vuelve a aparecer como opción", async () => {
+    const { clinic, vet, pet } = await setupClinic();
+    const tz = "America/Argentina/Buenos_Aires";
+    // Día hábil, 9 días en el futuro, a las 10:00 hora de la clínica (alineado a un slot de 30 min).
+    const day = DateTime.now().setZone(tz).plus({ days: 9 }).set({ hour: 10, minute: 0, second: 0, millisecond: 0 });
+    const dateIso = day.toFormat("yyyy-MM-dd");
+    const ownTime = day.toFormat("HH:mm");
+    const startAt = day.toUTC().toJSDate();
+    const endAt = day.plus({ minutes: 30 }).toUTC().toJSDate();
+
+    const appt = await createAppointment({ clinicId: clinic.id, petId: pet.id, veterinarianId: vet.id, reason: "Consulta", startAt, endAt });
+
+    const withoutExclude = await getAvailableSlots(clinic, vet.id, dateIso);
+    expect(withoutExclude).not.toContain(ownTime);
+
+    const withExclude = await getAvailableSlots(clinic, vet.id, dateIso, appt.id);
+    expect(withExclude).toContain(ownTime);
   });
 
   it("crear un turno cancela los recordatorios CONTROL_DUE pendientes de la mascota", async () => {

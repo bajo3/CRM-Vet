@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { incomingWhatsappEventSchema } from "@/lib/whatsapp/contracts";
 import { processIncomingWhatsapp } from "@/lib/whatsapp/flow";
 import { getPrisma } from "@/lib/prisma";
+import { checkRateLimit, clientIpFromHeaders } from "@/lib/rate-limit";
 
 export const runtime = "nodejs";
 
@@ -15,6 +16,10 @@ function authorized(received: string | null) {
 }
 
 export async function POST(request: Request) {
+  const ip = clientIpFromHeaders(request.headers);
+  if (!checkRateLimit(`whatsapp-events:${ip}`, 60, 60_000).allowed) {
+    return NextResponse.json({ error: "Demasiadas solicitudes" }, { status: 429 });
+  }
   if (!authorized(request.headers.get("x-internal-token"))) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
   const parsed = incomingWhatsappEventSchema.safeParse(await request.json());
   if (!parsed.success) return NextResponse.json({ error: "Evento inválido" }, { status: 400 });

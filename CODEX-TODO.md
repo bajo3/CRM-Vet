@@ -103,18 +103,22 @@ y polling de salientes en `worker/whatsapp.ts` (cada 3 s cuando el socket está 
 
 ### 1. Bugs reales del código existente (corregir primero)
 
-1.1. **Doble envío de salientes (carrera):** `GET /api/internal/whatsapp/outbound` devuelve los mensajes
-`HUMAN_QUEUED` pero NO los reclama atómicamente. Si un envío tarda más que el intervalo de poll (3 s),
-el mismo mensaje se envía dos veces. Fix: en el GET, reclamar con `updateMany({ where: { id, status: "HUMAN_QUEUED" }, data: { status: "SENDING" } })`
-(o equivalente por lote) y devolver solo los reclamados.
+1.1. **[RESUELTO 11/07/2026]** ~~Doble envío de salientes (carrera)~~: `GET /api/internal/whatsapp/outbound`
+ahora reclama de forma atómica vía `claimOutboundMessages` (`src/lib/services/whatsapp-outbound.ts`), que
+hace un `updateMany` condicionado a `status: "HUMAN_QUEUED"` mensaje por mensaje (`HUMAN_QUEUED` → `SENDING`)
+y solo devuelve los efectivamente reclamados. Verificado con test de reclamos concurrentes
+(`tests/whatsapp-outbound.test.ts`) y manualmente contra el servidor real (segundo GET inmediato no repite
+el mensaje del primero).
 
-1.2. **Aislamiento multiempresa en el POST de outbound:** `POST /api/internal/whatsapp/outbound` actualiza
-cualquier `whatsappMessage` por `id` sin verificar que pertenezca a la clínica del `clinicKey`. Agregar el
-filtro por clínica (resolver clínica igual que el GET y usar `updateMany({ where: { id, clinicId } })`).
+1.2. **[RESUELTO 11/07/2026]** ~~Aislamiento multiempresa en el POST de outbound~~: ahora resuelve la clínica
+por `clinicKey` (query param, igual que el GET) y `reportOutboundOutcome` filtra siempre por `id` + `clinicId`;
+si no matchea, no toca nada (test de aislamiento en `tests/whatsapp-outbound.test.ts`). El worker
+(`worker/whatsapp.ts`) ahora manda `clinicKey` también en el POST de reporte.
 
-1.3. **Sin reintentos de salientes:** un fallo marca `FAILED` definitivo al primer intento. Implementar hasta
-3 intentos (volver a `HUMAN_QUEUED`/`QUEUED` e incrementar un contador; puede requerir migración aditiva con
-columna `attempts` en `WhatsappMessage` — aplicar con `npm run db:migrate`).
+1.3. **[RESUELTO 11/07/2026]** ~~Sin reintentos de salientes~~: se agregó la columna `attempts` a
+`WhatsappMessage` (migración `202607110001_whatsapp_message_attempts`, aditiva, aplicada). Un fallo
+incrementa `attempts` y vuelve a `HUMAN_QUEUED`; al 3er fallo queda `FAILED` definitivo
+(`reportOutboundOutcome`, mismo esquema que `processDueReminders`). Testeado con reintentos hasta el máximo.
 
 1.4. **Estados técnicos visibles:** las burbujas de `/mensajes` muestran el status crudo (`HUMAN_QUEUED`, `SENT`).
 Traducir a "En cola / Enviado / Fallido" (regla: nada técnico visible).
@@ -139,13 +143,18 @@ pero al menos deberían no-op limpiamente; revisar que la UI refresque bien tras
   cada conversación (verificar que los links existan y funcionen).
 - Mostrar quién tomó la conversación (`assignedUser`) cuando está en atención humana.
 
-### 3. Conectar recordatorios al envío real (outbox)
+### 3. Conectar recordatorios al envío real (outbox) — **[RESUELTO 11/07/2026]**
 
-Crear `OutboxWhatsAppProvider` que implemente la interfaz `WhatsAppProvider` (`src/lib/services/whatsapp-provider.ts`):
-en lugar de "enviar", encola el texto como `WhatsappMessage` OUTBOUND `HUMAN_QUEUED` (o un status `QUEUED` unificado)
-en la conversación del cliente (creándola si no existe) y devuelve el id interno. En `worker/reminders.ts`, elegir
-proveedor por env `REMINDER_PROVIDER=mock|outbox` (default `mock`; documentarlo en README y `.env.example`).
-Así el ciclo completo control → recordatorio → WhatsApp real queda operativo cuando el worker Baileys está conectado.
+`OutboxWhatsAppProvider` (`src/lib/services/whatsapp-provider.ts`) implementa `WhatsAppProvider`: en lugar de
+"enviar", busca/crea la `WhatsappConversation` del cliente y encola el texto como `WhatsappMessage` OUTBOUND
+`HUMAN_QUEUED` (mismo estado que usan las respuestas humanas, así lo levanta el mismo poll del worker), sin
+tocar `status`/`assignedUserId` de la conversación (no es una respuesta humana). `worker/reminders.ts` elige
+el proveedor por `REMINDER_PROVIDER=mock|outbox` (default `mock`; documentado en README y `.env.example`).
+Nota de arquitectura: `WhatsAppProvider.sendText` pasó a recibir `{ clinicId, phone, text, clientId? }` (antes
+`(phone, text)`) porque `processDueReminders` procesa recordatorios de todas las clínicas en una misma corrida
+con una única instancia de proveedor — `OutboxWhatsAppProvider` necesita saber a qué clínica/cliente pertenece
+cada envío. **Pendiente real para producción**: en Railway, setear `REMINDER_PROVIDER=outbox` en el servicio
+del worker de recordatorios (hoy sigue en `mock` si no se configura explícitamente).
 
 ### 4. Completar Configuración (spec sección 10)
 
@@ -156,27 +165,151 @@ Así el ciclo completo control → recordatorio → WhatsApp real queda operativ
 - Verificar que la edición de días/horarios (`openingHours`) mantiene exactamente la forma que espera
   `src/lib/services/availability.ts`, y que cierre > apertura está validado en `src/lib/validation/clinic.ts`.
 
-### 5. Tests de la Etapa D (hoy no existen)
+### 5. Tests de la Etapa D
 
 Agregar en `tests/` (mismo patrón que los existentes, contra `vet_test`):
-- Responder una conversación encola OUTBOUND y pasa a `HUMAN_ACTIVE` con `assignedUserId`.
-- Resolver y volver a automatización (flowState limpio).
-- Claim del outbound es atómico: dos claims concurrentes no devuelven el mismo mensaje.
-- `OutboxWhatsAppProvider`: encola y `processDueReminders` marca `SENT` sin duplicar.
-- Aislamiento multiempresa de la bandeja y del endpoint outbound.
+- Responder una conversación encola OUTBOUND y pasa a `HUMAN_ACTIVE` con `assignedUserId`. *(sigue pendiente —
+  no se tocó `src/lib/actions/messages.ts` en esta sesión por estar fuera del alcance asignado)*
+- Resolver y volver a automatización (flowState limpio). *(pendiente, ídem)*
+- **[HECHO 11/07/2026]** Claim del outbound es atómico: dos claims concurrentes no devuelven el mismo mensaje
+  (`tests/whatsapp-outbound.test.ts`).
+- **[HECHO 11/07/2026]** `OutboxWhatsAppProvider`: encola y `processDueReminders` marca `SENT` sin duplicar
+  (`tests/reminders.test.ts`).
+- **[HECHO 11/07/2026]** Aislamiento multiempresa de la bandeja y del endpoint outbound
+  (`tests/whatsapp-outbound.test.ts`).
+- **[HECHO 11/07/2026]** Reintentos de outbound hasta 3 y luego `FAILED` definitivo (`tests/whatsapp-outbound.test.ts`).
+- **[HECHO 11/07/2026]** Flujo de reprogramación conversacional completo, incluyendo derivación explícita a
+  humano y "consultar horarios" (`tests/whatsapp-flow.test.ts`).
+
+Suite completa verificada: **100/100 tests pasan** (89 preexistentes + 11 nuevos), `npm run lint` (0 errores,
+3 warnings preexistentes benignos), `npm run typecheck` limpio, `npm run build` exitoso.
 
 ### 6. Pendientes del spec para etapas posteriores (no inventar antes de lo anterior)
 
-- **WhatsApp**: reprogramación conversacional (hoy "cambiar/reprogramar" deriva a recepción — el servicio
-  `rescheduleAppointment` ya existe, falta el flujo en `src/lib/whatsapp/flow.ts`); respuesta a recordatorios de
-  control con "Consultar horarios"; `MetaWhatsAppProvider` (Meta Cloud API: webhook de verificación, firma,
-  plantillas, estados) manteniendo los contratos internos actuales.
-- `getAvailableSlots` no excluye el turno que se está reprogramando (su horario actual no aparece como opción al reprogramar).
-- Selector de clínica activa para usuarios con múltiples membresías (hoy: primera membresía activa).
-- Rate limiting en endpoints internos/públicos; hoy solo hay token interno.
+- **[RESUELTO 11/07/2026]** ~~Reprogramación conversacional~~: `src/lib/whatsapp/flow.ts` ahora tiene el flujo
+  completo (`RESCHEDULE_AWAIT_DATE`/`RESCHEDULE_AWAIT_ALTERNATIVES`/`RESCHEDULE_AWAIT_TIME`), reutilizando
+  `resolveDateAvailability`/`finalizeBooking` (parametrizadas por un `BookingMode` compartido con la reserva
+  nueva) y llamando a `rescheduleAppointment` en vez de derivar a recepción. Si el cliente pide explícitamente
+  hablar con alguien durante el flujo, deriva de inmediato. Verificado con tests y con una conversación real
+  contra el servidor local (mismo `Appointment.id`, nueva fecha, `AppointmentActivity` `RESCHEDULED`, sin turno
+  duplicado).
+- **[RESUELTO 11/07/2026]** ~~"Consultar horarios" tras un recordatorio de control~~: `isCheckAvailabilityIntent`
+  en `src/lib/whatsapp/intent.ts` + rama en `flow.ts` que reusa el mismo mecanismo de reserva (arranca con
+  motivo "Control" y busca el horario más próximo real) en vez de derivar.
+- **[RESUELTO 11/07/2026]** ~~`getAvailableSlots` no excluye el turno que se está reprogramando~~: ya lo había
+  arreglado el otro agente (sesión anterior) para la agenda web; el flujo de WhatsApp ahora también pasa
+  `excludeAppointmentId` al reprogramar.
+- **[RESUELTO 11/07/2026]** ~~Rate limiting en endpoints internos/públicos~~: `src/lib/rate-limit.ts` (ventana
+  fija en memoria, 60 req/min por IP+ruta) aplicado a `/api/internal/whatsapp/events` y `/outbound`. Limitación
+  conocida y documentada: no distribuido entre instancias (aceptable para el despliegue actual de una sola réplica).
+- `MetaWhatsAppProvider` (Meta Cloud API: webhook de verificación, firma, plantillas, estados) manteniendo los
+  contratos internos actuales — **sigue pendiente**, no se tocó en esta sesión.
+- Selector de clínica activa para usuarios con múltiples membresías (hoy: primera membresía activa). **Pendiente.**
 - Etapa de calidad: `loading.tsx` por ruta, revisar estados vacíos, accesibilidad (focus, labels, contraste),
-  revisión responsive completa, manejo de errores homogéneo.
-- Multiempresa real de conversaciones: hoy 1 worker Baileys = 1 clínica (`WHATSAPP_CLINIC_KEY`).
+  revisión responsive completa, manejo de errores homogéneo. **Pendiente** (fuera del alcance de esta sesión,
+  a cargo del agente que audita el panel en paralelo).
+- Multiempresa real de conversaciones: hoy 1 worker Baileys = 1 clínica (`WHATSAPP_CLINIC_KEY`). **Pendiente.**
+- Bug cosmético menor detectado durante la verificación manual (no corregido, preexistente y fuera del texto
+  que se pidió tocar): la confirmación de una reserva **nueva** ("¡Listo! Reservamos el turno... el {fecha}...")
+  duplica "el el" cuando la fecha elegida es 3+ días en el futuro, porque `describeDate` ya devuelve
+  `"el <día> <dd/mm>"` para esos casos y la plantilla en `finalizeBooking` le antepone otro "el". El mismo
+  bug se hubiera repetido en la nueva plantilla de reprogramación; ahí sí se corrigió (`para ${label}` en vez
+  de `para el ${label}`). Reproducible: reservar un turno para una fecha 3+ días en el futuro por WhatsApp.
+- Item 2 (bandeja de Mensajes: filtros, unreadCount al abrir, "volver a automatización", mostrar
+  `assignedUser`, etc.) y el resto del item 5 (tests de responder/resolver conversación) siguen pendientes:
+  quedaron fuera del alcance de esta sesión (bajo `src/lib/actions/messages.ts` / `src/app/(panel)/mensajes/`,
+  reservado para el agente que audita el panel).
+
+## Sesión de performance + auditoría de panel (11/07/2026, agente en paralelo)
+
+Alcance de esta sesión: velocidad medida + pulido de UX del panel (Inicio, Agenda, Clientes/mascotas,
+Mensajes, Configuración). No se tocó `src/lib/whatsapp/`, `worker/`, `api/internal/whatsapp/*`,
+`whatsapp-provider.ts` ni `reminders.ts` (reservados al otro agente).
+
+### Medición de performance (con `DEBUG_PRISMA_QUERIES=1` + logs de `next dev`, tibio/segunda carga)
+
+| Ruta | Queries | Tiempo servidor (application-code) |
+| --- | --- | --- |
+| Inicio (`/`) | ~9 | ~550 ms |
+| Agenda día (`/agenda`) | ~10 | ~530 ms |
+| Agenda semana | ~10 | ~730 ms |
+| Clientes (`/clientes`) | 4 | ~290 ms |
+| Ficha de mascota | 7 | ~330 ms |
+| Mensajes sin `?conversation=` | ~10 | ~855 ms |
+| Mensajes con `?conversation=` (después del fix) | ~13 | ~590 ms (antes ~855 ms) |
+| Configuración | 6 | ~360 ms |
+
+La base es remota (Supabase `sa-east-1`); estos tiempos incluyen el viaje de ida y vuelta real. No se
+detectó ningún N+1 explosivo — el trabajo previo de paralelización ya dejó esto en buen estado. Se
+encontraron y arreglaron dos problemas reales:
+
+1. **Fix de seguridad/higiene (`src/lib/queries/agenda.ts`)**: `getActiveVeterinarians` y
+   `getAppointmentDetail` usaban `include: { user: true }` / `include: { veterinarian: true, createdBy: true }`,
+   trayendo `passwordHash` innecesariamente desde la base (nunca se exponía al cliente, pero viajaba de la DB
+   al proceso sin necesidad). Cambiado a `select` explícito con solo `id`/`name`. Mismo problema en el
+   `appointmentActivity.findMany` de esa función (`include: { user: true }` → `select: { user: { select: { name: true } } }`).
+2. **Fix de performance real (`src/app/(panel)/mensajes/page.tsx`)**: cuando la URL trae `?conversation=<id>`
+   (el caso más común: el usuario click­eó una conversación de la lista), el detalle de esa conversación se
+   pedía en un `await` separado **después** de que resolviera `Promise.all([clinic, conversations])`, sumando
+   una ida y vuelta completa extra a la base remota. Ahora `getConversationDetail(id)` se dispara en el mismo
+   `Promise.all` cuando el id ya viene de la URL, y solo se hace el fetch secuencial de respaldo cuando hay que
+   determinar la conversación por defecto (primera de la lista, sin `?conversation=`). Medido: ~855 ms → ~590 ms
+   application-code para el caso común.
+
+Instrumentación temporal dejada como flag de debug apagado por defecto: `src/lib/prisma.ts` ahora acepta
+`DEBUG_PRISMA_QUERIES=1` para loguear cada query con duración (sin impacto si no se setea la env var).
+
+### Bug real encontrado y arreglado: `defaultValues` no se aplicaban a inputs nativos en formularios de Agenda
+
+Al abrir "Nuevo turno" con querystring (`?date=&time=&vetId=` desde los slots vacíos de la grilla, o
+`?petId=` desde la ficha de mascota) y al abrir "Reprogramar", el `<input type="date">` y el `<select>` de
+veterinario quedaban **visualmente vacíos** pese a que `defaultValues` traía los valores correctos desde el
+servidor (confirmado con logging temporal: el estado interno de `react-hook-form` — `watch()` — sí tenía el
+valor correcto desde el primer render; el problema era específico de la sincronización inicial del DOM de
+`register()` con inputs nativos no controlados en esta combinación de versiones — React 19.2.4 +
+react-hook-form 7.81.0 + Next 16.2.10 —, reproducido igual en `next build && next start`, no solo en dev).
+
+Fix aplicado en `src/app/(panel)/agenda/nuevo/appointment-form.tsx` y
+`src/app/(panel)/agenda/[appointmentId]/reprogramar/reschedule-form.tsx`: los campos `date` y
+`veterinarianId` (antes `register()`-based) pasaron a usar `Controller` de react-hook-form (mismo patrón ya
+usado en el archivo para `time`/`reason`), controlando `value`/`onChange` explícitamente en vez de depender
+del `ref` imperativo de `register()` para el valor inicial. Verificado con `read_page` del navegador: el
+select y la fecha ahora muestran el valor correcto apenas carga la página. También se agregó `defaultValue`
+defensivo al `<select>` de tipo de atención en `medical-record-form.tsx` (mismo patrón de riesgo, aunque ahí
+coincidía por casualidad con la primera opción del enum y no era visible).
+
+**Nota honesta para quien continúe**: verificar el paso siguiente (que los horarios reales aparezcan como
+botones clickeables tras elegir fecha/veterinario) fue inconsistente durante esta sesión por un problema de
+entorno del navegador de control remoto (a veces la página quedaba mostrando el esqueleto de `loading.tsx`
+indefinidamente incluso con servidor y base de datos respondiendo rápido, en TODAS las rutas del panel, no
+solo en Agenda — un síntoma más severo que el de agotamiento de pool ya documentado arriba, reproducido
+incluso con un solo proceso `next dev` limpio y caché `.next` borrada). Sí se confirmó, vía log de servidor
+capturado en un momento en que el navegador respondía bien, que `getAvailableSlotsAction` devuelve
+correctamente los horarios reales (`{"ok":true,"slots":["09:00","09:30",...]}`) — la lógica de negocio está
+bien; lo que no se pudo verificar de forma 100% confiable en esta sesión fue el último tramo de la
+interacción visual (click en un horario → crear turno) por la inestabilidad del entorno de navegador, no del
+código. Recomendado para la próxima sesión: repetir la verificación manual de extremo a extremo de "crear
+turno" con un navegador real (no remoto) o reintentando en un momento en que el panel cargue con normalidad.
+
+### Verificado en navegador (cuando el entorno respondió con normalidad)
+
+Inicio, Agenda (día y semana, con datos reales), `/agenda/nuevo` (mascota/veterinario/fecha correctamente
+precargados tras el fix), `/clientes` (lista con los 4 clientes reales y sus mascotas), ficha de mascota,
+`/mensajes` (lista, detalle de conversación, estados traducidos "En cola"/"Enviado", link a ficha de mascota),
+`/configuracion` (datos de clínica + horarios por día + gestión de equipo con los 4 usuarios reales, cambio
+de rol, "Desactivar integrante", sin opción de auto-desactivarse para el usuario en sesión). No se
+crearon/borraron datos reales de la clínica durante la auditoría (ningún flujo de creación llegó a
+enviarse).
+
+### Pendiente real nuevo
+
+- Investigar el síntoma de navegador descrito arriba (páginas que quedan en el esqueleto de `loading.tsx`
+  de forma más persistente que el agotamiento de pool ya conocido) — no se pudo aislar la causa raíz en esta
+  sesión con las herramientas disponibles; podría ser específico del entorno de automatización del navegador
+  usado para verificar, no necesariamente del código de producción.
+- Responsive a 375px y accesibilidad (foco visible, labels) no se pudieron re-verificar visualmente por el
+  mismo motivo; una revisión rápida del código no encontró inputs sin `label` asociado ni botones-solo-ícono
+  sin `aria-label` en los archivos tocados.
 
 ## Cómo correr todo
 

@@ -15,7 +15,6 @@ export function RescheduleForm({ appointmentId, veterinarianId, defaultDate }: {
 
   const {
     handleSubmit,
-    register,
     control,
     watch,
     formState: { errors },
@@ -64,11 +63,21 @@ export function RescheduleForm({ appointmentId, veterinarianId, defaultDate }: {
         <label htmlFor="date" className="mb-1.5 block text-sm font-medium text-slate-700">
           Nueva fecha
         </label>
-        <input
-          id="date"
-          type="date"
-          className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3.5 text-sm outline-none focus:border-emerald-400"
-          {...register("date")}
+        <Controller
+          control={control}
+          name="date"
+          render={({ field }) => (
+            <input
+              id="date"
+              type="date"
+              className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3.5 text-sm outline-none focus:border-emerald-400"
+              name={field.name}
+              value={field.value}
+              onChange={(event) => field.onChange(event.target.value)}
+              onBlur={field.onBlur}
+              ref={field.ref}
+            />
+          )}
         />
         {errors.date && <p className="mt-1 text-xs text-rose-600">{errors.date.message}</p>}
       </div>

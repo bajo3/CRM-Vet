@@ -99,7 +99,12 @@ export function MedicalRecordForm({ petId }: { petId: string }) {
           <label htmlFor="type" className="mb-1.5 block text-sm font-medium text-slate-700">
             Tipo
           </label>
-          <select id="type" className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3.5 text-sm outline-none focus:border-emerald-400" {...register("type")}>
+          <select
+            id="type"
+            defaultValue={DEFAULT_VALUES.type}
+            className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3.5 text-sm outline-none focus:border-emerald-400"
+            {...register("type")}
+          >
             {MEDICAL_RECORD_TYPE_OPTIONS.map((option) => (
               <option key={option.value} value={option.value}>
                 {option.label}

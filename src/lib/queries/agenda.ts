@@ -8,7 +8,7 @@ export async function getActiveVeterinarians(clinicId: string) {
   const prisma = getPrisma();
   const members = await prisma.clinicMember.findMany({
     where: { clinicId, role: "VETERINARIAN", active: true },
-    include: { user: true },
+    select: { user: { select: { id: true, name: true } } },
     orderBy: { user: { name: "asc" } },
   });
   return members.map((member) => ({ id: member.user.id, name: member.user.name }));
@@ -83,11 +83,22 @@ export async function getAppointmentDetail(clinicId: string, appointmentId: stri
   const [appointment, activities] = await Promise.all([
     prisma.appointment.findFirst({
       where: { id: appointmentId, clinicId },
-      include: { pet: { include: { client: true } }, veterinarian: true, createdBy: true },
+      select: {
+        id: true,
+        reason: true,
+        startAt: true,
+        endAt: true,
+        status: true,
+        source: true,
+        veterinarianId: true,
+        pet: { select: { id: true, name: true, client: { select: { name: true, phone: true } } } },
+        veterinarian: { select: { name: true } },
+        createdBy: { select: { name: true } },
+      },
     }),
     prisma.appointmentActivity.findMany({
       where: { clinicId, appointmentId },
-      include: { user: true },
+      select: { id: true, action: true, details: true, createdAt: true, user: { select: { name: true } } },
       orderBy: { createdAt: "desc" },
     }),
   ]);

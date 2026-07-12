@@ -145,7 +145,8 @@ async function connect() {
     if (flushing || bridgeState.status !== "CONNECTED") return;
     flushing = true;
     try {
-      const response = await fetch(`${appUrl}/api/internal/whatsapp/outbound?clinicKey=${encodeURIComponent(clinicKey)}`, {
+      const outboundUrl = `${appUrl}/api/internal/whatsapp/outbound?clinicKey=${encodeURIComponent(clinicKey)}`;
+      const response = await fetch(outboundUrl, {
         headers: { "x-internal-token": internalToken! },
         signal: AbortSignal.timeout(10_000),
       });
@@ -154,13 +155,13 @@ async function connect() {
       for (const message of payload.messages) {
         try {
           const sent = await socket.sendMessage(`${message.phone}@s.whatsapp.net`, { text: message.content });
-          await fetch(`${appUrl}/api/internal/whatsapp/outbound`, {
+          await fetch(outboundUrl, {
             method: "POST",
             headers: { "content-type": "application/json", "x-internal-token": internalToken! },
             body: JSON.stringify({ id: message.id, status: "SENT", externalMessageId: sent?.key.id }),
           });
         } catch {
-          await fetch(`${appUrl}/api/internal/whatsapp/outbound`, {
+          await fetch(outboundUrl, {
             method: "POST",
             headers: { "content-type": "application/json", "x-internal-token": internalToken! },
             body: JSON.stringify({ id: message.id, status: "FAILED" }),

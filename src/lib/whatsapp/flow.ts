@@ -3,7 +3,7 @@ import { DateTime } from "luxon";
 import { getPrisma } from "@/lib/prisma";
 import { normalizePhone } from "@/lib/phone";
 import { getAvailableSlots } from "@/lib/services/availability";
-import { createAppointment, updateAppointmentStatus } from "@/lib/services/appointments";
+import { createAppointment, rescheduleAppointment, updateAppointmentStatus } from "@/lib/services/appointments";
 import { AppointmentConflictError } from "@/lib/services/errors";
 import type { IncomingWhatsappEvent, WhatsappEventResponse } from "./contracts";
 import { describeDate, joinTimes, parseNaturalDate, parseNaturalTime } from "./date-parser";
@@ -13,6 +13,7 @@ import {
   isAsapIntent,
   isBookingIntent,
   isCancelIntent,
+  isCheckAvailabilityIntent,
   isConfirmIntent,
   isGreeting,
   isResetIntent,
@@ -23,7 +24,17 @@ import {
 
 type AlternativeDay = { date: string; times: string[] };
 
-type FlowStep = "SELECT_PET" | "NEW_PET_NAME" | "REASON" | "AWAIT_DATE" | "AWAIT_ALTERNATIVES" | "AWAIT_TIME" | "CONFIRM_CANCEL_CHOICE";
+type FlowStep =
+  | "SELECT_PET"
+  | "NEW_PET_NAME"
+  | "REASON"
+  | "AWAIT_DATE"
+  | "AWAIT_ALTERNATIVES"
+  | "AWAIT_TIME"
+  | "CONFIRM_CANCEL_CHOICE"
+  | "RESCHEDULE_AWAIT_DATE"
+  | "RESCHEDULE_AWAIT_ALTERNATIVES"
+  | "RESCHEDULE_AWAIT_TIME";
 
 type FlowState = {
   step?: FlowStep;
@@ -34,7 +45,12 @@ type FlowState = {
   offeredTimes?: string[];
   offeredSlots?: AlternativeDay[];
   misunderstoodCount?: number;
+  /** Turno que se está reprogramando (solo presente durante los pasos RESCHEDULE_*). */
+  rescheduleAppointmentId?: string;
 };
+
+/** A qué operación de agenda corresponde el paso de fecha/horario en curso: reserva nueva o reprogramación de un turno existente. */
+type BookingMode = { kind: "create" } | { kind: "reschedule"; appointmentId: string };
 
 const REASON_MENU: Record<string, string> = { "1": "Consulta", "2": "Vacunación", "3": "Control", "4": "Otro" };
 
@@ -201,6 +217,20 @@ function makeBookingCtx(prisma: ReturnType<typeof getPrisma>, clinic: Clinic, cl
   return ctx;
 }
 
+/** Igual que `makeBookingCtx`, pero fija el veterinario al del turno existente: al reprogramar no se elige otro veterinario. */
+function makeRescheduleCtx(prisma: ReturnType<typeof getPrisma>, clinic: Clinic, clientId: string, veterinarianId: string): BookingCtx {
+  return {
+    prisma,
+    clinic,
+    clientId,
+    timezone: clinic.timezone,
+    vetPromise: Promise.resolve({ userId: veterinarianId }),
+    async getVeterinarian() {
+      return { userId: veterinarianId };
+    },
+  };
+}
+
 type StepResult = { reply: string; nextState: FlowState; status?: ConversationStatus; resolvedPetId?: string };
 
 /** Dado el estado de la reserva en curso, decide cuál es el próximo dato que falta y lo pide. */
@@ -239,8 +269,8 @@ async function advanceBooking(ctx: BookingCtx, state: FlowState): Promise<StepRe
   return resolveDateAvailability(ctx, state);
 }
 
-/** Busca horarios para `state.date`; si no hay, ofrece los próximos días con disponibilidad real. */
-async function resolveDateAvailability(ctx: BookingCtx, state: FlowState): Promise<StepResult> {
+/** Busca horarios para `state.date`; si no hay, ofrece los próximos días con disponibilidad real. Común a reservar y reprogramar. */
+async function resolveDateAvailability(ctx: BookingCtx, state: FlowState, mode: BookingMode = { kind: "create" }): Promise<StepResult> {
   const { timezone, clinic } = ctx;
   const vet = await ctx.getVeterinarian();
   const requestedDate = state.date!;
@@ -248,13 +278,16 @@ async function resolveDateAvailability(ctx: BookingCtx, state: FlowState): Promi
   const today = DateTime.now().setZone(timezone).startOf("day");
   const isPast = requestedDay < today;
   const isToday = requestedDay.hasSame(today, "day");
+  const excludeAppointmentId = mode.kind === "reschedule" ? mode.appointmentId : undefined;
+  const timeStep: FlowStep = mode.kind === "reschedule" ? "RESCHEDULE_AWAIT_TIME" : "AWAIT_TIME";
+  const alternativesStep: FlowStep = mode.kind === "reschedule" ? "RESCHEDULE_AWAIT_ALTERNATIVES" : "AWAIT_ALTERNATIVES";
 
-  const times = isPast ? [] : await getAvailableSlots(clinic, vet.userId, requestedDate);
+  const times = isPast ? [] : await getAvailableSlots(clinic, vet.userId, requestedDate, excludeAppointmentId);
 
   if (times.length > 0) {
     return {
       reply: timeMenuReply(requestedDate, times, state.petName, timezone),
-      nextState: { ...state, step: "AWAIT_TIME", date: requestedDate, offeredTimes: times },
+      nextState: { ...state, step: timeStep, date: requestedDate, offeredTimes: times },
       resolvedPetId: state.petId,
     };
   }
@@ -275,45 +308,51 @@ async function resolveDateAvailability(ctx: BookingCtx, state: FlowState): Promi
 
   return {
     reply: `${intro} Te puedo ofrecer: ${describeAlternatives(alternatives, timezone)}. ¿Cuál te queda bien?`,
-    nextState: { ...state, step: "AWAIT_ALTERNATIVES", offeredSlots: alternatives },
+    nextState: { ...state, step: alternativesStep, offeredSlots: alternatives },
     resolvedPetId: state.petId,
   };
 }
 
-/** Intenta crear el turno; si justo se ocupó, vuelve a ofrecer horarios/alternativas para esa fecha. */
-async function finalizeBooking(ctx: BookingCtx, state: FlowState, date: string, time: string): Promise<StepResult> {
+/** Intenta crear (o reprogramar) el turno; si justo se ocupó, vuelve a ofrecer horarios/alternativas para esa fecha. */
+async function finalizeBooking(ctx: BookingCtx, state: FlowState, date: string, time: string, mode: BookingMode = { kind: "create" }): Promise<StepResult> {
   const { timezone, clinic } = ctx;
   const vet = await ctx.getVeterinarian();
   const startAt = localDateTime(date, time, timezone);
   const endAt = new Date(startAt.getTime() + clinic.defaultAppointmentDuration * 60_000);
+  const excludeAppointmentId = mode.kind === "reschedule" ? mode.appointmentId : undefined;
+  const timeStep: FlowStep = mode.kind === "reschedule" ? "RESCHEDULE_AWAIT_TIME" : "AWAIT_TIME";
 
   try {
-    await createAppointment({
-      clinicId: clinic.id,
-      petId: state.petId!,
-      veterinarianId: vet.userId,
-      reason: state.reason!,
-      startAt,
-      endAt,
-      source: "WHATSAPP",
-    });
+    if (mode.kind === "reschedule") {
+      await rescheduleAppointment({ clinicId: clinic.id, appointmentId: mode.appointmentId, startAt, endAt });
+    } else {
+      await createAppointment({
+        clinicId: clinic.id,
+        petId: state.petId!,
+        veterinarianId: vet.userId,
+        reason: state.reason!,
+        startAt,
+        endAt,
+        source: "WHATSAPP",
+      });
+    }
     const label = describeDate(date, timezone);
-    return {
-      reply: `¡Listo! 🐾 Reservamos el turno para ${state.petName ?? "tu mascota"} el ${label} a las ${time} (${state.reason}). Queda pendiente de confirmación. Si necesitás cambiarlo o cancelarlo, escribime "cambiar" o "cancelar".`,
-      nextState: {},
-      resolvedPetId: state.petId,
-    };
+    const reply =
+      mode.kind === "reschedule"
+        ? `¡Listo! 🐾 Reprogramamos el turno de ${state.petName ?? "tu mascota"} para ${label} a las ${time}. ¡Te esperamos!`
+        : `¡Listo! 🐾 Reservamos el turno para ${state.petName ?? "tu mascota"} ${label} a las ${time} (${state.reason}). Queda pendiente de confirmación. Si necesitás cambiarlo o cancelarlo, escribime "cambiar" o "cancelar".`;
+    return { reply, nextState: {}, resolvedPetId: state.petId };
   } catch (error) {
     if (error instanceof AppointmentConflictError) {
-      const times = await getAvailableSlots(clinic, vet.userId, date);
+      const times = await getAvailableSlots(clinic, vet.userId, date, excludeAppointmentId);
       if (times.length > 0) {
         return {
           reply: `Uy, ese horario se acaba de ocupar 😕 ${timeMenuReply(date, times, state.petName, timezone)}`,
-          nextState: { ...state, step: "AWAIT_TIME", date, offeredTimes: times },
+          nextState: { ...state, step: timeStep, date, offeredTimes: times },
           resolvedPetId: state.petId,
         };
       }
-      return resolveDateAvailability(ctx, { ...state, date });
+      return resolveDateAvailability(ctx, { ...state, date }, mode);
     }
     throw error;
   }
@@ -485,6 +524,94 @@ export async function processIncomingWhatsapp(event: IncomingWhatsappEvent): Pro
       status = result.status ?? status;
       if (result.resolvedPetId) linkedPetId = result.resolvedPetId;
     }
+  } else if (state.step === "RESCHEDULE_AWAIT_DATE" && state.rescheduleAppointmentId) {
+    if (requiresHuman(raw)) {
+      reply = NON_URGENT_DERIVE_REPLY;
+      status = ConversationStatus.REQUIRES_HUMAN;
+      nextState = {};
+    } else {
+      const appointment = await prisma.appointment.findFirst({ where: { id: state.rescheduleAppointmentId, clinicId: clinic.id }, include: { pet: true } });
+      if (!appointment) {
+        reply = "Ese turno ya no está disponible para reprogramar. Contame si querés reservar uno nuevo.";
+        nextState = {};
+      } else {
+        const parsedDate = isAsapIntent(raw) ? DateTime.now().setZone(clinic.timezone).toFormat("yyyy-MM-dd") : parseNaturalDate(raw, clinic.timezone);
+        if (!parsedDate) {
+          reply = 'No entendí bien la fecha. Podés decirme "mañana", "el lunes" o una fecha como 15/07.';
+          understood = false;
+        } else {
+          const rescheduleCtx = makeRescheduleCtx(prisma, clinic, client.id, appointment.veterinarianId);
+          const result = await resolveDateAvailability(
+            rescheduleCtx,
+            { ...state, petName: appointment.pet.name, date: parsedDate },
+            { kind: "reschedule", appointmentId: appointment.id }
+          );
+          reply = result.reply;
+          nextState = result.nextState;
+          status = result.status ?? status;
+        }
+      }
+    }
+  } else if (state.step === "RESCHEDULE_AWAIT_ALTERNATIVES" && state.rescheduleAppointmentId && state.offeredSlots) {
+    if (requiresHuman(raw)) {
+      reply = NON_URGENT_DERIVE_REPLY;
+      status = ConversationStatus.REQUIRES_HUMAN;
+      nextState = {};
+    } else {
+      const selection = resolveAlternativeSelection(raw, state.offeredSlots, clinic.timezone);
+      if (!selection) {
+        reply = `No entendí cuál preferís. Te puedo ofrecer: ${describeAlternatives(state.offeredSlots, clinic.timezone)}. ¿Cuál te queda bien?`;
+        understood = false;
+      } else {
+        const appointment = await prisma.appointment.findFirst({ where: { id: state.rescheduleAppointmentId, clinicId: clinic.id }, include: { pet: true } });
+        if (!appointment) {
+          reply = "Ese turno ya no está disponible para reprogramar. Contame si querés reservar uno nuevo.";
+          nextState = {};
+        } else {
+          const rescheduleCtx = makeRescheduleCtx(prisma, clinic, client.id, appointment.veterinarianId);
+          const mode: BookingMode = { kind: "reschedule", appointmentId: appointment.id };
+          if (selection.kind === "slot") {
+            const result = await finalizeBooking(rescheduleCtx, { ...state, petName: appointment.pet.name }, selection.date, selection.time, mode);
+            reply = result.reply;
+            nextState = result.nextState;
+            status = result.status ?? status;
+          } else {
+            reply = timeMenuReply(selection.date, selection.times, appointment.pet.name, clinic.timezone);
+            nextState = { ...state, step: "RESCHEDULE_AWAIT_TIME", date: selection.date, offeredTimes: selection.times };
+          }
+        }
+      }
+    }
+  } else if (state.step === "RESCHEDULE_AWAIT_TIME" && state.rescheduleAppointmentId && state.date && state.offeredTimes) {
+    if (requiresHuman(raw)) {
+      reply = NON_URGENT_DERIVE_REPLY;
+      status = ConversationStatus.REQUIRES_HUMAN;
+      nextState = {};
+    } else {
+      const time = resolveTimeChoice(raw, state.offeredTimes);
+      if (!time) {
+        reply = `No encontré ese horario. ${timeMenuReply(state.date, state.offeredTimes, state.petName, clinic.timezone)}`;
+        understood = false;
+      } else {
+        const appointment = await prisma.appointment.findFirst({ where: { id: state.rescheduleAppointmentId, clinicId: clinic.id }, include: { pet: true } });
+        if (!appointment) {
+          reply = "Ese turno ya no está disponible para reprogramar. Contame si querés reservar uno nuevo.";
+          nextState = {};
+        } else {
+          const rescheduleCtx = makeRescheduleCtx(prisma, clinic, client.id, appointment.veterinarianId);
+          const result = await finalizeBooking(
+            rescheduleCtx,
+            { ...state, petName: appointment.pet.name },
+            state.date,
+            time,
+            { kind: "reschedule", appointmentId: appointment.id }
+          );
+          reply = result.reply;
+          nextState = result.nextState;
+          status = result.status ?? status;
+        }
+      }
+    }
   } else if (isConfirmIntent(raw) || raw === "2") {
     // Se revisan antes que isBookingIntent: frases como "cambiar el turno" o "cancelar mi turno"
     // también contienen la palabra "turno" y no deben interpretarse como una reserva nueva.
@@ -498,9 +625,8 @@ export async function processIncomingWhatsapp(event: IncomingWhatsappEvent): Pro
     const appointment = await findActiveAppointment(clinic.id, client.id);
     if (!appointment) reply = "No encontré un turno próximo para reprogramar.";
     else {
-      reply = `Voy a derivarte con recepción para reprogramar el turno de ${appointment.pet.name} del ${formatAppointmentWhen(appointment.startAt, clinic.timezone)}, sin perder tus datos.`;
-      status = ConversationStatus.REQUIRES_HUMAN;
-      nextState = {};
+      reply = `Tu turno de ${appointment.pet.name} es el ${formatAppointmentWhen(appointment.startAt, clinic.timezone)}. ¿Para qué día preferís pasarlo? Podés decirme "mañana", "el lunes" o una fecha como 15/07 (o escribime si preferís hablar con alguien).`;
+      nextState = { step: "RESCHEDULE_AWAIT_DATE", rescheduleAppointmentId: appointment.id, petName: appointment.pet.name };
     }
   } else if (isCancelIntent(raw) || raw === "4") {
     const appointment = await findActiveAppointment(clinic.id, client.id);
@@ -509,6 +635,14 @@ export async function processIncomingWhatsapp(event: IncomingWhatsappEvent): Pro
       await updateAppointmentStatus({ clinicId: clinic.id, appointmentId: appointment.id, status: AppointmentStatus.CANCELLED });
       reply = `Cancelamos el turno de ${appointment.pet.name} del ${formatAppointmentWhen(appointment.startAt, clinic.timezone)}. Si querés reservar otro, contame cuándo te queda bien.`;
     }
+  } else if (isCheckAvailabilityIntent(raw)) {
+    // Respuesta rápida típica a un recordatorio de control: mismo mecanismo que una reserva nueva,
+    // arrancando ya con el motivo "Control" y buscando el horario más próximo real.
+    const result = await startFreshBooking(ctx, "control cuanto antes");
+    reply = result.reply;
+    nextState = result.nextState;
+    status = result.status ?? status;
+    if (result.resolvedPetId) linkedPetId = result.resolvedPetId;
   } else if (isBookingIntent(raw) || raw === "1") {
     const result = await startFreshBooking(ctx, raw);
     reply = result.reply;

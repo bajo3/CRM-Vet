@@ -84,12 +84,14 @@ async function handleReminder(prisma: PrismaLike, provider: WhatsAppProvider, re
   const text = await buildMessage(prisma, reminder, client, pet, clinic);
 
   try {
-    const result = await provider.sendText(client.phone, text);
+    const result = await provider.sendText({ clinicId: reminder.clinicId, phone: client.phone, text, clientId: client.id });
     await prisma.reminder.update({
       where: { id: reminder.id },
       data: { status: "SENT", sentAt: new Date(), externalMessageId: result.externalMessageId, errorMessage: null },
     });
-    await recordOutboundMessage(prisma, reminder.clinicId, client, text, result.externalMessageId);
+    if (!result.messageAlreadyRecorded) {
+      await recordOutboundMessage(prisma, reminder.clinicId, client, text, result.externalMessageId);
+    }
     return "sent";
   } catch (error) {
     const message = error instanceof Error ? error.message : "Error desconocido al enviar el recordatorio";

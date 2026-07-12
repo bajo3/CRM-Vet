@@ -68,6 +68,17 @@ export function isRescheduleIntent(text: string): boolean {
   );
 }
 
+/**
+ * "consultar horarios" / "ver horarios" / "qué horarios tienen": respuesta rápida típica a un
+ * recordatorio de control (`CONTROL_DUE`) pidiendo ver la disponibilidad real en vez de derivar.
+ */
+export function isCheckAvailabilityIntent(text: string): boolean {
+  return (
+    /\b(consultar|ver|dame|decime|cu[aá]les?\s+son|qu[eé])\b[^.!?\n]*\bhorarios?\b/i.test(text) ||
+    /\bhorarios?\b[^.!?\n]*\b(disponibles?|libres?|tienen|ten[eé]s|hay)\b/i.test(text)
+  );
+}
+
 /** "cuanto antes" / "lo antes posible": el cliente quiere el primer horario disponible, sea cuando sea. */
 export function isAsapIntent(text: string): boolean {
   return /\b(cuanto\s+antes|lo\s+antes\s+posible|lo\s+m[aá]s\s+pronto\s+posible|lo\s+m[aá]s\s+rapido\s+posible|apenas\s+se\s+pueda)\b/i.test(text);

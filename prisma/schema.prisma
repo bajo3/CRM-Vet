@@ -211,6 +211,7 @@ model WhatsappMessage {
   messageType       String               @default("text")
   externalMessageId String?
   status            String
+  attempts          Int                  @default(0)
   createdAt         DateTime             @default(now())
   clinic            Clinic               @relation(fields: [clinicId], references: [id], onDelete: Cascade)
   conversation      WhatsappConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)

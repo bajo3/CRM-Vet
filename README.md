@@ -110,7 +110,10 @@ npm run dev:whatsapp
 
 ## Motor de recordatorios
 
-`worker/reminders.ts` procesa los recordatorios vencidos (turnos próximos a 24hs y controles médicos por vencer) contra `processDueReminders` en `src/lib/services/reminders.ts`. En esta etapa usa `MockWhatsAppProvider` (no envía mensajes reales; solo genera un id y deja un log sin datos sensibles) — enchufar Baileys u otro proveedor real implica implementar `WhatsAppProvider` y pasarlo en `worker/reminders.ts`, sin tocar el resto del motor.
+`worker/reminders.ts` procesa los recordatorios vencidos (turnos próximos a 24hs y controles médicos por vencer) contra `processDueReminders` en `src/lib/services/reminders.ts`. El proveedor de WhatsApp se elige con la variable `REMINDER_PROVIDER` (ver `.env.example`):
+
+- `mock` (default, desarrollo): `MockWhatsAppProvider` no envía nada real, solo genera un id y deja un log sin datos sensibles.
+- `outbox` (producción, con el worker de Baileys ya conectado): `OutboxWhatsAppProvider` encola el mensaje como `WhatsappMessage` `OUTBOUND` en estado `HUMAN_QUEUED` -el mismo estado que usan las respuestas humanas desde `/mensajes`- para que lo levante el mismo poll de salientes de `worker/whatsapp.ts`. No marca la conversación como `HUMAN_ACTIVE` ni le asigna usuario (es un mensaje automático del sistema), solo actualiza `lastMessageAt`. En Railway, setear `REMINDER_PROVIDER=outbox` en el servicio del worker de recordatorios para que el ciclo completo "control → recordatorio → WhatsApp real" quede operativo.
 
 ```bash
 npm run reminders:run    # una sola pasada (modo --once, útil para cron externo)
@@ -119,6 +122,13 @@ npm run reminders:watch  # loop persistente, revisa cada 60 segundos
 
 Cada recordatorio se reclama de forma atómica (`status: PENDING` como condición del `updateMany`) para que dos corridas concurrentes no envíen el mismo dos veces, y se revalida justo antes de enviar (cliente con recordatorios habilitados, turno/control todavía vigente). Los envíos fallidos reintentan hasta 3 veces; al tercer fallo quedan `FAILED` definitivos.
 
+### Salientes de WhatsApp (`/api/internal/whatsapp/outbound`)
+
+El worker de Baileys hace polling cada 3s a este endpoint para vaciar la cola de salientes (respuestas humanas desde `/mensajes` y, si `REMINDER_PROVIDER=outbox`, recordatorios automáticos):
+
+- **GET** reclama de forma atómica los mensajes `HUMAN_QUEUED` de la clínica (`claimOutboundMessages` en `src/lib/services/whatsapp-outbound.ts`), pasándolos a `SENDING` uno por uno con un `updateMany` condicionado — si dos polls se solapan, cada mensaje queda adjudicado a uno solo, nunca se envía duplicado.
+- **POST** reporta el resultado (`SENT`/`FAILED`) filtrando siempre por `clinicId` además de `id` (aislamiento multiempresa: un `clinicKey` nunca puede tocar mensajes de otra clínica). Un fallo incrementa `attempts` (columna en `WhatsappMessage`) y vuelve a `HUMAN_QUEUED` para reintentar; al tercer fallo queda `FAILED` definitivo — mismo esquema de reintentos que el motor de recordatorios.
+
 ## Cómo probar el flujo
 
 El bot entiende lenguaje natural en cualquier punto de la conversación (`src/lib/whatsapp/flow.ts`, `intent.ts` y `date-parser.ts`), y el menú numerado (1-5) queda solo como respaldo del saludo inicial o si el bot no entiende:
@@ -126,7 +136,9 @@ El bot entiende lenguaje natural en cualquier punto de la conversación (`src/li
 - `quiero un turno para mañana` / `necesito llevar al perro el lunes`: arranca una reserva y ya extrae fecha (y motivo, si lo menciona) de la misma frase. Fechas naturales aceptadas: `hoy`, `mañana`, `pasado mañana`, días de la semana (`el lunes`, `miercoles` sin tilde), `15/7`, `15-07`, `15/07/2026`, y el legacy `AAAA-MM-DD`. Horarios: número de la lista, `16`, `16hs`, `16:00`, `16.30`.
 - Si el cliente no tiene mascotas registradas, el bot solo pide el nombre (`¿Cómo se llama tu mascota?`) y crea una mascota mínima (`species: "A confirmar"`) para completar en el local. Si tiene una sola mascota, la usa directo sin preguntar; si tiene varias, ofrece la lista.
 - Si el día pedido no tiene lugares, el bot busca automáticamente los próximos 3 días con disponibilidad real y los ofrece (nunca es un callejón sin salida). `cuanto antes` / `lo antes posible` pide directamente el primer horario libre.
-- `confirmar` / `cancelame el turno` / `puedo cambiar el turno?`: confirma, cancela o deriva la reprogramación del próximo turno activo del contacto, mencionando siempre su fecha y hora.
+- `confirmar` / `cancelame el turno`: confirma o cancela el próximo turno activo del contacto, mencionando siempre su fecha y hora.
+- `puedo cambiar el turno?` / `quiero reprogramar`: reprogramación conversacional completa (no deriva a recepción salvo fallback). El bot identifica el turno activo, pide la nueva fecha (mismo parser de lenguaje natural), ofrece horarios reales del mismo veterinario para esa fecha (o alternativas si no hay lugar ese día) y, al confirmar, llama a `rescheduleAppointment` — mismo turno (`Appointment.id`), nuevas fechas, actividad `RESCHEDULED`, sin crear un turno duplicado. Si el cliente pide explícitamente hablar con alguien durante este flujo, deriva de inmediato.
+- `consultar horarios` / `qué horarios tienen` (por ejemplo, como respuesta a un recordatorio de control): muestra los próximos horarios disponibles reales con el mismo mecanismo que una reserva nueva, en vez de derivar.
 - Vocabulario de urgencia veterinaria (`urgencia`, `se muere`, `convulsion`, `atropellaron`, `no respira`, `vomita sangre`, `veneno`, etc.): deriva de inmediato con un mensaje que pide acudir a la clínica o guardia más cercana; nunca da indicación médica.
 - Una consulta médica no urgente como `mi perro vomita`: tampoco ofrece diagnóstico; deriva a una persona.
 - `salir` / `menu`: reinicia el flujo. `cancelar` a secas dentro de una reserva en curso pregunta si se quiere cancelar la reserva en armado o un turno ya existente.
@@ -139,7 +151,7 @@ El bot entiende lenguaje natural en cualquier punto de la conversación (`src/li
 - El worker y el CRM se autentican con `INTERNAL_WHATSAPP_TOKEN`.
 - Nunca se registran tokens ni contenido completo de credenciales.
 - Cada evento se resuelve a una clínica mediante `WHATSAPP_CLINIC_KEY` y todas las consultas incluyen `clinicId`.
-- El endpoint interno no debe publicarse sin firewall/rate limiting adicional en producción.
+- `/api/internal/whatsapp/events` y `/api/internal/whatsapp/outbound` tienen, además del token interno, un rate limit básico en memoria (`src/lib/rate-limit.ts`): 60 requests/minuto por IP+ruta, respondiendo `429` genérico si se excede. **Limitación conocida**: el estado vive en memoria del proceso, así que no es distribuido — con una sola instancia (el caso de hoy) alcanza; si se escala a múltiples réplicas, cada una lleva su propio conteo y habría que migrar a un store compartido.
 
 ## Importante sobre Baileys
 
@@ -172,3 +184,7 @@ contra una base remota son más lentos que un `sqlite`/`pg` local; por eso corre
 - Envío real de recordatorios: reemplazar `MockWhatsAppProvider` por un proveedor que use Baileys (o Meta Cloud API) una vez definido el canal productivo.
 - Rate limiting distribuido y métricas operativas.
 - Migración a Meta Cloud API antes de considerar el canal productivo.
+- Se detectó (11/07/2026) que a veces una página del panel queda mostrando el esqueleto de `loading.tsx`
+  de forma persistente aunque el servidor y la base respondan rápido (confirmado con logs). No se pudo
+  aislar la causa raíz; ver detalle en `CODEX-TODO.md` (sección "Sesión de performance + auditoría de panel").
+  Si el dueño lo ve en producción real, probar primero un simple refresh (F5).

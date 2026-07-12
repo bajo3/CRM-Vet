@@ -22,9 +22,19 @@ function resolveDatasourceUrl(): string {
   return url.toString();
 }
 
+/**
+ * Flag de debug opcional (apagado por defecto, sin ruido en producción ni en desarrollo normal):
+ * con `DEBUG_PRISMA_QUERIES=1` en el entorno, cada query se loguea con su duración en ms para
+ * poder contar cuántas queries dispara cada ruta durante una medición puntual de performance.
+ */
+const DEBUG_QUERIES = process.env.DEBUG_PRISMA_QUERIES === "1";
+
 export function getPrisma() {
   if (!globalForPrisma.prisma) {
-    globalForPrisma.prisma = new PrismaClient({ datasourceUrl: resolveDatasourceUrl() });
+    globalForPrisma.prisma = new PrismaClient({
+      datasourceUrl: resolveDatasourceUrl(),
+      ...(DEBUG_QUERIES ? { log: [{ emit: "stdout", level: "query" }] } : {}),
+    });
   }
   return globalForPrisma.prisma;
 }

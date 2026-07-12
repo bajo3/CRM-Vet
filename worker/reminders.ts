@@ -1,11 +1,17 @@
 import "dotenv/config";
 import pino from "pino";
 import { processDueReminders } from "../src/lib/services/reminders";
-import { MockWhatsAppProvider } from "../src/lib/services/whatsapp-provider";
+import { MockWhatsAppProvider, OutboxWhatsAppProvider, type WhatsAppProvider } from "../src/lib/services/whatsapp-provider";
 
 const INTERVAL_MS = 60_000;
 const logger = pino({ level: process.env.WHATSAPP_LOG_LEVEL || "info" });
-const provider = new MockWhatsAppProvider();
+
+// `mock` (default): no envía nada real, solo loguea — útil en desarrollo sin worker de Baileys.
+// `outbox`: encola el recordatorio como WhatsappMessage HUMAN_QUEUED para que lo levante el worker
+// de Baileys ya conectado (producción). Ver REMINDER_PROVIDER en .env.example / README.
+const providerName = process.env.REMINDER_PROVIDER === "outbox" ? "outbox" : "mock";
+const provider: WhatsAppProvider = providerName === "outbox" ? new OutboxWhatsAppProvider() : new MockWhatsAppProvider();
+logger.info({ provider: providerName }, "Proveedor de WhatsApp para recordatorios");
 
 async function runOnce() {
   const result = await processDueReminders(provider);

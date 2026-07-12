@@ -109,7 +109,7 @@ export function AppointmentForm({
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-5" noValidate>
       <div>
         <label className="mb-1.5 block text-sm font-medium text-slate-700">Mascota</label>
-        <input type="hidden" {...register("petId")} />
+        <input type="hidden" defaultValue={defaultValues.petId} {...register("petId")} />
         {selectedPet ? (
           <div className="flex items-center justify-between gap-3 rounded-xl border border-emerald-200 bg-emerald-50 px-3.5 py-2.5">
             <div className="flex items-center gap-2 min-w-0">
@@ -209,11 +209,21 @@ export function AppointmentForm({
           <label htmlFor="date" className="mb-1.5 block text-sm font-medium text-slate-700">
             Fecha
           </label>
-          <input
-            id="date"
-            type="date"
-            className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3.5 text-sm outline-none focus:border-emerald-400"
-            {...register("date")}
+          <Controller
+            control={control}
+            name="date"
+            render={({ field }) => (
+              <input
+                id="date"
+                type="date"
+                className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3.5 text-sm outline-none focus:border-emerald-400"
+                name={field.name}
+                value={field.value}
+                onChange={(event) => field.onChange(event.target.value)}
+                onBlur={field.onBlur}
+                ref={field.ref}
+              />
+            )}
           />
           {errors.date && <p className="mt-1 text-xs text-rose-600">{errors.date.message}</p>}
         </div>
@@ -221,18 +231,28 @@ export function AppointmentForm({
           <label htmlFor="veterinarianId" className="mb-1.5 block text-sm font-medium text-slate-700">
             Veterinario
           </label>
-          <select
-            id="veterinarianId"
-            className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3.5 text-sm outline-none focus:border-emerald-400"
-            {...register("veterinarianId")}
-          >
-            <option value="">Elegí un veterinario</option>
-            {vets.map((vet) => (
-              <option key={vet.id} value={vet.id}>
-                {vet.name}
-              </option>
-            ))}
-          </select>
+          <Controller
+            control={control}
+            name="veterinarianId"
+            render={({ field }) => (
+              <select
+                id="veterinarianId"
+                className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3.5 text-sm outline-none focus:border-emerald-400"
+                name={field.name}
+                value={field.value}
+                onChange={(event) => field.onChange(event.target.value)}
+                onBlur={field.onBlur}
+                ref={field.ref}
+              >
+                <option value="">Elegí un veterinario</option>
+                {vets.map((vet) => (
+                  <option key={vet.id} value={vet.id}>
+                    {vet.name}
+                  </option>
+                ))}
+              </select>
+            )}
+          />
           {errors.veterinarianId && <p className="mt-1 text-xs text-rose-600">{errors.veterinarianId.message}</p>}
         </div>
       </div>

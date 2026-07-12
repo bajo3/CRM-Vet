@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from "vitest";
-import type { WhatsAppProvider } from "../src/lib/services/whatsapp-provider";
+import { OutboxWhatsAppProvider, type WhatsAppProvider } from "../src/lib/services/whatsapp-provider";
 import { processDueReminders } from "../src/lib/services/reminders";
 import { createTestClient, createTestClinic, createTestPet, createTestVet, resetDatabase, prisma } from "./setup/db";
 
@@ -134,6 +134,38 @@ describe("reminders: envío y reintentos", () => {
 
     expect(result.cancelled).toBe(1);
     expect(provider.calls).toBe(0);
+  });
+
+  it("OutboxWhatsAppProvider encola el recordatorio como HUMAN_QUEUED y processDueReminders lo marca SENT sin duplicar", async () => {
+    const { clinic, client, pet } = await setupClinic();
+    const reminder = await createDueReminder(clinic.id, client.id, pet.id);
+    const provider = new OutboxWhatsAppProvider();
+
+    const result = await processDueReminders(provider);
+
+    expect(result.sent).toBe(1);
+    const updatedReminder = await prisma.reminder.findUniqueOrThrow({ where: { id: reminder.id } });
+    expect(updatedReminder.status).toBe("SENT");
+    expect(updatedReminder.externalMessageId).toBeTruthy();
+
+    // Un solo WhatsappMessage OUTBOUND: el que crea el propio proveedor (HUMAN_QUEUED, listo para
+    // que lo levante el worker de Baileys). `handleReminder` no debe crear uno adicional.
+    const messages = await prisma.whatsappMessage.findMany({ where: { clinicId: clinic.id, direction: "OUTBOUND" } });
+    expect(messages).toHaveLength(1);
+    expect(messages[0].status).toBe("HUMAN_QUEUED");
+    expect(messages[0].id).toBe(updatedReminder.externalMessageId);
+
+    // El mensaje automático no debe activar atención humana ni asignar la conversación a nadie.
+    const conversation = await prisma.whatsappConversation.findFirstOrThrow({ where: { clinicId: clinic.id, phone: client.phone } });
+    expect(conversation.status).toBe("AUTOMATED");
+    expect(conversation.assignedUserId).toBeNull();
+    expect(conversation.clientId).toBe(client.id);
+
+    // Correr el proceso de nuevo no debe volver a encolar nada (ya está SENT).
+    const second = await processDueReminders(provider);
+    expect(second.sent).toBe(0);
+    const messagesAfterSecondRun = await prisma.whatsappMessage.findMany({ where: { clinicId: clinic.id, direction: "OUTBOUND" } });
+    expect(messagesAfterSecondRun).toHaveLength(1);
   });
 
   it("cancela un APPOINTMENT_REMINDER sin enviar si el turno ya no está activo", async () => {

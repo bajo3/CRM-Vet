@@ -31,18 +31,29 @@ export default async function MensajesPage({ searchParams }: { searchParams: Pro
     ? query.status as ConversationStatus
     : undefined;
 
-  const [clinic, conversations] = await Promise.all([
+  // Si la URL ya trae `?conversation=`, ese id es el candidato casi seguro a mostrarse (es el que
+  // arma cada link de la lista), así que se pide su detalle en paralelo con la lista en vez de
+  // esperar a que la lista resuelva primero: eso evita una ida y vuelta extra a la base remota en
+  // el caso más común (el usuario clickeando entre conversaciones).
+  const requestedId = query.conversation;
+  const [clinic, conversations, requestedDetail] = await Promise.all([
     getClinicSettings(session.clinicId),
     listConversationsForInbox(session.clinicId, validStatus),
+    requestedId ? getConversationDetail(session.clinicId, requestedId) : Promise.resolve(null),
   ]);
   const timezone = clinic?.timezone ?? "America/Argentina/Buenos_Aires";
 
   // Solo se trae el hilo completo (hasta 100 mensajes) de la conversación efectivamente
   // seleccionada, no de las 50 que aparecen en la lista.
-  const selectedId = (query.conversation && conversations.some((item) => item.id === query.conversation))
-    ? query.conversation
+  const selectedId = (requestedId && conversations.some((item) => item.id === requestedId))
+    ? requestedId
     : conversations[0]?.id;
-  const selected = selectedId ? await getConversationDetail(session.clinicId, selectedId) : null;
+  const selected =
+    selectedId && selectedId === requestedId
+      ? requestedDetail
+      : selectedId
+        ? await getConversationDetail(session.clinicId, selectedId)
+        : null;
   const mobileHasSelection = Boolean(query.conversation && selected);
 
   return (

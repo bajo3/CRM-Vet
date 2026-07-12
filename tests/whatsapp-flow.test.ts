@@ -178,6 +178,80 @@ describe("flow de WhatsApp", () => {
     expect(pet.notes).toMatch(/completar datos en la clínica/i);
   });
 
+  it("reprogramación conversacional: turno activo → nueva fecha → horario → turno actualizado, sin duplicar", async () => {
+    const clinic = await createWhatsappClinic();
+    const vet = await createVet(clinic.id);
+    const phone = "5491100000006";
+    const client = await prisma.client.create({ data: { clinicId: clinic.id, name: "Cliente Reprogramación", phone } });
+    const pet = await prisma.pet.create({ data: { clinicId: clinic.id, clientId: client.id, name: "Nina", species: "Gata" } });
+
+    const originalDay = DateTime.now().setZone(TZ).plus({ days: 3 }).toFormat("yyyy-MM-dd");
+    const startAt = DateTime.fromISO(`${originalDay}T10:00`, { zone: TZ }).toUTC().toJSDate();
+    const endAt = DateTime.fromISO(`${originalDay}T10:30`, { zone: TZ }).toUTC().toJSDate();
+    const appointment = await prisma.appointment.create({
+      data: { clinicId: clinic.id, petId: pet.id, veterinarianId: vet.id, reason: "Control", startAt, endAt, status: "CONFIRMED" },
+    });
+
+    const r1 = await processIncomingWhatsapp(baseEvent(clinic.whatsappSessionKey!, { phone, text: "quiero cambiar el turno" }));
+    expect(r1.reply).toMatch(/Nina/);
+    expect(r1.reply).toMatch(/qué día preferís/i);
+
+    const r2 = await processIncomingWhatsapp(baseEvent(clinic.whatsappSessionKey!, { phone, text: "pasado mañana" }));
+    expect(r2.reply).toMatch(/horarios libres|Cuál preferís/i);
+
+    const r3 = await processIncomingWhatsapp(baseEvent(clinic.whatsappSessionKey!, { phone, text: "1" }));
+    expect(r3.reply).toMatch(/¡Listo!/);
+    expect(r3.reply).toMatch(/Reprogramamos/i);
+
+    const appointmentCount = await prisma.appointment.count({ where: { clinicId: clinic.id, petId: pet.id } });
+    expect(appointmentCount).toBe(1);
+
+    const updated = await prisma.appointment.findUniqueOrThrow({ where: { id: appointment.id } });
+    expect(updated.id).toBe(appointment.id);
+    expect(updated.startAt.getTime()).not.toBe(startAt.getTime());
+
+    const activity = await prisma.appointmentActivity.findFirst({ where: { appointmentId: appointment.id, action: "RESCHEDULED" } });
+    expect(activity).not.toBeNull();
+  });
+
+  it("durante la reprogramación, si el cliente pide hablar con alguien, deriva de inmediato en vez de seguir pidiendo datos", async () => {
+    const clinic = await createWhatsappClinic();
+    const vet = await createVet(clinic.id);
+    const phone = "5491100000007";
+    const client = await prisma.client.create({ data: { clinicId: clinic.id, name: "Cliente Deriva", phone } });
+    const pet = await prisma.pet.create({ data: { clinicId: clinic.id, clientId: client.id, name: "Bimbo", species: "Perro" } });
+    const originalDay = DateTime.now().setZone(TZ).plus({ days: 3 }).toFormat("yyyy-MM-dd");
+    const startAt = DateTime.fromISO(`${originalDay}T11:00`, { zone: TZ }).toUTC().toJSDate();
+    const endAt = DateTime.fromISO(`${originalDay}T11:30`, { zone: TZ }).toUTC().toJSDate();
+    await prisma.appointment.create({
+      data: { clinicId: clinic.id, petId: pet.id, veterinarianId: vet.id, reason: "Consulta", startAt, endAt, status: "PENDING" },
+    });
+
+    const r1 = await processIncomingWhatsapp(baseEvent(clinic.whatsappSessionKey!, { phone, text: "quiero reprogramar el turno" }));
+    expect(r1.reply).toMatch(/qué día preferís/i);
+
+    const r2 = await processIncomingWhatsapp(baseEvent(clinic.whatsappSessionKey!, { phone, text: "mejor quiero hablar con una persona" }));
+    expect(r2.reply).toMatch(/derivar/i);
+
+    const conversation = await prisma.whatsappConversation.findFirstOrThrow({ where: { clinicId: clinic.id, phone } });
+    expect(conversation.status).toBe("REQUIRES_HUMAN");
+  });
+
+  it("consultar horarios tras un recordatorio muestra horarios reales en vez de derivar", async () => {
+    const clinic = await createWhatsappClinic();
+    await createVet(clinic.id);
+    const phone = "5491100000008";
+    const client = await prisma.client.create({ data: { clinicId: clinic.id, name: "Cliente Control", phone } });
+    await prisma.pet.create({ data: { clinicId: clinic.id, clientId: client.id, name: "Coco", species: "Perro" } });
+
+    const response = await processIncomingWhatsapp(baseEvent(clinic.whatsappSessionKey!, { phone, text: "quiero consultar horarios" }));
+    expect(response.reply).not.toMatch(/derivar/i);
+    expect(response.reply).toMatch(/horarios libres|Cuál preferís|Te puedo ofrecer/i);
+
+    const conversation = await prisma.whatsappConversation.findFirstOrThrow({ where: { clinicId: clinic.id, phone } });
+    expect(conversation.status).not.toBe("REQUIRES_HUMAN");
+  });
+
   it("si el bot no entiende dos mensajes seguidos, deriva a una persona", async () => {
     const clinic = await createWhatsappClinic();
     const phone = "5491100000005";
