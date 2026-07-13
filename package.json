@@ -3,6 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
+    "postinstall": "prisma generate",
     "dev": "next dev",
     "dev:all": "concurrently -n web,whatsapp -c cyan,green \"npm:dev\" \"npm:dev:whatsapp\"",
     "dev:whatsapp": "tsx watch worker/whatsapp.ts",
