@@ -8,4 +8,10 @@ export const CLINIC_CONFIG_ROLES: Role[] = ["OWNER", "ADMIN"];
  * puede editar la clínica y horarios (CLINIC_CONFIG_ROLES) pero no da ni quita accesos al equipo.
  */
 export const TEAM_MANAGE_ROLES: Role[] = ["OWNER"];
+/**
+ * Emitir una receta es un acto clínico (indicación de medicación), no administrativo: se reserva a
+ * quienes pueden atender/decidir tratamiento. RECEPTIONIST queda afuera (a diferencia de los
+ * presupuestos, que sí puede generar cualquier rol).
+ */
+export const PRESCRIPTION_ROLES: Role[] = ["OWNER", "ADMIN", "VETERINARIAN"];
 export const ALL_ROLES: Role[] = ["OWNER", "ADMIN", "VETERINARIAN", "RECEPTIONIST"];

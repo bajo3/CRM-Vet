@@ -8,6 +8,8 @@ export const prisma = getPrisma();
 const TABLES = [
   "AppointmentActivity",
   "Reminder",
+  "Quote",
+  "Prescription",
   "MedicalRecord",
   "WhatsappMessage",
   "WhatsappConversation",

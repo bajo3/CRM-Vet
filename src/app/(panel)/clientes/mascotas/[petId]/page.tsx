@@ -1,12 +1,18 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { CalendarDays, ChevronLeft, Pencil, Phone, PawPrint, Stethoscope, Weight } from "lucide-react";
+import { CalendarDays, ChevronLeft, Pencil, Phone, PawPrint, Stethoscope, Weight, Receipt, FileText, FolderOpen } from "lucide-react";
 import { requireSession, hasRole } from "@/lib/auth/session";
-import { CLIENT_MANAGE_ROLES, AGENDA_MANAGE_ROLES } from "@/lib/auth/roles";
+import { CLIENT_MANAGE_ROLES, AGENDA_MANAGE_ROLES, PRESCRIPTION_ROLES } from "@/lib/auth/roles";
 import { getClinicSettings } from "@/lib/queries/clinic";
 import { getPetDetail } from "@/lib/queries/pet";
 import { ageFromBirthDate, formatDate, formatDateShort, formatTime, medicalRecordTypeLabel } from "@/lib/format";
 import { RegisterVisitPanel } from "./register-visit-panel";
+import { QuotePanel } from "./quote-panel";
+import { PrescriptionPanel } from "./prescription-panel";
+
+function formatCurrency(value: number): string {
+  return new Intl.NumberFormat("es-AR", { style: "currency", currency: "ARS", minimumFractionDigits: 2 }).format(value);
+}
 
 export default async function FichaMascotaPage({
   params,
@@ -25,10 +31,29 @@ export default async function FichaMascotaPage({
   ]);
   const timezone = clinic?.timezone ?? "America/Argentina/Buenos_Aires";
   if (!detail) notFound();
-  const { pet, medicalRecords, nextAppointment, nextControlRecord, lastVisit, lastKnownWeight } = detail;
+  const { pet, medicalRecords, nextAppointment, nextControlRecord, lastVisit, lastKnownWeight, quotes, prescriptions } = detail;
 
   const canManage = hasRole(session, CLIENT_MANAGE_ROLES);
   const canCreateAppointment = hasRole(session, AGENDA_MANAGE_ROLES);
+  const canCreatePrescription = hasRole(session, PRESCRIPTION_ROLES);
+
+  const documents = [
+    ...quotes.map((quote) => ({
+      kind: "quote" as const,
+      id: quote.id,
+      createdAt: quote.createdAt,
+      userName: quote.user.name,
+      title: quote.title,
+      total: Number(quote.total),
+    })),
+    ...prescriptions.map((prescription) => ({
+      kind: "prescription" as const,
+      id: prescription.id,
+      createdAt: prescription.createdAt,
+      userName: prescription.user.name,
+      content: prescription.content,
+    })),
+  ].sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
   const age = pet.birthDate ? ageFromBirthDate(pet.birthDate, timezone) : pet.approximateAge ?? "Edad no registrada";
   const weightLabel = lastKnownWeight ? `${Number(lastKnownWeight).toLocaleString("es-AR")} kg` : "Sin registrar";
 
@@ -134,11 +159,38 @@ export default async function FichaMascotaPage({
               Editar mascota
             </Link>
           )}
+          <a
+            href="#nuevo-presupuesto"
+            className="flex h-10 items-center gap-2 rounded-xl border border-slate-200 px-4 text-sm font-medium text-slate-600 hover:bg-slate-50"
+          >
+            <Receipt size={16} />
+            Nuevo presupuesto
+          </a>
+          {canCreatePrescription && (
+            <a
+              href="#nueva-receta"
+              className="flex h-10 items-center gap-2 rounded-xl border border-slate-200 px-4 text-sm font-medium text-slate-600 hover:bg-slate-50"
+            >
+              <FileText size={16} />
+              Nueva receta
+            </a>
+          )}
         </div>
       </div>
 
       <div className="mb-6">
         <RegisterVisitPanel petId={pet.id} />
+      </div>
+
+      <div className="mb-6 grid gap-4 sm:grid-cols-2">
+        <div id="nuevo-presupuesto">
+          <QuotePanel petId={pet.id} />
+        </div>
+        {canCreatePrescription && (
+          <div id="nueva-receta">
+            <PrescriptionPanel petId={pet.id} />
+          </div>
+        )}
       </div>
 
       <section className="rounded-2xl border border-slate-200 bg-white shadow-sm">
@@ -167,6 +219,59 @@ export default async function FichaMascotaPage({
                   {record.nextDueDate && <span>Próximo control: {formatDateShort(record.nextDueDate, timezone)}</span>}
                 </div>
                 <p className="mt-2 text-xs text-slate-400">Registrado por: {record.user.name}</p>
+              </li>
+            ))}
+          </ol>
+        )}
+      </section>
+
+      <section className="mt-6 rounded-2xl border border-slate-200 bg-white shadow-sm">
+        <div className="flex items-center gap-2 border-b border-slate-100 p-5">
+          <FolderOpen size={18} className="text-emerald-600" />
+          <h2 className="font-semibold">Presupuestos y recetas</h2>
+        </div>
+        {documents.length === 0 ? (
+          <div className="flex flex-col items-center gap-3 p-10 text-center">
+            <FolderOpen size={28} className="text-slate-300" />
+            <p className="text-sm text-slate-500">Todavía no se generaron presupuestos ni recetas para {pet.name}.</p>
+          </div>
+        ) : (
+          <ol className="divide-y divide-slate-100">
+            {documents.map((doc) => (
+              <li key={`${doc.kind}-${doc.id}`} className="flex flex-wrap items-center justify-between gap-3 p-5">
+                <div className="min-w-0 flex-1">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span
+                      className={`rounded-full px-2.5 py-1 text-xs font-medium ${
+                        doc.kind === "quote" ? "bg-emerald-100 text-emerald-800" : "bg-blue-100 text-blue-800"
+                      }`}
+                    >
+                      {doc.kind === "quote" ? "Presupuesto" : "Receta"}
+                    </span>
+                    <span className="text-sm font-medium">{formatDate(doc.createdAt, timezone)}</span>
+                  </div>
+                  <p className="mt-1.5 truncate text-sm text-slate-700">
+                    {doc.kind === "quote"
+                      ? doc.title || "Sin título"
+                      : doc.content.length > 90
+                        ? `${doc.content.slice(0, 90)}…`
+                        : doc.content}
+                  </p>
+                  <p className="mt-1 text-xs text-slate-400">
+                    {doc.kind === "quote" && (
+                      <>
+                        Total: <span className="font-medium text-slate-600">{formatCurrency(doc.total)}</span> ·{" "}
+                      </>
+                    )}
+                    Emitido por: {doc.userName}
+                  </p>
+                </div>
+                <a
+                  href={`/api/documents/${doc.kind === "quote" ? "quotes" : "prescriptions"}/${doc.id}/pdf`}
+                  className="flex h-9 shrink-0 items-center gap-1.5 rounded-xl border border-slate-200 px-3 text-xs font-medium text-slate-600 hover:bg-slate-50"
+                >
+                  Descargar PDF
+                </a>
               </li>
             ))}
           </ol>

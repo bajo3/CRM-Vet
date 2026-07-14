@@ -105,3 +105,29 @@ WhatsApp — no hay lógica de turnos duplicada entre canales.
   ya registraba `AppointmentActivity`; `src/lib/format.ts#describeAppointmentActivity` traduce esas entradas
   (`CREATED`/`RESCHEDULED`/`STATUS_CHANGED` + su `details` JSON) a una oración en español para el detalle de turno.
 
+## Generación de documentos PDF (presupuestos y recetas)
+
+`Quote` y `Prescription` (`prisma/schema.prisma`) son documentos de una sola vez, sin edición posterior: se
+crean con `src/lib/services/quotes.ts#createQuote` y `services/prescriptions.ts#createPrescription`
+(mismo esqueleto que `medical-records.ts`: validan que la mascota pertenezca a `clinicId` y devuelven el
+registro con `pet.client`/`clinic`/`user` ya incluidos), se exponen como server actions con Zod
+(`src/lib/actions/quotes.ts`, `actions/prescriptions.ts`) y se renderizan a PDF bajo demanda — no se guarda
+ningún binario, cada descarga vuelve a renderizar desde los datos.
+
+- **Total de `Quote`**: `items` es `Json` (`{ description, amount }[]`, sin catálogo de precios); `total`
+  (`Decimal(10,2)`) se recalcula siempre sumando `items` en `createQuote`, nunca se acepta un total que
+  mande el cliente — el tipo `CreateQuoteInput` ni siquiera tiene ese campo.
+- **Permisos**: presupuestos, cualquier rol de la clínica (documento comercial). Recetas, solo
+  `PRESCRIPTION_ROLES = [OWNER, ADMIN, VETERINARIAN]` (`src/lib/auth/roles.ts`) — es un acto clínico, chequeado
+  con `hasRole()` dentro de la server action, no solo ocultando el botón.
+- **Render**: `@react-pdf/renderer` (única dependencia nueva del proyecto para esta función), con templates
+  React puros en `src/lib/pdf/quote-document.tsx` y `prescription-document.tsx` (`Document`/`Page`/`View`/
+  `Text`/`StyleSheet`, sin JS de cliente). Los route handlers que sirven el archivo
+  (`src/app/api/documents/quotes/[id]/pdf/route.tsx` y `.../prescriptions/[id]/pdf/route.tsx`) usan la
+  extensión `.tsx` —no `.ts`— porque necesitan JSX para instanciar el árbol de componentes antes de pasarlo a
+  `renderToBuffer()`; Next.js los reconoce como Route Handlers igual que a un `.ts` (matchea por nombre de
+  archivo `route.*` contra `pageExtensions`, que por defecto incluye `tsx`).
+- **Aislamiento multiempresa en la descarga**: cada GET vuelve a resolver `clinicId` desde `getSession()` y
+  busca el documento filtrando por `{ id, clinicId }` (`getQuoteForClinic`/`getPrescriptionForClinic`) —
+  nunca por `id` solo — devolviendo 404 si no pertenece a esa clínica, aunque el id sea válido en otra.
+

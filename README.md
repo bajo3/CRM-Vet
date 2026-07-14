@@ -7,7 +7,7 @@ Base funcional de un CRM veterinario multiempresa con un canal de WhatsApp para 
 - Panel web con autenticación (email + contraseña, sesión JWT en cookie httpOnly) y aislamiento total por `clinicId`/rol de sesión.
 - Navegación del panel: Inicio, Agenda, Clientes y mascotas, bandeja humana de Mensajes y Configuración con estado de WhatsApp.
 - Agenda completa (`/agenda`): vista diaria (horarios × veterinario, derivados de `openingHours`) y semanal (lunes a domingo), navegación anterior/hoy/siguiente + selector de fecha, filtro por veterinario, todo con estado en la URL (`?view=&date=&vet=`). Alta de turno con buscador de mascota, motivo por chips, y horarios realmente disponibles (`getAvailableSlots`); detalle de turno con acciones según estado y rol (confirmar/atender/ausente/cancelar/reprogramar) e historial de `AppointmentActivity` en español.
-- Sección completa de "Clientes y mascotas": buscador único (cliente, mascota o teléfono), alta/edición de clientes y mascotas, ficha de mascota de una sola pantalla con historial clínico, registro rápido de atenciones y próximo control con opciones rápidas, con accesos directos a la Agenda (nuevo turno / próximo turno).
+- Sección completa de "Clientes y mascotas": buscador único (cliente, mascota o teléfono), alta/edición de clientes y mascotas, ficha de mascota de una sola pantalla con historial clínico, registro rápido de atenciones y próximo control con opciones rápidas, presupuestos y recetas descargables en PDF, con accesos directos a la Agenda (nuevo turno / próximo turno).
 - Inicio con datos reales de la clínica de la sesión (turnos de hoy, pendientes de confirmar, próximos controles, controles vencidos, conversaciones que requieren atención).
 - Modelo PostgreSQL/Prisma aislado por `clinicId`.
 - Worker persistente de Baileys con QR y reconexión.
@@ -72,6 +72,26 @@ Grilla propia en Tailwind (sin librería de calendario), sobre los servicios de 
 - **Nuevo turno** (`/agenda/nuevo`): buscador de mascota (filtro cliente-side sobre las mascotas de la clínica), motivo por chips (Consulta/Vacunación/Control/Otro + texto libre), fecha, veterinario y horario — el horario solo ofrece los slots realmente libres (`getAvailableSlots`, recalculados al cambiar fecha/veterinario vía server action). Soporta `?petId=`, `?date=`, `?time=` y `?vetId=` para precargar (usado por los botones "Nuevo turno" de Inicio, la ficha de mascota y los slots vacíos de la grilla). Un conflicto de disponibilidad (otra reserva ganó la carrera) muestra "Ese horario acaba de ocuparse. Elegí otro." y refresca los horarios.
 - **Detalle de turno** (`/agenda/[id]`): datos completos, acceso rápido a la ficha de la mascota, e historial de `AppointmentActivity` en español (creado/reprogramado/cambios de estado, con quién y cuándo). Acciones según estado (Confirmar, Marcar atendido, Marcar ausente, Reprogramar, Cancelar); cancelar pide confirmación simple en la misma pantalla (sin modal). Reprogramar (`/agenda/[id]/reprogramar`) mantiene el estado del turno y solo registra actividad `RESCHEDULED` — no es un estado en sí.
 - **Permisos** (aplicados en las server actions, no solo en la UI): `OWNER`/`ADMIN`/`RECEPTIONIST` gestionan todo (`AGENDA_MANAGE_ROLES` en `src/lib/auth/roles.ts`). `VETERINARIAN` ve toda la agenda de la clínica pero solo puede confirmar/marcar atendido/marcar ausente en turnos **propios** — no puede crear, cancelar ni reprogramar (esas rutas redirigen server-side si intenta entrar directo por URL).
+
+## Presupuestos y recetas en PDF
+
+Desde la ficha de mascota, dos documentos descargables en PDF (`@react-pdf/renderer`, renderizado 100% en el
+servidor con `renderToBuffer`, sin navegador headless):
+
+- **Presupuesto**: ítems libres (descripción + monto, sin catálogo de precios), con el total **siempre
+  recalculado en el servidor** sumando los ítems — nunca se confía en un total que mande el cliente. Lo
+  puede generar cualquier usuario autenticado de la clínica (documento comercial).
+- **Receta**: indicación en texto libre (sin catálogo de medicamentos). Solo `OWNER`/`ADMIN`/`VETERINARIAN`
+  pueden emitirla (`PRESCRIPTION_ROLES` en `src/lib/auth/roles.ts`) — es un acto clínico, `RECEPTIONIST`
+  queda afuera, chequeado en la server action. Si el profesional tiene `User.licenseNumber` cargado, aparece
+  en el PDF; hoy ese campo no tiene UI de edición (pendiente real, ver `CODEX-TODO.md`).
+
+Ambos formularios viven en la misma ficha de mascota (sin modal, mismo patrón desplegable que "Registrar
+atención"), calculan/muestran el total en vivo del lado del cliente solo para mostrarlo, disparan la
+descarga del PDF al guardar, y quedan listados (con link de descarga) en una sección "Presupuestos y
+recetas" al pie de la ficha. Las rutas `src/app/api/documents/{quotes,prescriptions}/[id]/pdf/route.tsx`
+sirven el archivo verificando siempre `clinicId` de la sesión antes de responder (aislamiento multiempresa:
+una clínica nunca puede descargar el documento de otra, aunque adivine el id).
 
 ## Inicio rápido
 
@@ -184,6 +204,13 @@ contra una base remota son más lentos que un `sqlite`/`pg` local; por eso corre
 - Envío real de recordatorios: reemplazar `MockWhatsAppProvider` por un proveedor que use Baileys (o Meta Cloud API) una vez definido el canal productivo.
 - Rate limiting distribuido y métricas operativas.
 - Migración a Meta Cloud API antes de considerar el canal productivo.
+- `User.licenseNumber` (matrícula profesional, se muestra en la receta si está cargada) no tiene UI de
+  edición todavía — solo existe el campo en el modelo. Falta sumarlo al formulario de alta/edición de
+  integrante en `Configuración → Equipo`.
+- El botón "Nueva receta"/"Nuevo presupuesto" de la ficha de mascota enlaza por ancla al panel
+  correspondiente (que arranca cerrado, un clic lo despliega); se evaluó auto-abrirlo leyendo el hash de la
+  URL pero se descartó por el lint `react-hooks/set-state-in-effect` (cascading render) — mejora de UX
+  menor pendiente, no bloqueante.
 - Se detectó (11/07/2026) que a veces una página del panel queda mostrando el esqueleto de `loading.tsx`
   de forma persistente aunque el servidor y la base respondan rápido (confirmado con logs). No se pudo
   aislar la causa raíz; ver detalle en `CODEX-TODO.md` (sección "Sesión de performance + auditoría de panel").

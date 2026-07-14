@@ -81,6 +81,8 @@ model Clinic {
   medicalRecords             MedicalRecord[]
   reminders                  Reminder[]
   appointmentActivities      AppointmentActivity[]
+  quotes                     Quote[]
+  prescriptions              Prescription[]
 }
 
 model User {
@@ -88,12 +90,15 @@ model User {
   name                  String
   email                 String                 @unique
   passwordHash          String?
+  licenseNumber         String?
   memberships           ClinicMember[]
   appointments          Appointment[]          @relation("VeterinarianAppointments")
   createdAppointments   Appointment[]          @relation("AppointmentCreatedBy")
   assignedConversations WhatsappConversation[]
   medicalRecords        MedicalRecord[]
   appointmentActivities AppointmentActivity[]
+  quotes                Quote[]
+  prescriptions         Prescription[]
 }
 
 model ClinicMember {
@@ -149,6 +154,8 @@ model Pet {
   conversations  WhatsappConversation[]
   medicalRecords MedicalRecord[]
   reminders      Reminder[]
+  quotes         Quote[]
+  prescriptions  Prescription[]
 
   @@index([clinicId, name])
 }
@@ -242,6 +249,37 @@ model MedicalRecord {
 
   @@index([clinicId, petId, createdAt])
   @@index([clinicId, nextDueDate])
+}
+
+model Quote {
+  id        String   @id @default(cuid())
+  clinicId  String
+  petId     String
+  userId    String
+  title     String?
+  items     Json
+  total     Decimal  @db.Decimal(10, 2)
+  notes     String?
+  createdAt DateTime @default(now())
+  clinic    Clinic   @relation(fields: [clinicId], references: [id], onDelete: Cascade)
+  pet       Pet      @relation(fields: [petId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Restrict)
+
+  @@index([clinicId, petId, createdAt])
+}
+
+model Prescription {
+  id        String   @id @default(cuid())
+  clinicId  String
+  petId     String
+  userId    String
+  content   String
+  createdAt DateTime @default(now())
+  clinic    Clinic   @relation(fields: [clinicId], references: [id], onDelete: Cascade)
+  pet       Pet      @relation(fields: [petId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Restrict)
+
+  @@index([clinicId, petId, createdAt])
 }
 
 model Reminder {
