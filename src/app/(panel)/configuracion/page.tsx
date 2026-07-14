@@ -4,21 +4,24 @@ import { requireSession } from "@/lib/auth/session";
 import { getPrisma } from "@/lib/prisma";
 import { getClinicSettings } from "@/lib/queries/clinic";
 import { CLINIC_CONFIG_ROLES, TEAM_MANAGE_ROLES } from "@/lib/auth/roles";
+import { getReminderRules } from "@/lib/queries/reminder-rules";
 import { ClinicForm } from "./clinic-form";
 import { WhatsappConnectionCard } from "./whatsapp-connection-card";
 import { TeamPanel } from "./team-panel";
+import { ReminderRulesForm } from "./reminder-rules-form";
 
 export default async function ConfiguracionPage() {
   const session = await requireSession();
   const canEdit = CLINIC_CONFIG_ROLES.includes(session.role);
   const canManageTeam = TEAM_MANAGE_ROLES.includes(session.role);
-  const [clinic, members] = await Promise.all([
+  const [clinic, members, reminderRules] = await Promise.all([
     getClinicSettings(session.clinicId),
     getPrisma().clinicMember.findMany({
       where: { clinicId: session.clinicId },
       select: { id: true, userId: true, role: true, active: true, user: { select: { name: true, email: true } } },
       orderBy: [{ active: "desc" }, { role: "asc" }, { user: { name: "asc" } }],
     }),
+    getReminderRules(session.clinicId),
   ]);
   if (!clinic) notFound();
 
@@ -48,12 +51,15 @@ export default async function ConfiguracionPage() {
             timezone: clinic.timezone,
             duration: clinic.defaultAppointmentDuration,
             openingHours: clinic.openingHours,
+            logoUrl: clinic.logoUrl,
           }}
           editable={canEdit}
         />
 
         <TeamPanel members={members} canManage={canManageTeam} currentUserId={session.userId} />
       </div>
+
+      <ReminderRulesForm rules={reminderRules} editable={canEdit} />
     </div>
   );
 }

@@ -8,8 +8,8 @@ type TxClient = Prisma.TransactionClient | PrismaClient;
 const WEEKDAY_KEYS = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"] as const;
 type WeekdayKey = (typeof WEEKDAY_KEYS)[number];
 
-/** Horario de apertura de la clínica: por día, un rango `[apertura, cierre]` en formato "HH:MM", o ausente si cierra ese día. */
-export type OpeningHours = Partial<Record<WeekdayKey, [string, string]>>;
+/** Horario de apertura de la clínica: por día, una lista de rangos `[apertura, cierre]` en formato "HH:MM" (para contemplar horarios cortados como mañana/tarde), o ausente si cierra ese día. */
+export type OpeningHours = Partial<Record<WeekdayKey, [string, string][]>>;
 
 export type ClinicScheduleConfig = {
   id: string;
@@ -18,9 +18,18 @@ export type ClinicScheduleConfig = {
   defaultAppointmentDuration: number;
 };
 
+/** Normaliza también el formato viejo (un único rango `[apertura, cierre]` por día, sin envolver en lista). */
 function parseOpeningHours(value: Prisma.JsonValue): OpeningHours {
   if (!value || typeof value !== "object" || Array.isArray(value)) return {};
-  return value as OpeningHours;
+  const raw = value as Record<string, unknown>;
+  const result: OpeningHours = {};
+  for (const key of WEEKDAY_KEYS) {
+    const day = raw[key];
+    if (!Array.isArray(day) || day.length === 0) continue;
+    const ranges = (typeof day[0] === "string" ? [day] : day) as [string, string][];
+    result[key] = ranges;
+  }
+  return result;
 }
 
 function weekdayKey(date: DateTime): WeekdayKey {
@@ -39,18 +48,19 @@ export function theoreticalSlotsForDay(openingHours: Prisma.JsonValue, date: str
   const parsed = parseOpeningHours(openingHours);
   const day = DateTime.fromISO(date, { zone: timezone });
   if (!day.isValid) return [];
-  const range = parsed[weekdayKey(day)];
-  if (!range) return [];
-  const [openTime, closeTime] = range;
-  const open = DateTime.fromISO(`${date}T${openTime}`, { zone: timezone });
-  const close = DateTime.fromISO(`${date}T${closeTime}`, { zone: timezone });
-  if (!open.isValid || !close.isValid || open >= close) return [];
+  const ranges = parsed[weekdayKey(day)];
+  if (!ranges || ranges.length === 0) return [];
 
   const slots: string[] = [];
-  let cursor = open;
-  while (cursor.plus({ minutes: durationMinutes }) <= close) {
-    slots.push(cursor.toFormat("HH:mm"));
-    cursor = cursor.plus({ minutes: durationMinutes });
+  for (const [openTime, closeTime] of ranges) {
+    const open = DateTime.fromISO(`${date}T${openTime}`, { zone: timezone });
+    const close = DateTime.fromISO(`${date}T${closeTime}`, { zone: timezone });
+    if (!open.isValid || !close.isValid || open >= close) continue;
+    let cursor = open;
+    while (cursor.plus({ minutes: durationMinutes }) <= close) {
+      slots.push(cursor.toFormat("HH:mm"));
+      cursor = cursor.plus({ minutes: durationMinutes });
+    }
   }
   return slots;
 }

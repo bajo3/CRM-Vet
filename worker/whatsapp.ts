@@ -1,5 +1,6 @@
 import "dotenv/config";
 import { createServer } from "node:http";
+import { rm } from "node:fs/promises";
 import makeWASocket, {
   DisconnectReason,
   fetchLatestBaileysVersion,
@@ -116,7 +117,10 @@ async function connect() {
       const statusCode = (lastDisconnect?.error as { output?: { statusCode?: number } })?.output?.statusCode;
       if (statusCode === DisconnectReason.loggedOut) {
         updateBridgeState("LOGGED_OUT", null);
-        logger.error("Sesión cerrada. Hay que vincular WhatsApp nuevamente.");
+        logger.error("Sesión cerrada. Borrando credenciales viejas y generando un QR nuevo.");
+        void rm(authDir, { recursive: true, force: true })
+          .catch((error) => logger.error({ error }, "No se pudo borrar el directorio de credenciales"))
+          .finally(() => setTimeout(() => void connect(), 1_000));
       } else {
         updateBridgeState("RECONNECTING", null);
         logger.warn({ statusCode }, "Conexión cerrada; reconectando");

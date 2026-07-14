@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useTransition } from "react";
-import { CheckCircle2, Clock3, Loader2, Save } from "lucide-react";
+import { useRef, useState, useTransition } from "react";
+import { CheckCircle2, Clock3, Loader2, Save, Image as ImageIcon, Trash2, Upload } from "lucide-react";
 import { updateClinic } from "@/lib/actions/clinic";
 
 const DAYS = [
@@ -10,16 +10,60 @@ const DAYS = [
 ] as const;
 
 type ClinicFormProps = {
-  clinic: { name: string; phone: string; timezone: string; duration: number; openingHours: unknown };
+  clinic: { name: string; phone: string; timezone: string; duration: number; openingHours: unknown; logoUrl: string | null };
   editable: boolean;
 };
 
 const inputClass = "mt-1.5 h-11 w-full rounded-xl border border-slate-200 bg-white px-3.5 text-sm outline-none transition focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 disabled:bg-slate-50";
+const LOGO_MAX_SIDE = 320;
+
+/** Normaliza tanto el formato viejo (`[open, close]`) como el nuevo (lista de rangos) a lista de rangos. */
+function normalizeRanges(raw: unknown): [string, string][] {
+  if (!Array.isArray(raw) || raw.length === 0) return [];
+  return typeof raw[0] === "string" ? [raw as [string, string]] : (raw as [string, string][]);
+}
+
+/** Redimensiona la imagen elegida en el navegador (canvas) antes de guardarla, para no mandar fotos pesadas de cámara al servidor. */
+function resizeImageToDataUrl(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const img = document.createElement("img");
+    img.onload = () => {
+      const scale = Math.min(1, LOGO_MAX_SIDE / Math.max(img.width, img.height));
+      const canvas = document.createElement("canvas");
+      canvas.width = Math.round(img.width * scale);
+      canvas.height = Math.round(img.height * scale);
+      const ctx = canvas.getContext("2d");
+      if (!ctx) return reject(new Error("No se pudo procesar la imagen."));
+      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+      resolve(canvas.toDataURL("image/png"));
+      URL.revokeObjectURL(img.src);
+    };
+    img.onerror = () => reject(new Error("No se pudo leer la imagen."));
+    img.src = URL.createObjectURL(file);
+  });
+}
 
 export function ClinicForm({ clinic, editable }: ClinicFormProps) {
-  const hours = clinic.openingHours as Record<string, string[]>;
+  const hours = clinic.openingHours as Record<string, unknown>;
   const [result, setResult] = useState<{ ok: boolean; message: string } | null>(null);
+  const [split, setSplit] = useState<Record<string, boolean>>(() =>
+    Object.fromEntries(DAYS.map(([key]) => [key, normalizeRanges(hours[key]).length > 1]))
+  );
+  const [logoDataUrl, setLogoDataUrl] = useState(clinic.logoUrl ?? "");
+  const [logoError, setLogoError] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [pending, startTransition] = useTransition();
+
+  async function handleLogoChange(event: React.ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    setLogoError(null);
+    try {
+      setLogoDataUrl(await resizeImageToDataUrl(file));
+    } catch {
+      setLogoError("No se pudo procesar la imagen. Probá con otro archivo.");
+    }
+  }
 
   return (
     <form
@@ -30,12 +74,16 @@ export function ClinicForm({ clinic, editable }: ClinicFormProps) {
           enabled: formData.get(`${key}-enabled`) === "on",
           open: String(formData.get(`${key}-open`)),
           close: String(formData.get(`${key}-close`)),
+          splitEnabled: formData.get(`${key}-split`) === "on",
+          open2: String(formData.get(`${key}-open2`) || "00:00"),
+          close2: String(formData.get(`${key}-close2`) || "00:00"),
         }]));
         const response = await updateClinic({
           name: String(formData.get("name")),
           phone: String(formData.get("phone")),
           timezone: String(formData.get("timezone")),
           defaultAppointmentDuration: Number(formData.get("duration")),
+          logoUrl: logoDataUrl,
           days,
         });
         setResult({ ok: response.ok, message: response.ok ? "Cambios guardados correctamente." : response.message });
@@ -47,6 +95,34 @@ export function ClinicForm({ clinic, editable }: ClinicFormProps) {
       </div>
 
       <fieldset disabled={!editable || pending} className="space-y-6 p-5 disabled:opacity-70 lg:p-6">
+        <div>
+          <p className="mb-2 text-sm font-medium text-slate-700">Logo de la clínica</p>
+          <div className="flex items-center gap-4">
+            <span className="grid size-16 shrink-0 place-items-center overflow-hidden rounded-2xl border border-slate-200 bg-slate-50">
+              {logoDataUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={logoDataUrl} alt="Logo de la clínica" className="size-full object-contain" />
+              ) : (
+                <ImageIcon size={22} className="text-slate-300" />
+              )}
+            </span>
+            <div className="flex flex-wrap gap-2">
+              <button type="button" onClick={() => fileInputRef.current?.click()} className="flex h-9 items-center gap-1.5 rounded-lg border border-slate-200 px-3 text-xs font-medium text-slate-600 hover:bg-slate-50">
+                <Upload size={13} />
+                {logoDataUrl ? "Cambiar" : "Subir logo"}
+              </button>
+              {logoDataUrl && (
+                <button type="button" onClick={() => { setLogoDataUrl(""); if (fileInputRef.current) fileInputRef.current.value = ""; }} className="flex h-9 items-center gap-1.5 rounded-lg border border-slate-200 px-3 text-xs font-medium text-rose-600 hover:bg-rose-50">
+                  <Trash2 size={13} />
+                  Quitar
+                </button>
+              )}
+              <input ref={fileInputRef} type="file" accept="image/png,image/jpeg,image/webp" onChange={handleLogoChange} className="hidden" />
+            </div>
+          </div>
+          {logoError && <p className="mt-1.5 text-xs text-rose-600">{logoError}</p>}
+        </div>
+
         <div className="grid gap-4 sm:grid-cols-2">
           <label className="text-sm font-medium text-slate-700">Nombre de la clínica<input name="name" defaultValue={clinic.name} required className={inputClass} /></label>
           <label className="text-sm font-medium text-slate-700">Teléfono<input name="phone" type="tel" defaultValue={clinic.phone} className={inputClass} /></label>
@@ -55,16 +131,38 @@ export function ClinicForm({ clinic, editable }: ClinicFormProps) {
         </div>
 
         <div>
-          <div className="mb-3"><p className="text-sm font-semibold text-slate-800">Horarios de atención</p><p className="mt-1 text-xs text-slate-500">Desactivá los días en los que la clínica permanece cerrada.</p></div>
+          <div className="mb-3"><p className="text-sm font-semibold text-slate-800">Horarios de atención</p><p className="mt-1 text-xs text-slate-500">Desactivá los días en los que la clínica permanece cerrada. Si cerrás al mediodía, sumá un segundo turno.</p></div>
           <div className="overflow-hidden rounded-2xl border border-slate-200">
             {DAYS.map(([key, label]) => {
-              const value = hours[key] ?? ["09:00", "18:00"];
+              const ranges = normalizeRanges(hours[key]);
+              const [firstOpen, firstClose] = ranges[0] ?? ["09:00", "18:00"];
+              const [secondOpen, secondClose] = ranges[1] ?? ["16:00", "20:00"];
               return (
-                <div key={key} className="grid gap-3 border-b border-slate-100 p-3 last:border-b-0 sm:grid-cols-[1fr_130px_16px_130px] sm:items-center sm:px-4">
-                  <label className="flex items-center gap-3 text-sm font-medium"><input type="checkbox" name={`${key}-enabled`} defaultChecked={Boolean(hours[key])} className="size-4 rounded accent-emerald-600" />{label}</label>
-                  <input aria-label={`Apertura ${label}`} name={`${key}-open`} type="time" defaultValue={value[0]} className="h-10 rounded-xl border border-slate-200 px-3 text-sm outline-none focus:border-emerald-500" />
-                  <span className="hidden text-center text-xs text-slate-400 sm:block">a</span>
-                  <input aria-label={`Cierre ${label}`} name={`${key}-close`} type="time" defaultValue={value[1]} className="h-10 rounded-xl border border-slate-200 px-3 text-sm outline-none focus:border-emerald-500" />
+                <div key={key} className="space-y-2 border-b border-slate-100 p-3 last:border-b-0 sm:px-4">
+                  <div className="grid gap-3 sm:grid-cols-[1fr_130px_16px_130px] sm:items-center">
+                    <label className="flex items-center gap-3 text-sm font-medium"><input type="checkbox" name={`${key}-enabled`} defaultChecked={ranges.length > 0} className="size-4 rounded accent-emerald-600" />{label}</label>
+                    <input aria-label={`Apertura ${label}`} name={`${key}-open`} type="time" defaultValue={firstOpen} className="h-10 rounded-xl border border-slate-200 px-3 text-sm outline-none focus:border-emerald-500" />
+                    <span className="hidden text-center text-xs text-slate-400 sm:block">a</span>
+                    <input aria-label={`Cierre ${label}`} name={`${key}-close`} type="time" defaultValue={firstClose} className="h-10 rounded-xl border border-slate-200 px-3 text-sm outline-none focus:border-emerald-500" />
+                  </div>
+                  <label className="flex items-center gap-2 pl-7 text-xs font-medium text-slate-500">
+                    <input
+                      type="checkbox"
+                      name={`${key}-split`}
+                      checked={split[key] ?? false}
+                      onChange={(event) => setSplit((current) => ({ ...current, [key]: event.target.checked }))}
+                      className="size-3.5 rounded accent-emerald-600"
+                    />
+                    Segundo turno (ej. horario cortado)
+                  </label>
+                  {split[key] && (
+                    <div className="grid gap-3 pl-7 sm:grid-cols-[1fr_130px_16px_130px] sm:items-center">
+                      <span />
+                      <input aria-label={`Apertura turno tarde ${label}`} name={`${key}-open2`} type="time" defaultValue={secondOpen} className="h-10 rounded-xl border border-slate-200 px-3 text-sm outline-none focus:border-emerald-500" />
+                      <span className="hidden text-center text-xs text-slate-400 sm:block">a</span>
+                      <input aria-label={`Cierre turno tarde ${label}`} name={`${key}-close2`} type="time" defaultValue={secondClose} className="h-10 rounded-xl border border-slate-200 px-3 text-sm outline-none focus:border-emerald-500" />
+                    </div>
+                  )}
                 </div>
               );
             })}

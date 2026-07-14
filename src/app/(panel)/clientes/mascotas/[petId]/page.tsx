@@ -5,7 +5,9 @@ import { requireSession, hasRole } from "@/lib/auth/session";
 import { CLIENT_MANAGE_ROLES, AGENDA_MANAGE_ROLES, PRESCRIPTION_ROLES } from "@/lib/auth/roles";
 import { getClinicSettings } from "@/lib/queries/clinic";
 import { getPetDetail } from "@/lib/queries/pet";
+import { getReminderRules } from "@/lib/queries/reminder-rules";
 import { ageFromBirthDate, formatDate, formatDateShort, formatTime, medicalRecordTypeLabel } from "@/lib/format";
+import { SpeciesIcon } from "@/lib/pet-species-icon";
 import { RegisterVisitPanel } from "./register-visit-panel";
 import { QuotePanel } from "./quote-panel";
 import { PrescriptionPanel } from "./prescription-panel";
@@ -25,9 +27,10 @@ export default async function FichaMascotaPage({
   const { petId } = await params;
   const { ok } = await searchParams;
 
-  const [clinic, detail] = await Promise.all([
+  const [clinic, detail, reminderRules] = await Promise.all([
     getClinicSettings(session.clinicId),
     getPetDetail(session.clinicId, petId),
+    getReminderRules(session.clinicId),
   ]);
   const timezone = clinic?.timezone ?? "America/Argentina/Buenos_Aires";
   if (!detail) notFound();
@@ -78,7 +81,12 @@ export default async function FichaMascotaPage({
               </span>
             )}
             <div>
-              <h1 className="text-xl font-semibold">{pet.name}</h1>
+              <h1 className="flex items-center gap-2 text-xl font-semibold">
+                {pet.name}
+                <span className="grid size-6 place-items-center rounded-full bg-emerald-100 text-emerald-700">
+                  <SpeciesIcon species={pet.species} size={13} />
+                </span>
+              </h1>
               <p className="text-sm text-slate-500">
                 {pet.species}
                 {pet.breed ? ` · ${pet.breed}` : ""} · {age}
@@ -179,7 +187,7 @@ export default async function FichaMascotaPage({
       </div>
 
       <div className="mb-6">
-        <RegisterVisitPanel petId={pet.id} />
+        <RegisterVisitPanel petId={pet.id} reminderRules={reminderRules} />
       </div>
 
       <div className="mb-6 grid gap-4 sm:grid-cols-2">

@@ -66,6 +66,7 @@ model Clinic {
   timezone                   String                 @default("America/Argentina/Buenos_Aires")
   openingHours               Json
   defaultAppointmentDuration Int                    @default(30)
+  logoUrl                    String?
   whatsappSessionKey         String?                @unique
   whatsappPhoneNumberId      String?
   whatsappBusinessAccountId  String?
@@ -83,6 +84,7 @@ model Clinic {
   appointmentActivities      AppointmentActivity[]
   quotes                     Quote[]
   prescriptions              Prescription[]
+  reminderRules              ReminderRule[]
 }
 
 model User {
@@ -280,6 +282,20 @@ model Prescription {
   user      User     @relation(fields: [userId], references: [id], onDelete: Restrict)
 
   @@index([clinicId, petId, createdAt])
+}
+
+/** Regla de recordatorio automático por clínica y tipo de visita (ej: vacuna -> cada 6 meses). Al registrar una visita de ese tipo, se usa como fecha sugerida del próximo control (editable por el profesional). */
+model ReminderRule {
+  id        String            @id @default(cuid())
+  clinicId  String
+  type      MedicalRecordType
+  months    Int
+  enabled   Boolean           @default(true)
+  createdAt DateTime          @default(now())
+  updatedAt DateTime          @updatedAt
+  clinic    Clinic            @relation(fields: [clinicId], references: [id], onDelete: Cascade)
+
+  @@unique([clinicId, type])
 }
 
 model Reminder {

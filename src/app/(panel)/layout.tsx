@@ -18,9 +18,14 @@ export default async function PanelLayout({ children }: { children: React.ReactN
     <div className="min-h-screen bg-[#f6f8f5] text-slate-900 lg:grid lg:grid-cols-[248px_1fr]">
       <aside className="hidden border-r border-slate-200 bg-white px-5 py-6 lg:flex lg:flex-col">
         <div className="mb-9 flex items-center gap-3 px-2">
-          <span className="grid size-10 place-items-center rounded-xl bg-emerald-600 text-white">
-            <PawPrint size={22} />
-          </span>
+          {clinic?.logoUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={clinic.logoUrl} alt={clinic.name} className="size-10 shrink-0 rounded-xl object-contain" />
+          ) : (
+            <span className="grid size-10 place-items-center rounded-xl bg-emerald-600 text-white">
+              <PawPrint size={22} />
+            </span>
+          )}
           <div className="min-w-0">
             <div className="font-semibold">Vet Simple</div>
             <div className="truncate text-xs text-slate-500">{clinic?.name ?? "Clínica"}</div>
@@ -49,9 +54,14 @@ export default async function PanelLayout({ children }: { children: React.ReactN
       <div className="flex min-h-screen flex-col pb-16 lg:pb-0">
         <header className="flex items-center justify-between border-b border-slate-200 bg-white px-4 py-3 lg:hidden">
           <div className="flex items-center gap-2">
-            <span className="grid size-8 place-items-center rounded-lg bg-emerald-600 text-white">
-              <PawPrint size={16} />
-            </span>
+            {clinic?.logoUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={clinic.logoUrl} alt={clinic.name} className="size-8 shrink-0 rounded-lg object-contain" />
+            ) : (
+              <span className="grid size-8 place-items-center rounded-lg bg-emerald-600 text-white">
+                <PawPrint size={16} />
+              </span>
+            )}
             <div className="text-sm font-semibold">{clinic?.name ?? "Clínica"}</div>
           </div>
           <form action={logout}>

@@ -1,10 +1,11 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useRouter } from "next/navigation";
-import { CheckCircle2, Loader2 } from "lucide-react";
+import { CheckCircle2, Loader2, Sparkles } from "lucide-react";
+import type { MedicalRecordType } from "@prisma/client";
 import {
   medicalRecordFormSchema,
   MEDICAL_RECORD_TYPE_OPTIONS,
@@ -24,11 +25,21 @@ const DEFAULT_VALUES: MedicalRecordFormValues = {
   nextControlDate: "",
 };
 
-export function MedicalRecordForm({ petId }: { petId: string }) {
+type ReminderRules = Partial<Record<MedicalRecordType, { months: number; enabled: boolean }>>;
+
+function dateInNMonths(months: number): string {
+  const date = new Date();
+  date.setMonth(date.getMonth() + months);
+  return date.toISOString().slice(0, 10);
+}
+
+export function MedicalRecordForm({ petId, reminderRules }: { petId: string; reminderRules: ReminderRules }) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [formError, setFormError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
+  const [suggested, setSuggested] = useState<{ months: number } | null>(null);
+  const controlTouched = useRef(false);
 
   const {
     register,
@@ -36,6 +47,7 @@ export function MedicalRecordForm({ petId }: { petId: string }) {
     control,
     reset,
     watch,
+    setValue,
     setError,
     formState: { errors },
   } = useForm<MedicalRecordFormValues, unknown, MedicalRecordFormInput>({
@@ -44,6 +56,25 @@ export function MedicalRecordForm({ petId }: { petId: string }) {
   });
 
   const nextControlOption = watch("nextControlOption");
+  const type = watch("type") ?? "CONSULTATION";
+
+  useEffect(() => {
+    if (controlTouched.current) return;
+    const rule = reminderRules[type];
+    if (!rule?.enabled) {
+      setSuggested(null);
+      return;
+    }
+    setValue("nextControlOption", "custom");
+    setValue("nextControlDate", dateInNMonths(rule.months));
+    setSuggested({ months: rule.months });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [type]);
+
+  function markTouched() {
+    controlTouched.current = true;
+    setSuggested(null);
+  }
 
   const onSubmit = (data: MedicalRecordFormInput) => {
     setFormError(null);
@@ -60,6 +91,8 @@ export function MedicalRecordForm({ petId }: { petId: string }) {
         return;
       }
       reset(DEFAULT_VALUES);
+      controlTouched.current = false;
+      setSuggested(null);
       setSuccess(true);
       router.refresh();
     });
@@ -141,6 +174,12 @@ export function MedicalRecordForm({ petId }: { petId: string }) {
 
       <div>
         <span className="mb-1.5 block text-sm font-medium text-slate-700">Próximo control</span>
+        {suggested && (
+          <p className="mb-2 flex items-center gap-1.5 text-xs text-emerald-700">
+            <Sparkles size={13} />
+            Sugerido automáticamente: en {suggested.months} {suggested.months === 1 ? "mes" : "meses"} (según la configuración de la clínica). Podés cambiarlo.
+          </p>
+        )}
         <Controller
           control={control}
           name="nextControlOption"
@@ -150,7 +189,10 @@ export function MedicalRecordForm({ petId }: { petId: string }) {
                 <button
                   key={option.value}
                   type="button"
-                  onClick={() => field.onChange(option.value)}
+                  onClick={() => {
+                    markTouched();
+                    field.onChange(option.value);
+                  }}
                   className={`rounded-full border px-3 py-1.5 text-xs font-medium transition-colors ${
                     field.value === option.value ? "border-emerald-500 bg-emerald-50 text-emerald-800" : "border-slate-200 text-slate-600 hover:bg-slate-50"
                   }`}
@@ -166,7 +208,7 @@ export function MedicalRecordForm({ petId }: { petId: string }) {
             <input
               type="date"
               className="h-11 w-full max-w-xs rounded-xl border border-slate-200 bg-white px-3.5 text-sm outline-none focus:border-emerald-400"
-              {...register("nextControlDate")}
+              {...register("nextControlDate", { onChange: markTouched })}
             />
             {errors.nextControlDate && <p className="mt-1 text-xs text-rose-600">{errors.nextControlDate.message}</p>}
           </div>

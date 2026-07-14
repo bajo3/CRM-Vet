@@ -2,9 +2,16 @@
 
 import { useState } from "react";
 import { ClipboardPlus, ChevronDown } from "lucide-react";
+import type { MedicalRecordType } from "@prisma/client";
 import { MedicalRecordForm } from "./medical-record-form";
 
-export function RegisterVisitPanel({ petId }: { petId: string }) {
+export function RegisterVisitPanel({
+  petId,
+  reminderRules,
+}: {
+  petId: string;
+  reminderRules: Partial<Record<MedicalRecordType, { months: number; enabled: boolean }>>;
+}) {
   const [open, setOpen] = useState(false);
 
   return (
@@ -22,7 +29,7 @@ export function RegisterVisitPanel({ petId }: { petId: string }) {
       </button>
       {open && (
         <div className="border-t border-slate-100 p-5">
-          <MedicalRecordForm petId={petId} />
+          <MedicalRecordForm petId={petId} reminderRules={reminderRules} />
         </div>
       )}
     </section>

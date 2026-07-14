@@ -2,6 +2,7 @@ import { SignJWT, jwtVerify } from "jose";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import type { Role } from "@prisma/client";
+import { getPrisma } from "../prisma";
 
 const COOKIE_NAME = "vetcrm_session";
 const SESSION_DURATION_MS = 7 * 24 * 60 * 60 * 1000; // 7 días
@@ -44,7 +45,14 @@ export async function deleteSession(): Promise<void> {
   cookieStore.delete(COOKIE_NAME);
 }
 
-/** Lee y valida la sesión desde la cookie. Devuelve `null` si no hay sesión o es inválida. */
+/**
+ * Lee y valida la sesión desde la cookie. Devuelve `null` si no hay sesión, es inválida, o la
+ * membresía fue desactivada/eliminada.
+ *
+ * El rol se vuelve a verificar en la base en cada request (no se confía en el valor firmado en el
+ * JWT): si un OWNER cambia el rol de alguien o lo desactiva, ese cambio debe aplicarse de inmediato
+ * y no recién cuando esa persona vuelva a iniciar sesión (la cookie dura 7 días).
+ */
 export async function getSession(): Promise<SessionPayload | null> {
   const cookieStore = await cookies();
   const token = cookieStore.get(COOKIE_NAME)?.value;
@@ -52,11 +60,18 @@ export async function getSession(): Promise<SessionPayload | null> {
 
   try {
     const { payload } = await jwtVerify(token, getSecretKey(), { algorithms: ["HS256"] });
-    const { userId, clinicId, role, name } = payload as Record<string, unknown>;
-    if (typeof userId !== "string" || typeof clinicId !== "string" || typeof role !== "string" || typeof name !== "string") {
+    const { userId, clinicId, name } = payload as Record<string, unknown>;
+    if (typeof userId !== "string" || typeof clinicId !== "string" || typeof name !== "string") {
       return null;
     }
-    return { userId, clinicId, role: role as Role, name };
+
+    const membership = await getPrisma().clinicMember.findUnique({
+      where: { clinicId_userId: { clinicId, userId } },
+      select: { role: true, active: true },
+    });
+    if (!membership || !membership.active) return null;
+
+    return { userId, clinicId, role: membership.role, name };
   } catch {
     return null;
   }

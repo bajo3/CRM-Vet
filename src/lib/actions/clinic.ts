@@ -12,8 +12,22 @@ export async function updateClinic(input: ClinicFormInput): Promise<ActionResult
   if (!hasRole(session, CLINIC_CONFIG_ROLES)) return { ok: false, message: "No tenes permisos para modificar la clinica." };
   const parsed = clinicFormSchema.safeParse(input);
   if (!parsed.success) return { ok: false, message: parsed.error.issues[0]?.message ?? "Revisa los datos." };
-  const openingHours = Object.fromEntries(Object.entries(parsed.data.days).filter(([, day]) => day.enabled).map(([key, day]) => [key, [day.open, day.close]]));
-  await getPrisma().clinic.updateMany({ where: { id: session.clinicId }, data: { name: parsed.data.name, phone: parsed.data.phone || null, timezone: parsed.data.timezone, defaultAppointmentDuration: parsed.data.defaultAppointmentDuration, openingHours } });
+  const openingHours = Object.fromEntries(
+    Object.entries(parsed.data.days)
+      .filter(([, day]) => day.enabled)
+      .map(([key, day]) => [key, day.splitEnabled ? [[day.open, day.close], [day.open2, day.close2]] : [[day.open, day.close]]])
+  );
+  await getPrisma().clinic.updateMany({
+    where: { id: session.clinicId },
+    data: {
+      name: parsed.data.name,
+      phone: parsed.data.phone || null,
+      timezone: parsed.data.timezone,
+      defaultAppointmentDuration: parsed.data.defaultAppointmentDuration,
+      openingHours,
+      logoUrl: parsed.data.logoUrl || null,
+    },
+  });
   revalidatePath("/configuracion"); revalidatePath("/", "layout");
   return { ok: true };
 }

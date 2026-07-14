@@ -3,6 +3,7 @@ import { Pencil, Phone, Plus, Search, UsersRound } from "lucide-react";
 import { requireSession, hasRole } from "@/lib/auth/session";
 import { CLIENT_MANAGE_ROLES } from "@/lib/auth/roles";
 import { searchClients } from "@/lib/queries/clients";
+import { SpeciesIcon } from "@/lib/pet-species-icon";
 
 export default async function ClientesPage({ searchParams }: { searchParams: Promise<{ q?: string; ok?: string }> }) {
   const session = await requireSession();
@@ -54,7 +55,7 @@ export default async function ClientesPage({ searchParams }: { searchParams: Pro
       ) : (
         <div className="space-y-3">
           {clients.map((client) => (
-            <article key={client.id} className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
+            <article key={client.id} className="relative rounded-2xl border border-slate-200 bg-white p-4 shadow-sm transition-colors hover:border-emerald-200 hover:bg-emerald-50/30 sm:p-5">
               <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <div className="min-w-0">
                   <div className="font-medium">{client.name}</div>
@@ -66,14 +67,14 @@ export default async function ClientesPage({ searchParams }: { searchParams: Pro
                 {canManage && (
                   <Link
                     href={`/clientes/${client.id}/editar`}
-                    className="flex h-9 w-fit items-center gap-1.5 rounded-lg border border-slate-200 px-3 text-xs font-medium text-slate-600 hover:bg-slate-50"
+                    className="relative z-10 flex h-9 w-fit items-center gap-1.5 rounded-lg border border-slate-200 px-3 text-xs font-medium text-slate-600 hover:bg-slate-50"
                   >
                     <Pencil size={13} />
                     Editar
                   </Link>
                 )}
               </div>
-              <div className="mt-3 flex flex-wrap gap-2">
+              <div className="relative z-10 mt-3 flex flex-wrap gap-2">
                 {client.pets.length === 0 ? (
                   <span className="text-xs text-slate-400">Sin mascotas registradas</span>
                 ) : (
@@ -81,8 +82,9 @@ export default async function ClientesPage({ searchParams }: { searchParams: Pro
                     <Link
                       key={pet.id}
                       href={`/clientes/mascotas/${pet.id}`}
-                      className="rounded-full bg-emerald-50 px-3 py-1.5 text-xs font-medium text-emerald-800 hover:bg-emerald-100"
+                      className="flex items-center gap-1.5 rounded-full bg-emerald-50 px-3 py-1.5 text-xs font-medium text-emerald-800 hover:bg-emerald-100"
                     >
+                      <SpeciesIcon species={pet.species} />
                       {pet.name} · {pet.species}
                     </Link>
                   ))
@@ -96,6 +98,9 @@ export default async function ClientesPage({ searchParams }: { searchParams: Pro
                   </Link>
                 )}
               </div>
+              {canManage && (
+                <Link href={`/clientes/${client.id}/editar`} className="absolute inset-0 z-0 rounded-2xl" aria-label={`Ver ${client.name}`} />
+              )}
             </article>
           ))}
         </div>

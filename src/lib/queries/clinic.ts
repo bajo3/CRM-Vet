@@ -19,6 +19,7 @@ export const getClinicSettings = cache(async (clinicId: string) => {
       timezone: true,
       defaultAppointmentDuration: true,
       openingHours: true,
+      logoUrl: true,
     },
   });
 });

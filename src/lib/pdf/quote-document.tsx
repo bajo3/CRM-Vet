@@ -1,91 +1,36 @@
 import { Document, Page, View, Text, StyleSheet } from "@react-pdf/renderer";
 import { DateTime } from "luxon";
 import type { QuoteWithDocumentData } from "../services/quotes";
+import { COLORS, DocumentHeader, sharedStyles } from "./theme";
 
 const styles = StyleSheet.create({
-  page: {
-    paddingTop: 40,
-    paddingBottom: 50,
-    paddingHorizontal: 42,
-    fontSize: 10.5,
-    fontFamily: "Helvetica",
-    color: "#1e293b",
-  },
-  header: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "flex-start",
-    borderBottomWidth: 1.5,
-    borderBottomColor: "#0f766e",
-    paddingBottom: 12,
-    marginBottom: 20,
-  },
-  clinicName: {
-    fontSize: 16,
-    fontWeight: 700,
-    color: "#0f766e",
-  },
-  clinicPhone: {
-    marginTop: 2,
-    fontSize: 9.5,
-    color: "#64748b",
-  },
-  docTitle: {
-    fontSize: 13,
-    fontWeight: 700,
-    textAlign: "right",
-  },
-  docDate: {
-    marginTop: 2,
-    fontSize: 9.5,
-    color: "#64748b",
-    textAlign: "right",
-  },
-  section: {
-    marginBottom: 16,
-  },
-  sectionTitle: {
-    fontSize: 9,
-    fontWeight: 700,
-    color: "#64748b",
-    textTransform: "uppercase",
-    letterSpacing: 0.5,
-    marginBottom: 4,
-  },
-  row: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-  },
-  infoBlock: {
-    width: "48%",
-  },
-  infoLine: {
-    marginBottom: 2,
-  },
   quoteTitle: {
-    fontSize: 12,
+    fontSize: 12.5,
     fontWeight: 700,
     marginBottom: 14,
+    color: COLORS.ink,
   },
   table: {
+    borderRadius: 6,
+    overflow: "hidden",
     borderWidth: 1,
-    borderColor: "#e2e8f0",
-    borderRadius: 4,
+    borderColor: COLORS.border,
   },
   tableHeaderRow: {
     flexDirection: "row",
-    backgroundColor: "#f1f5f9",
-    borderBottomWidth: 1,
-    borderBottomColor: "#e2e8f0",
-    paddingVertical: 6,
-    paddingHorizontal: 8,
+    backgroundColor: COLORS.primary,
+    paddingVertical: 7,
+    paddingHorizontal: 10,
   },
   tableRow: {
     flexDirection: "row",
     borderBottomWidth: 1,
-    borderBottomColor: "#e2e8f0",
-    paddingVertical: 7,
-    paddingHorizontal: 8,
+    borderBottomColor: COLORS.border,
+    paddingVertical: 8,
+    paddingHorizontal: 10,
+  },
+  tableRowAlt: {
+    backgroundColor: "#f8fafc",
   },
   tableRowLast: {
     borderBottomWidth: 0,
@@ -94,30 +39,35 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   colAmount: {
-    width: 90,
+    width: 92,
     textAlign: "right",
   },
   tableHeaderText: {
     fontSize: 9,
     fontWeight: 700,
-    color: "#475569",
+    color: "#ffffff",
     textTransform: "uppercase",
+    letterSpacing: 0.4,
   },
-  totalRow: {
+  totalBar: {
     flexDirection: "row",
-    justifyContent: "flex-end",
-    marginTop: 10,
-    paddingRight: 8,
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginTop: 14,
+    backgroundColor: COLORS.primaryTint,
+    borderRadius: 6,
+    paddingVertical: 10,
+    paddingHorizontal: 14,
   },
   totalLabel: {
-    fontSize: 11,
+    fontSize: 10.5,
     fontWeight: 700,
-    marginRight: 12,
+    color: COLORS.primaryDark,
   },
   totalValue: {
-    fontSize: 12,
+    fontSize: 15,
     fontWeight: 700,
-    color: "#0f766e",
+    color: COLORS.primaryDark,
   },
   notes: {
     marginTop: 18,
@@ -125,17 +75,11 @@ const styles = StyleSheet.create({
     color: "#475569",
     lineHeight: 1.4,
   },
-  footer: {
-    position: "absolute",
-    bottom: 24,
-    left: 42,
-    right: 42,
-    textAlign: "center",
-    fontSize: 8,
-    color: "#94a3b8",
-    borderTopWidth: 1,
-    borderTopColor: "#e2e8f0",
-    paddingTop: 8,
+  validity: {
+    marginTop: 18,
+    fontSize: 8.5,
+    color: COLORS.muted,
+    fontStyle: "italic",
   },
 });
 
@@ -151,60 +95,59 @@ export function QuoteDocument({ quote, timezone }: { quote: QuoteWithDocumentDat
 
   return (
     <Document title={`Presupuesto - ${quote.pet.name}`}>
-      <Page size="A4" style={styles.page}>
-        <View style={styles.header}>
-          <View>
-            <Text style={styles.clinicName}>{quote.clinic.name}</Text>
-            {quote.clinic.phone && <Text style={styles.clinicPhone}>{quote.clinic.phone}</Text>}
-          </View>
-          <View>
-            <Text style={styles.docTitle}>PRESUPUESTO</Text>
-            <Text style={styles.docDate}>{issuedAt}</Text>
-          </View>
-        </View>
+      <Page size="A4" style={sharedStyles.page}>
+        <View style={sharedStyles.spine} fixed />
+        <DocumentHeader clinicName={quote.clinic.name} clinicPhone={quote.clinic.phone} logoUrl={quote.clinic.logoUrl} docLabel="PRESUPUESTO" dateLabel={issuedAt} />
 
-        <View style={[styles.section, styles.row]}>
-          <View style={styles.infoBlock}>
-            <Text style={styles.sectionTitle}>Mascota</Text>
-            <Text style={styles.infoLine}>{quote.pet.name}</Text>
-            <Text style={styles.infoLine}>{quote.pet.species}{quote.pet.breed ? ` · ${quote.pet.breed}` : ""}</Text>
-          </View>
-          <View style={styles.infoBlock}>
-            <Text style={styles.sectionTitle}>Tutor/a</Text>
-            <Text style={styles.infoLine}>{quote.pet.client.name}</Text>
-            <Text style={styles.infoLine}>{quote.pet.client.phone}</Text>
-          </View>
-        </View>
-
-        {quote.title && <Text style={styles.quoteTitle}>{quote.title}</Text>}
-
-        <View style={styles.table}>
-          <View style={styles.tableHeaderRow}>
-            <Text style={[styles.colDescription, styles.tableHeaderText]}>Descripción</Text>
-            <Text style={[styles.colAmount, styles.tableHeaderText]}>Monto</Text>
-          </View>
-          {items.map((item, index) => (
-            <View key={index} style={[styles.tableRow, index === items.length - 1 ? styles.tableRowLast : {}]}>
-              <Text style={styles.colDescription}>{item.description}</Text>
-              <Text style={styles.colAmount}>{formatCurrency(item.amount)}</Text>
+        <View style={sharedStyles.body}>
+          <View style={[sharedStyles.section, sharedStyles.row]}>
+            <View style={sharedStyles.infoCard}>
+              <Text style={sharedStyles.sectionTitle}>Mascota</Text>
+              <Text style={sharedStyles.infoName}>{quote.pet.name}</Text>
+              <Text style={sharedStyles.infoLine}>{quote.pet.species}{quote.pet.breed ? ` · ${quote.pet.breed}` : ""}</Text>
             </View>
-          ))}
-        </View>
-
-        <View style={styles.totalRow}>
-          <Text style={styles.totalLabel}>Total</Text>
-          <Text style={styles.totalValue}>{formatCurrency(Number(quote.total))}</Text>
-        </View>
-
-        {quote.notes && (
-          <View style={styles.notes}>
-            <Text style={styles.sectionTitle}>Notas</Text>
-            <Text>{quote.notes}</Text>
+            <View style={sharedStyles.infoCard}>
+              <Text style={sharedStyles.sectionTitle}>Tutor/a</Text>
+              <Text style={sharedStyles.infoName}>{quote.pet.client.name}</Text>
+              <Text style={sharedStyles.infoLine}>{quote.pet.client.phone}</Text>
+            </View>
           </View>
-        )}
 
-        <Text style={styles.footer}>
-          Presupuesto generado por {quote.user.name} · {quote.clinic.name} · Validez sujeta a confirmación de la clínica.
+          {quote.title && <Text style={styles.quoteTitle}>{quote.title}</Text>}
+
+          <View style={styles.table}>
+            <View style={styles.tableHeaderRow}>
+              <Text style={[styles.colDescription, styles.tableHeaderText]}>Descripción</Text>
+              <Text style={[styles.colAmount, styles.tableHeaderText]}>Monto</Text>
+            </View>
+            {items.map((item, index) => (
+              <View
+                key={index}
+                style={[styles.tableRow, index % 2 === 1 ? styles.tableRowAlt : {}, index === items.length - 1 ? styles.tableRowLast : {}]}
+              >
+                <Text style={styles.colDescription}>{item.description}</Text>
+                <Text style={styles.colAmount}>{formatCurrency(item.amount)}</Text>
+              </View>
+            ))}
+          </View>
+
+          <View style={styles.totalBar}>
+            <Text style={styles.totalLabel}>Total</Text>
+            <Text style={styles.totalValue}>{formatCurrency(Number(quote.total))}</Text>
+          </View>
+
+          {quote.notes && (
+            <View style={styles.notes}>
+              <Text style={sharedStyles.sectionTitle}>Notas</Text>
+              <Text>{quote.notes}</Text>
+            </View>
+          )}
+
+          <Text style={styles.validity}>Presupuesto sujeto a confirmación de la clínica. Los valores pueden variar según disponibilidad al momento de la atención.</Text>
+        </View>
+
+        <Text style={sharedStyles.footer} fixed>
+          Presupuesto generado por {quote.user.name} · {quote.clinic.name}
         </Text>
       </Page>
     </Document>

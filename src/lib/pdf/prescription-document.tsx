@@ -1,110 +1,53 @@
 import { Document, Page, View, Text, StyleSheet } from "@react-pdf/renderer";
 import { DateTime } from "luxon";
 import type { PrescriptionWithDocumentData } from "../services/prescriptions";
+import { COLORS, DocumentHeader, sharedStyles } from "./theme";
 
 const styles = StyleSheet.create({
-  page: {
-    paddingTop: 40,
-    paddingBottom: 50,
-    paddingHorizontal: 42,
-    fontSize: 10.5,
-    fontFamily: "Helvetica",
-    color: "#1e293b",
-  },
-  header: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "flex-start",
-    borderBottomWidth: 1.5,
-    borderBottomColor: "#0f766e",
-    paddingBottom: 12,
-    marginBottom: 20,
-  },
-  clinicName: {
-    fontSize: 16,
+  rxSymbol: {
+    fontSize: 30,
     fontWeight: 700,
-    color: "#0f766e",
-  },
-  clinicPhone: {
-    marginTop: 2,
-    fontSize: 9.5,
-    color: "#64748b",
-  },
-  docTitle: {
-    fontSize: 13,
-    fontWeight: 700,
-    textAlign: "right",
-  },
-  docDate: {
-    marginTop: 2,
-    fontSize: 9.5,
-    color: "#64748b",
-    textAlign: "right",
-  },
-  section: {
-    marginBottom: 16,
-  },
-  sectionTitle: {
-    fontSize: 9,
-    fontWeight: 700,
-    color: "#64748b",
-    textTransform: "uppercase",
-    letterSpacing: 0.5,
-    marginBottom: 4,
-  },
-  row: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-  },
-  infoBlock: {
-    width: "48%",
-  },
-  infoLine: {
-    marginBottom: 2,
+    color: COLORS.primary,
+    marginBottom: -6,
   },
   contentBox: {
-    marginTop: 8,
-    borderWidth: 1,
-    borderColor: "#e2e8f0",
-    borderRadius: 4,
-    padding: 14,
-    minHeight: 160,
+    marginTop: 4,
+    backgroundColor: "#f8fafc",
+    borderRadius: 6,
+    borderLeftWidth: 3,
+    borderLeftColor: COLORS.primary,
+    padding: 16,
+    minHeight: 180,
   },
   contentText: {
     fontSize: 11,
-    lineHeight: 1.6,
+    lineHeight: 1.7,
   },
   signatureBlock: {
-    marginTop: 40,
+    marginTop: 46,
     alignItems: "flex-end",
   },
   signatureLine: {
-    width: 220,
+    width: 230,
     borderTopWidth: 1,
     borderTopColor: "#94a3b8",
     paddingTop: 6,
     textAlign: "center",
   },
   signatureName: {
-    fontSize: 10,
+    fontSize: 10.5,
     fontWeight: 700,
+    color: COLORS.ink,
+  },
+  signatureRole: {
+    fontSize: 8.5,
+    color: COLORS.muted,
+    marginTop: 1,
   },
   signatureLicense: {
     fontSize: 9,
-    color: "#64748b",
+    color: COLORS.muted,
     marginTop: 1,
-  },
-  footer: {
-    position: "absolute",
-    bottom: 24,
-    left: 42,
-    right: 42,
-    textAlign: "center",
-    fontSize: 8,
-    color: "#94a3b8",
-    borderTopWidth: 1,
-    borderTopColor: "#e2e8f0",
-    paddingTop: 8,
   },
 });
 
@@ -113,44 +56,40 @@ export function PrescriptionDocument({ prescription, timezone }: { prescription:
 
   return (
     <Document title={`Receta - ${prescription.pet.name}`}>
-      <Page size="A4" style={styles.page}>
-        <View style={styles.header}>
-          <View>
-            <Text style={styles.clinicName}>{prescription.clinic.name}</Text>
-            {prescription.clinic.phone && <Text style={styles.clinicPhone}>{prescription.clinic.phone}</Text>}
+      <Page size="A4" style={sharedStyles.page}>
+        <View style={sharedStyles.spine} fixed />
+        <DocumentHeader clinicName={prescription.clinic.name} clinicPhone={prescription.clinic.phone} logoUrl={prescription.clinic.logoUrl} docLabel="RECETA" dateLabel={issuedAt} />
+
+        <View style={sharedStyles.body}>
+          <View style={[sharedStyles.section, sharedStyles.row]}>
+            <View style={sharedStyles.infoCard}>
+              <Text style={sharedStyles.sectionTitle}>Mascota</Text>
+              <Text style={sharedStyles.infoName}>{prescription.pet.name}</Text>
+              <Text style={sharedStyles.infoLine}>{prescription.pet.species}{prescription.pet.breed ? ` · ${prescription.pet.breed}` : ""}</Text>
+            </View>
+            <View style={sharedStyles.infoCard}>
+              <Text style={sharedStyles.sectionTitle}>Tutor/a</Text>
+              <Text style={sharedStyles.infoName}>{prescription.pet.client.name}</Text>
+              <Text style={sharedStyles.infoLine}>{prescription.pet.client.phone}</Text>
+            </View>
           </View>
-          <View>
-            <Text style={styles.docTitle}>RECETA</Text>
-            <Text style={styles.docDate}>{issuedAt}</Text>
+
+          <Text style={styles.rxSymbol}>℞</Text>
+          <Text style={sharedStyles.sectionTitle}>Indicación</Text>
+          <View style={styles.contentBox}>
+            <Text style={styles.contentText}>{prescription.content}</Text>
+          </View>
+
+          <View style={styles.signatureBlock}>
+            <View style={styles.signatureLine}>
+              <Text style={styles.signatureName}>{prescription.user.name}</Text>
+              <Text style={styles.signatureRole}>Médico/a veterinario/a</Text>
+              {prescription.user.licenseNumber && <Text style={styles.signatureLicense}>Matrícula: {prescription.user.licenseNumber}</Text>}
+            </View>
           </View>
         </View>
 
-        <View style={[styles.section, styles.row]}>
-          <View style={styles.infoBlock}>
-            <Text style={styles.sectionTitle}>Mascota</Text>
-            <Text style={styles.infoLine}>{prescription.pet.name}</Text>
-            <Text style={styles.infoLine}>{prescription.pet.species}{prescription.pet.breed ? ` · ${prescription.pet.breed}` : ""}</Text>
-          </View>
-          <View style={styles.infoBlock}>
-            <Text style={styles.sectionTitle}>Tutor/a</Text>
-            <Text style={styles.infoLine}>{prescription.pet.client.name}</Text>
-            <Text style={styles.infoLine}>{prescription.pet.client.phone}</Text>
-          </View>
-        </View>
-
-        <Text style={styles.sectionTitle}>Indicación</Text>
-        <View style={styles.contentBox}>
-          <Text style={styles.contentText}>{prescription.content}</Text>
-        </View>
-
-        <View style={styles.signatureBlock}>
-          <View style={styles.signatureLine}>
-            <Text style={styles.signatureName}>{prescription.user.name}</Text>
-            {prescription.user.licenseNumber && <Text style={styles.signatureLicense}>Matrícula: {prescription.user.licenseNumber}</Text>}
-          </View>
-        </View>
-
-        <Text style={styles.footer}>
+        <Text style={sharedStyles.footer} fixed>
           Receta emitida por {prescription.user.name} · {prescription.clinic.name}
         </Text>
       </Page>
