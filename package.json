@@ -10,6 +10,7 @@
     "build": "next build",
     "start": "next start",
     "start:whatsapp": "tsx worker/whatsapp.ts",
+    "start:reminders": "tsx worker/reminders.ts",
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
