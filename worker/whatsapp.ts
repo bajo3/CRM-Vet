@@ -89,7 +89,10 @@ async function sendToCrm(message: WAMessage, text: string): Promise<WhatsappEven
 
 async function connect() {
   const { state, saveCreds } = await loadMultiFileAuthState(authDir);
-  const { version } = await fetchLatestBaileysVersion();
+  const { version } = await Promise.race([
+    fetchLatestBaileysVersion(),
+    new Promise<never>((_, reject) => setTimeout(() => reject(new Error("FETCH_VERSION_TIMEOUT")), 10_000)),
+  ]);
   const socket = makeWASocket({
     version,
     auth: state,
@@ -120,11 +123,11 @@ async function connect() {
         logger.error("Sesión cerrada. Borrando credenciales viejas y generando un QR nuevo.");
         void rm(authDir, { recursive: true, force: true })
           .catch((error) => logger.error({ error }, "No se pudo borrar el directorio de credenciales"))
-          .finally(() => setTimeout(() => void connect(), 1_000));
+          .finally(() => setTimeout(connectWithRetry, 1_000));
       } else {
         updateBridgeState("RECONNECTING", null);
         logger.warn({ statusCode }, "Conexión cerrada; reconectando");
-        setTimeout(() => void connect(), 2_000);
+        setTimeout(connectWithRetry, 2_000);
       }
     }
   });
@@ -186,4 +189,21 @@ async function connect() {
   });
 }
 
-void connect();
+function connectWithRetry() {
+  connect().catch((error) => {
+    logger.error({ error }, "Fallo al conectar; reintentando");
+    setTimeout(connectWithRetry, 2_000);
+  });
+}
+
+const WATCHDOG_STALL_MS = 3 * 60_000;
+setInterval(() => {
+  if (bridgeState.status === "CONNECTED") return;
+  const idleMs = Date.now() - new Date(bridgeState.updatedAt).getTime();
+  if (idleMs > WATCHDOG_STALL_MS) {
+    logger.error({ idleMs }, "El bridge dejó de reportar actividad; reiniciando proceso");
+    process.exit(1);
+  }
+}, 30_000);
+
+connectWithRetry();
