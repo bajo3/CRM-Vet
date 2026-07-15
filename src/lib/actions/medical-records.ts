@@ -32,7 +32,7 @@ function resolveNextDueDate(option: MedicalRecordFormInput["nextControlOption"],
   return DateTime.now().setZone(timezone).plus({ days }).set({ hour: 9, minute: 0, second: 0, millisecond: 0 }).toJSDate();
 }
 
-export type RegisterMedicalRecordResult = ActionResult<{ id: string }>;
+export type RegisterMedicalRecordResult = ActionResult<{ id: string; remindersScheduled: number }>;
 
 /** Registra una atención para una mascota de la clínica de la sesión. El profesional es el usuario logueado. */
 export async function registerMedicalRecord(petId: string, input: MedicalRecordFormInput): Promise<RegisterMedicalRecordResult> {
@@ -62,9 +62,11 @@ export async function registerMedicalRecord(petId: string, input: MedicalRecordF
       treatment: parsed.data.treatment ?? null,
       nextDueDate,
     });
+    const remindersScheduled = await prisma.reminder.count({ where: { medicalRecordId: record.id, status: "PENDING" } });
     revalidatePath(`/clientes/mascotas/${petId}`);
     revalidatePath("/");
-    return { ok: true, id: record.id };
+    revalidatePath("/recordatorios");
+    return { ok: true, id: record.id, remindersScheduled };
   } catch (error) {
     if (error instanceof Error && error.message === "INVALID_NEXT_DUE_DATE") {
       return { ok: false, message: "La fecha del próximo control debe ser posterior a hoy.", fieldErrors: { nextControlDate: "Elegí una fecha futura." } };

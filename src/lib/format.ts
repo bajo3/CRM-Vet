@@ -73,6 +73,26 @@ export function medicalRecordTypeLabel(type: string): string {
   return MEDICAL_RECORD_TYPE_LABELS[type] ?? type;
 }
 
+const REMINDER_TYPE_LABELS: Record<string, string> = {
+  CONTROL_DUE: "Control pendiente",
+  APPOINTMENT_REMINDER: "Recordatorio de turno",
+};
+
+export function reminderTypeLabel(type: string): string {
+  return REMINDER_TYPE_LABELS[type] ?? type;
+}
+
+const REMINDER_STATUS_BADGES: Record<string, { label: string; className: string }> = {
+  PENDING: { label: "Programado", className: "bg-amber-100 text-amber-800" },
+  SENT: { label: "Enviado", className: "bg-emerald-100 text-emerald-800" },
+  CANCELLED: { label: "Cancelado", className: "bg-slate-200 text-slate-600" },
+  FAILED: { label: "Falló", className: "bg-rose-100 text-rose-800" },
+};
+
+export function reminderStatusBadge(status: string) {
+  return REMINDER_STATUS_BADGES[status] ?? { label: status, className: "bg-slate-100 text-slate-700" };
+}
+
 const APPOINTMENT_STATUS_TEXT: Record<string, string> = {
   PENDING: "Pendiente",
   CONFIRMED: "Confirmado",

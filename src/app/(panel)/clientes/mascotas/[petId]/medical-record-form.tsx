@@ -37,7 +37,7 @@ export function MedicalRecordForm({ petId, reminderRules }: { petId: string; rem
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [formError, setFormError] = useState<string | null>(null);
-  const [success, setSuccess] = useState(false);
+  const [success, setSuccess] = useState<{ remindersScheduled: number } | null>(null);
   const [suggested, setSuggested] = useState<{ months: number } | null>(null);
   const controlTouched = useRef(false);
 
@@ -78,7 +78,7 @@ export function MedicalRecordForm({ petId, reminderRules }: { petId: string; rem
 
   const onSubmit = (data: MedicalRecordFormInput) => {
     setFormError(null);
-    setSuccess(false);
+    setSuccess(null);
     startTransition(async () => {
       const result = await registerMedicalRecord(petId, data);
       if (!result.ok) {
@@ -93,7 +93,7 @@ export function MedicalRecordForm({ petId, reminderRules }: { petId: string; rem
       reset(DEFAULT_VALUES);
       controlTouched.current = false;
       setSuggested(null);
-      setSuccess(true);
+      setSuccess({ remindersScheduled: result.remindersScheduled });
       router.refresh();
     });
   };
@@ -218,8 +218,10 @@ export function MedicalRecordForm({ petId, reminderRules }: { petId: string; rem
       {formError && <p className="rounded-xl bg-rose-50 px-3 py-2 text-sm text-rose-700">{formError}</p>}
       {success && (
         <p className="flex items-center gap-2 rounded-xl bg-emerald-50 px-3 py-2 text-sm text-emerald-800">
-          <CheckCircle2 size={16} />
-          Atención registrada correctamente.
+          <CheckCircle2 size={16} className="shrink-0" />
+          {success.remindersScheduled > 0
+            ? "Atención registrada. El cliente va a recibir el recordatorio del control por WhatsApp automáticamente."
+            : "Atención registrada correctamente."}
         </p>
       )}
 

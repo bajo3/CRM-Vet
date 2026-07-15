@@ -36,8 +36,11 @@ export function ReminderRulesForm({
       <div className="flex items-center gap-3 border-b border-slate-100 p-5">
         <span className="grid size-10 place-items-center rounded-2xl bg-amber-50 text-amber-600"><BellRing size={19} /></span>
         <div>
-          <h2 className="font-semibold">Recordatorios automáticos</h2>
-          <p className="text-xs text-slate-500">Definí cada cuánto sugerir el próximo control según el tipo de visita.</p>
+          <h2 className="font-semibold">Recordatorios automáticos por WhatsApp</h2>
+          <p className="text-xs text-slate-500">
+            Al registrar una visita de un tipo activado, se agenda el próximo control con el plazo que definas acá, y el cliente recibe un
+            WhatsApp automático 7 días y 1 día antes de esa fecha.
+          </p>
         </div>
       </div>
 
@@ -71,6 +74,15 @@ export function ReminderRulesForm({
             </div>
           );
         })}
+
+        <p className="rounded-xl bg-slate-50 px-3.5 py-3 text-xs leading-5 text-slate-500">
+          El profesional puede ajustar la fecha sugerida en cada visita, y podés desactivar los envíos para un cliente puntual desde su
+          ficha. Todo lo programado y lo ya enviado se ve en{" "}
+          <a href="/recordatorios" className="font-medium text-emerald-700 hover:underline">
+            Recordatorios
+          </a>
+          .
+        </p>
 
         {result && (
           <div role="status" className={`flex items-center gap-2 rounded-xl px-3.5 py-3 text-sm ${result.ok ? "bg-emerald-50 text-emerald-700" : "bg-rose-50 text-rose-700"}`}>

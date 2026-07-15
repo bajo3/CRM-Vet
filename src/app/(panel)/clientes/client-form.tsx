@@ -109,9 +109,14 @@ export function ClientForm({ mode, clientId, defaultValues }: ClientFormProps) {
         {errors.address && <p className="mt-1 text-xs text-rose-600">{errors.address.message}</p>}
       </div>
 
-      <label className="flex items-center justify-between rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
-        <span className="text-sm font-medium text-slate-700">Recordatorios por WhatsApp</span>
-        <input type="checkbox" className="size-5 accent-emerald-600" {...register("remindersEnabled")} />
+      <label className="flex items-center justify-between gap-4 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
+        <span>
+          <span className="block text-sm font-medium text-slate-700">Recordatorios automáticos por WhatsApp</span>
+          <span className="mt-0.5 block text-xs text-slate-500">
+            Si está activado, este cliente recibe automáticamente los avisos de próximos controles y turnos de sus mascotas.
+          </span>
+        </span>
+        <input type="checkbox" className="size-5 shrink-0 accent-emerald-600" {...register("remindersEnabled")} />
       </label>
 
       {formError && <p className="rounded-xl bg-rose-50 px-3 py-2 text-sm text-rose-700">{formError}</p>}

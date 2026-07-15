@@ -34,7 +34,7 @@ export default async function ConfiguracionPage() {
             Administración
           </div>
           <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">Configuración</h1>
-          <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-500">Gestioná la clínica, los horarios de atención, el equipo y la conexión de WhatsApp desde un solo lugar.</p>
+          <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-500">Gestioná la clínica, los horarios de atención, el equipo, la conexión de WhatsApp y los recordatorios automáticos desde un solo lugar.</p>
         </div>
         <span className="w-fit rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-600 shadow-sm">
           {canEdit ? "Podés editar" : "Acceso de solo lectura"}
