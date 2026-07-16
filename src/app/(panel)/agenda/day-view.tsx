@@ -1,6 +1,6 @@
 "use client";
 
-import { Fragment, useState, useTransition } from "react";
+import { Fragment, useEffect, useRef, useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { DateTime } from "luxon";
@@ -76,6 +76,18 @@ export function DayView({
   const [movingId, setMovingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [, startTransition] = useTransition();
+  const slotRefs = useRef<Record<string, HTMLDivElement | null>>({});
+
+  // Al entrar a la agenda de hoy, nos posicionamos en el horario actual en vez de arrancar siempre
+  // desde el primer turno del día — así no hay que scrollear manualmente para ver "ahora".
+  useEffect(() => {
+    if (date !== DateTime.now().setZone(timezone).toISODate()) return;
+    const nowSlot = DateTime.now().setZone(timezone).toFormat("HH:mm");
+    const target = [...slots].reverse().find((slot) => slot <= nowSlot) ?? slots[0];
+    if (!target) return;
+    slotRefs.current[target]?.scrollIntoView({ behavior: "smooth", block: "center" });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   if (vets.length === 0) {
     return (
@@ -156,6 +168,7 @@ export function DayView({
             return (
               <Fragment key={slot}>
                 <div
+                  ref={(el) => { slotRefs.current[slot] = el; }}
                   className={`sticky left-0 z-10 border-b border-r border-slate-100 bg-white p-3 font-mono text-xs ${past ? "text-slate-300" : "text-slate-500"}`}
                 >
                   {slot}

@@ -57,7 +57,7 @@ export function PetForm({ mode, petId, clients, defaultValues }: PetFormProps) {
     if (!file) return;
     setPhotoError(null);
     try {
-      setValue("photoUrl", await resizeImageToDataUrl(file, PHOTO_MAX_SIDE), { shouldValidate: true });
+      setValue("photoUrl", await resizeImageToDataUrl(file, PHOTO_MAX_SIDE, "image/jpeg"), { shouldValidate: true });
     } catch {
       setPhotoError("No se pudo procesar la imagen. Probá con otro archivo.");
     }

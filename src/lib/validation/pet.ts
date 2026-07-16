@@ -13,7 +13,7 @@ export const petFormSchema = z.object({
   /** Cadena vacía = sin foto (o se quitó); si no, debe ser una imagen embebida como data URL (subida desde el navegador). */
   photoUrl: z
     .union([
-      z.string().trim().max(400_000).regex(/^data:image\/(png|jpeg|webp);base64,/, { error: "La foto no se procesó correctamente." }),
+      z.string().trim().max(600_000, { error: "La foto es muy pesada, probá con otra." }).regex(/^data:image\/(png|jpeg|webp);base64,/, { error: "La foto no se procesó correctamente." }),
       z.literal(""),
     ])
     .optional()
