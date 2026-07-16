@@ -4,9 +4,9 @@ import { useState, useTransition } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useRouter } from "next/navigation";
-import { Loader2, Plus, ShieldCheck, UserCog, UsersRound, X } from "lucide-react";
+import { KeyRound, Loader2, Plus, ShieldCheck, UserCog, UsersRound, X } from "lucide-react";
 import { addTeamMemberSchema, type AddTeamMemberInput, type AddTeamMemberValues } from "@/lib/validation/team";
-import { addTeamMember, changeMemberRole, toggleMemberActive } from "@/lib/actions/team";
+import { addTeamMember, changeMemberRole, resetMemberPassword, toggleMemberActive } from "@/lib/actions/team";
 import { roleLabel } from "@/lib/format";
 
 const ROLE_OPTIONS = [
@@ -152,6 +152,9 @@ function AddMemberForm({ onDone }: { onDone: () => void }) {
 function MemberRow({ member, canManage, isSelf, onChanged }: { member: Member; canManage: boolean; isSelf: boolean; onChanged: () => void }) {
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
+  const [showReset, setShowReset] = useState(false);
+  const [resetPassword, setResetPassword] = useState("");
+  const [resetDone, setResetDone] = useState(false);
   const initials = member.user.name.split(" ").map((part) => part[0]).slice(0, 2).join("").toUpperCase();
   const canEditThisRow = canManage && !isSelf;
 
@@ -170,6 +173,17 @@ function MemberRow({ member, canManage, isSelf, onChanged }: { member: Member; c
       const result = await toggleMemberActive({ memberId: member.id, active: !member.active });
       if (!result.ok) { setError(result.message); return; }
       onChanged();
+    });
+  };
+
+  const onResetPassword = () => {
+    setError(null);
+    startTransition(async () => {
+      const result = await resetMemberPassword({ memberId: member.id, newPassword: resetPassword });
+      if (!result.ok) { setError(result.message); return; }
+      setResetPassword("");
+      setShowReset(false);
+      setResetDone(true);
     });
   };
 
@@ -200,17 +214,55 @@ function MemberRow({ member, canManage, isSelf, onChanged }: { member: Member; c
           </span>
         </div>
         {canEditThisRow && (
-          <button
-            type="button"
-            onClick={onToggleActive}
-            disabled={isPending}
-            title={member.active ? "Desactivar integrante" : "Activar integrante"}
-            className="flex size-8 shrink-0 items-center justify-center rounded-lg border border-slate-200 text-slate-500 hover:bg-slate-50 disabled:opacity-60"
-          >
-            {isPending ? <Loader2 size={14} className="animate-spin" /> : <UserCog size={14} />}
-          </button>
+          <div className="flex shrink-0 gap-1.5">
+            <button
+              type="button"
+              onClick={() => { setShowReset((value) => !value); setResetDone(false); }}
+              disabled={isPending}
+              title="Resetear contraseña"
+              className="flex size-8 items-center justify-center rounded-lg border border-slate-200 text-slate-500 hover:bg-slate-50 disabled:opacity-60"
+            >
+              <KeyRound size={14} />
+            </button>
+            <button
+              type="button"
+              onClick={onToggleActive}
+              disabled={isPending}
+              title={member.active ? "Desactivar integrante" : "Activar integrante"}
+              className="flex size-8 items-center justify-center rounded-lg border border-slate-200 text-slate-500 hover:bg-slate-50 disabled:opacity-60"
+            >
+              {isPending ? <Loader2 size={14} className="animate-spin" /> : <UserCog size={14} />}
+            </button>
+          </div>
         )}
       </div>
+      {showReset && canEditThisRow && (
+        <div className="rounded-xl bg-slate-50 p-3">
+          <label className="mb-1 block text-xs font-medium text-slate-600">Nueva contraseña temporal para {member.user.name}</label>
+          <div className="flex gap-2">
+            <input
+              type="text"
+              value={resetPassword}
+              onChange={(event) => setResetPassword(event.target.value)}
+              placeholder="Mínimo 8 caracteres"
+              className="h-9 min-w-0 flex-1 rounded-lg border border-slate-200 bg-white px-3 text-sm outline-none focus:border-emerald-400"
+            />
+            <button
+              type="button"
+              onClick={onResetPassword}
+              disabled={isPending || resetPassword.length < 8}
+              className="flex h-9 shrink-0 items-center gap-1.5 rounded-lg bg-emerald-600 px-3 text-xs font-semibold text-white disabled:opacity-50"
+            >
+              {isPending && <Loader2 size={13} className="animate-spin" />}
+              Guardar
+            </button>
+          </div>
+          <p className="mt-1.5 text-[11px] leading-4 text-slate-400">La persona entra con esta contraseña y puede cambiarla desde Configuración.</p>
+        </div>
+      )}
+      {resetDone && (
+        <p className="rounded-lg bg-emerald-50 px-3 py-1.5 text-xs text-emerald-700">Contraseña actualizada. Pasásela al integrante por un canal seguro.</p>
+      )}
       {error && <p className="rounded-lg bg-rose-50 px-3 py-1.5 text-xs text-rose-700">{error}</p>}
     </div>
   );

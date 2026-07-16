@@ -8,6 +8,7 @@ import { getReminderRules } from "@/lib/queries/reminder-rules";
 import { ClinicForm } from "./clinic-form";
 import { WhatsappConnectionCard } from "./whatsapp-connection-card";
 import { TeamPanel } from "./team-panel";
+import { AccountPanel } from "./account-panel";
 import { ReminderRulesForm } from "./reminder-rules-form";
 
 export default async function ConfiguracionPage() {
@@ -56,7 +57,10 @@ export default async function ConfiguracionPage() {
           editable={canEdit}
         />
 
-        <TeamPanel members={members} canManage={canManageTeam} currentUserId={session.userId} />
+        <div className="space-y-6">
+          <TeamPanel members={members} canManage={canManageTeam} currentUserId={session.userId} />
+          <AccountPanel />
+        </div>
       </div>
 
       <ReminderRulesForm rules={reminderRules} editable={canEdit} />

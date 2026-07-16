@@ -5,6 +5,7 @@ import { roleLabel } from "@/lib/format";
 import { getPrisma } from "@/lib/prisma";
 import { getClinicSettings } from "@/lib/queries/clinic";
 import { SidebarNav, BottomNav } from "./nav-links";
+import { WhatsappAlertBanner } from "./whatsapp-alert-banner";
 
 export default async function PanelLayout({ children }: { children: React.ReactNode }) {
   const session = await requireSession();
@@ -71,6 +72,7 @@ export default async function PanelLayout({ children }: { children: React.ReactN
           </form>
         </header>
 
+        <WhatsappAlertBanner />
         <main className="min-h-0 flex-1">{children}</main>
       </div>
 

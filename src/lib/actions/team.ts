@@ -4,13 +4,17 @@ import { revalidatePath } from "next/cache";
 import { getPrisma } from "../prisma";
 import { getSession, hasRole } from "../auth/session";
 import { TEAM_MANAGE_ROLES } from "../auth/roles";
-import { hashPassword } from "../auth/password";
+import { hashPassword, verifyPassword } from "../auth/password";
 import {
   addTeamMemberSchema,
   changeMemberRoleSchema,
+  changeOwnPasswordSchema,
+  resetMemberPasswordSchema,
   toggleMemberActiveSchema,
   type AddTeamMemberInput,
   type ChangeMemberRoleInput,
+  type ChangeOwnPasswordInput,
+  type ResetMemberPasswordInput,
   type ToggleMemberActiveInput,
 } from "../validation/team";
 import type { ActionResult, ActionFailure } from "./types";
@@ -150,6 +154,73 @@ export async function toggleMemberActive(input: ToggleMemberActiveInput): Promis
   await prisma.clinicMember.update({ where: { id: member.id }, data: { active: parsed.data.active } });
   revalidatePath("/configuracion");
   revalidatePath("/agenda");
+  return { ok: true };
+}
+
+export type ChangeOwnPasswordResult = ActionResult;
+
+/** Cambia la contraseña de la cuenta de la sesión, verificando primero la actual. */
+export async function changeOwnPassword(input: ChangeOwnPasswordInput): Promise<ChangeOwnPasswordResult> {
+  const session = await getSession();
+  if (!session) return NO_SESSION;
+
+  const parsed = changeOwnPasswordSchema.safeParse(input);
+  if (!parsed.success) {
+    return { ok: false, message: "Revisá los datos ingresados.", fieldErrors: fieldErrorsFrom(parsed.error) };
+  }
+
+  const prisma = getPrisma();
+  const user = await prisma.user.findUnique({ where: { id: session.userId } });
+  if (!user) return NO_SESSION;
+
+  const valid = user.passwordHash ? await verifyPassword(parsed.data.currentPassword, user.passwordHash) : false;
+  if (!valid) {
+    return {
+      ok: false,
+      message: "La contraseña actual no es correcta.",
+      fieldErrors: { currentPassword: "No coincide con tu contraseña actual." },
+    };
+  }
+
+  await prisma.user.update({ where: { id: user.id }, data: { passwordHash: await hashPassword(parsed.data.newPassword) } });
+  return { ok: true };
+}
+
+export type ResetMemberPasswordResult = ActionResult;
+
+/**
+ * Le pone una contraseña temporal a un integrante que se olvidó la suya (solo OWNER).
+ * Como la cuenta de usuario es global, se rechaza si la persona también pertenece a otra clínica:
+ * un dueño/a no puede pisarle la contraseña a alguien que además trabaja en otro lado.
+ */
+export async function resetMemberPassword(input: ResetMemberPasswordInput): Promise<ResetMemberPasswordResult> {
+  const session = await getSession();
+  if (!session) return NO_SESSION;
+  if (!hasRole(session, TEAM_MANAGE_ROLES)) return NOT_AUTHORIZED;
+
+  const parsed = resetMemberPasswordSchema.safeParse(input);
+  if (!parsed.success) {
+    return { ok: false, message: "Revisá los datos ingresados.", fieldErrors: fieldErrorsFrom(parsed.error) };
+  }
+
+  const prisma = getPrisma();
+  const member = await prisma.clinicMember.findFirst({
+    where: { id: parsed.data.memberId, clinicId: session.clinicId },
+  });
+  if (!member) return { ok: false, message: "No encontramos ese integrante." };
+
+  if (member.userId === session.userId) {
+    return { ok: false, message: "Para tu propia cuenta usá \"Cambiar mi contraseña\"." };
+  }
+
+  const otherMemberships = await prisma.clinicMember.count({
+    where: { userId: member.userId, clinicId: { not: session.clinicId } },
+  });
+  if (otherMemberships > 0) {
+    return { ok: false, message: "Esa persona también pertenece a otra clínica, así que su contraseña no se puede resetear desde acá." };
+  }
+
+  await prisma.user.update({ where: { id: member.userId }, data: { passwordHash: await hashPassword(parsed.data.newPassword) } });
   return { ok: true };
 }
 

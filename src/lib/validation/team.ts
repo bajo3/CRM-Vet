@@ -22,3 +22,15 @@ export const toggleMemberActiveSchema = z.object({
   active: z.boolean(),
 });
 export type ToggleMemberActiveInput = z.infer<typeof toggleMemberActiveSchema>;
+
+export const changeOwnPasswordSchema = z.object({
+  currentPassword: z.string().min(1, { error: "Ingresá tu contraseña actual." }).max(72),
+  newPassword: z.string().min(8, { error: "La contraseña nueva debe tener al menos 8 caracteres." }).max(72),
+});
+export type ChangeOwnPasswordInput = z.infer<typeof changeOwnPasswordSchema>;
+
+export const resetMemberPasswordSchema = z.object({
+  memberId: z.string().min(1),
+  newPassword: z.string().min(8, { error: "La contraseña debe tener al menos 8 caracteres." }).max(72),
+});
+export type ResetMemberPasswordInput = z.infer<typeof resetMemberPasswordSchema>;
