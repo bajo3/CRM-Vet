@@ -8,6 +8,7 @@ import makeWASocket, {
   WAMessageStatus,
   type WAMessage,
 } from "@whiskeysockets/baileys";
+import type { proto } from "@whiskeysockets/baileys";
 import pino from "pino";
 import QRCode from "qrcode";
 import type { WhatsappEventResponse } from "../src/lib/whatsapp/contracts";
@@ -88,24 +89,157 @@ async function sendToCrm(message: WAMessage, text: string): Promise<WhatsappEven
   return response.json() as Promise<WhatsappEventResponse>;
 }
 
+// ---------------------------------------------------------------------------
+// Humanización y anti-ban
+//
+// WhatsApp detecta bots por patrones: respuestas instantáneas las 24hs, ráfagas
+// de mensajes en el mismo segundo, envíos a números inexistentes y reconexiones
+// agresivas en loop. Todo lo de esta sección apunta a que el número se comporte
+// como una persona atendiendo el teléfono de la veterinaria.
+// ---------------------------------------------------------------------------
+
+type Socket = ReturnType<typeof makeWASocket>;
+
+const sleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
+const randomBetween = (min: number, max: number) => Math.round(min + Math.random() * (max - min));
+
+// Cola global de envíos: serializa TODOS los salientes (respuestas del bot y
+// recordatorios) con una pausa aleatoria entre uno y otro. Una persona no manda
+// cinco mensajes en el mismo segundo.
+let sendChain: Promise<unknown> = Promise.resolve();
+let lastSendAt = 0;
+
+function queueSend<T>(task: () => Promise<T>): Promise<T> {
+  const run = sendChain.then(async () => {
+    const wait = lastSendAt + randomBetween(3_500, 8_000) - Date.now();
+    if (wait > 0) await sleep(wait);
+    try {
+      return await task();
+    } finally {
+      lastSendAt = Date.now();
+    }
+  });
+  sendChain = run.catch(() => undefined);
+  return run;
+}
+
+// Cache de mensajes enviados: si el teléfono del cliente pide un reintento de
+// descifrado, Baileys reenvía el contenido en vez de dejar el mensaje clavado
+// en un tilde gris para siempre.
+const sentMessages = new Map<string, proto.IMessage>();
+
+function rememberSent(sent: WAMessage | undefined) {
+  if (!sent?.key?.id || !sent.message) return;
+  sentMessages.set(sent.key.id, sent.message);
+  if (sentMessages.size > 200) {
+    const oldest = sentMessages.keys().next().value;
+    if (oldest) sentMessages.delete(oldest);
+  }
+}
+
+// Envío que simula a una persona: aparece "escribiendo…" un tiempo proporcional
+// al largo del texto y recién después sale el mensaje.
+async function sendHumanized(socket: Socket, jid: string, text: string) {
+  return queueSend(async () => {
+    await socket.presenceSubscribe(jid).catch(() => undefined);
+    await socket.sendPresenceUpdate("composing", jid).catch(() => undefined);
+    await sleep(Math.min(Math.max(text.length * randomBetween(35, 60), 1_500), 8_000));
+    await socket.sendPresenceUpdate("paused", jid).catch(() => undefined);
+    const sent = await socket.sendMessage(jid, { text });
+    rememberSent(sent ?? undefined);
+    return sent;
+  });
+}
+
+// Verifica que el número exista en WhatsApp antes de enviar (mandar a números
+// inexistentes es una señal fuerte de spam) y usa el JID normalizado que
+// devuelve WhatsApp — de paso arregla variantes como el 9 de los celulares
+// argentinos. El resultado se cachea para no consultar lo mismo todo el día.
+const knownNumbers = new Map<string, { jid: string | null; at: number }>();
+const NUMBER_CACHE_TTL_MS = 12 * 60 * 60_000;
+
+async function resolveJid(socket: Socket, phone: string): Promise<string | null> {
+  const cached = knownNumbers.get(phone);
+  if (cached && Date.now() - cached.at < NUMBER_CACHE_TTL_MS) return cached.jid;
+  try {
+    const result = (await socket.onWhatsApp(phone))?.[0];
+    const jid = result?.exists && result.jid ? result.jid : null;
+    knownNumbers.set(phone, { jid, at: Date.now() });
+    if (knownNumbers.size > 500) {
+      const oldest = knownNumbers.keys().next().value;
+      if (oldest) knownNumbers.delete(oldest);
+    }
+    return jid;
+  } catch {
+    // Si la consulta falla no bloqueamos un envío legítimo: probamos directo.
+    return `${phone}@s.whatsapp.net`;
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Conexión
+// ---------------------------------------------------------------------------
+
+// La versión de WhatsApp Web se cachea: si el endpoint de versiones se cuelga o
+// se cae, reconectamos igual con la última versión conocida en vez de dejar el
+// bridge muerto (esto ya pasó en producción).
+let cachedWaVersion: Awaited<ReturnType<typeof fetchLatestBaileysVersion>>["version"] | undefined;
+
+async function resolveWaVersion() {
+  try {
+    const { version } = await Promise.race([
+      fetchLatestBaileysVersion(),
+      new Promise<never>((_, reject) => setTimeout(() => reject(new Error("FETCH_VERSION_TIMEOUT")), 10_000)),
+    ]);
+    cachedWaVersion = version;
+  } catch (error) {
+    logger.warn(
+      { code: error instanceof Error ? error.message : "UNKNOWN" },
+      "No se pudo consultar la versión de WhatsApp Web; sigo con la última conocida"
+    );
+  }
+  return cachedWaVersion;
+}
+
+// Backoff exponencial con jitter: reconectar en loop agresivo cada 2 segundos
+// también es comportamiento de bot y puede escalar a un bloqueo del número.
+let reconnectDelayMs = 2_000;
+
+function scheduleReconnect(reason: string, minDelayMs = reconnectDelayMs) {
+  const delay = minDelayMs + randomBetween(0, 1_000);
+  reconnectDelayMs = Math.min(reconnectDelayMs * 2, 60_000);
+  logger.warn({ delay, reason }, "Reconexión programada");
+  setTimeout(connectWithRetry, delay);
+}
+
 async function connect() {
   const { state, saveCreds } = await loadMultiFileAuthState(authDir);
-  const { version } = await Promise.race([
-    fetchLatestBaileysVersion(),
-    new Promise<never>((_, reject) => setTimeout(() => reject(new Error("FETCH_VERSION_TIMEOUT")), 10_000)),
-  ]);
+  const version = await resolveWaVersion();
   const socket = makeWASocket({
-    version,
+    ...(version ? { version } : {}),
     auth: state,
     logger,
     browser: ["Vet Simple", "Chrome", "1.0.0"],
+    // Nunca marcamos el número "en línea" globalmente: el teléfono de la
+    // veterinaria sigue recibiendo notificaciones normalmente.
     markOnlineOnConnect: false,
     syncFullHistory: false,
+    // Keep-alive más frecuente que el default para que la sesión no se caiga
+    // por inactividad detrás del proxy de Railway.
+    keepAliveIntervalMs: 20_000,
+    connectTimeoutMs: 30_000,
+    defaultQueryTimeoutMs: 60_000,
+    getMessage: async (key) => (key.id ? sentMessages.get(key.id) : undefined),
+    // Grupos, difusiones, estados y canales se ignoran a nivel socket.
+    shouldIgnoreJid: (jid: string) => jid.endsWith("@g.us") || jid.endsWith("@broadcast") || jid.endsWith("@newsletter"),
   });
 
   socket.ev.on("creds.update", saveCreds);
   socket.ev.on("connection.update", ({ connection, lastDisconnect, qr }) => {
     if (qr) {
+      // Un QR nuevo implica que la conexión con WhatsApp está viva: el backoff
+      // vuelve a empezar para que el QR se renueve sin pausas largas.
+      reconnectDelayMs = 2_000;
       void QRCode.toDataURL(qr, { width: 360, margin: 2, errorCorrectionLevel: "M" })
         .then((qrDataUrl) => updateBridgeState("WAITING_QR", qrDataUrl))
         .catch(() => updateBridgeState("WAITING_QR", null));
@@ -113,6 +247,7 @@ async function connect() {
     }
 
     if (connection === "open") {
+      reconnectDelayMs = 2_000;
       updateBridgeState("CONNECTED", null);
       logger.info({ clinicKey }, "WhatsApp conectado");
     }
@@ -124,11 +259,18 @@ async function connect() {
         logger.error("Sesión cerrada. Borrando credenciales viejas y generando un QR nuevo.");
         void rm(authDir, { recursive: true, force: true })
           .catch((error) => logger.error({ error }, "No se pudo borrar el directorio de credenciales"))
-          .finally(() => setTimeout(connectWithRetry, 1_000));
+          .finally(() => scheduleReconnect("loggedOut", 1_000));
+      } else if (statusCode === DisconnectReason.connectionReplaced) {
+        // Otra instancia abrió sesión con el mismo número. Pelear la conexión
+        // con dos sockets a la vez es motivo clásico de ban: esperamos un
+        // minuto entero antes de reintentar.
+        updateBridgeState("RECONNECTING", null);
+        logger.error("Conexión reemplazada por otra instancia; esperando antes de reintentar");
+        scheduleReconnect("connectionReplaced", 60_000);
       } else {
         updateBridgeState("RECONNECTING", null);
         logger.warn({ statusCode }, "Conexión cerrada; reconectando");
-        setTimeout(connectWithRetry, 2_000);
+        scheduleReconnect("close");
       }
     }
   });
@@ -168,7 +310,13 @@ async function connect() {
       const payload = (await response.json()) as { messages: { id: string; phone: string; content: string }[] };
       for (const message of payload.messages) {
         try {
-          const sent = await socket.sendMessage(`${message.phone}@s.whatsapp.net`, { text: message.content });
+          const jid = await resolveJid(socket, message.phone);
+          if (!jid) {
+            logger.warn({ messageId: message.id, phone: message.phone }, "El número no tiene WhatsApp; se marca como fallido");
+            await reportOutbound({ id: message.id, status: "FAILED" });
+            continue;
+          }
+          const sent = await sendHumanized(socket, jid, message.content);
           await reportOutbound({ id: message.id, status: "SENT", externalMessageId: sent?.key.id ?? undefined });
         } catch (error) {
           logger.warn({ messageId: message.id, code: error instanceof Error ? error.message : "UNKNOWN" }, "Falló el envío a WhatsApp");
@@ -190,6 +338,13 @@ async function connect() {
       if (!jid || !text || message.key.fromMe || jid.endsWith("@g.us") || jid === "status@broadcast") continue;
       try {
         const result = await sendToCrm(message, text);
+        // Tilde azul: se marca como leído solo cuando el bot va a responder. Si
+        // el mensaje queda para un humano, se deja sin leer para que la
+        // veterinaria conserve el indicador de no-leído en su teléfono.
+        if (result.reply && !result.duplicate) {
+          await sleep(randomBetween(800, 2_500));
+          await socket.readMessages([message.key]).catch(() => undefined);
+        }
         // La respuesta del bot ya quedó persistida como `HUMAN_QUEUED`: se vacía por la misma outbox
         // que usan los mensajes humanos, con estados reales y reintentos.
         if (!result.duplicate) await flushOutbound();
@@ -238,7 +393,7 @@ async function connect() {
 function connectWithRetry() {
   connect().catch((error) => {
     logger.error({ error }, "Fallo al conectar; reintentando");
-    setTimeout(connectWithRetry, 2_000);
+    scheduleReconnect("connectError");
   });
 }
 
