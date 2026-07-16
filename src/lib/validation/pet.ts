@@ -10,8 +10,12 @@ export const petFormSchema = z.object({
   name: z.string().trim().min(1, { error: "Ingresá el nombre de la mascota." }).max(80),
   species: z.string().trim().min(1, { error: "Ingresá la especie." }).max(60),
   clientId: z.string().trim().min(1, { error: "Elegí el tutor de la mascota." }),
+  /** Cadena vacía = sin foto (o se quitó); si no, debe ser una imagen embebida como data URL (subida desde el navegador). */
   photoUrl: z
-    .union([z.string().trim().url({ error: "Ingresá una URL válida." }), z.literal("")])
+    .union([
+      z.string().trim().max(400_000).regex(/^data:image\/(png|jpeg|webp);base64,/, { error: "La foto no se procesó correctamente." }),
+      z.literal(""),
+    ])
     .optional()
     .transform((value) => (value ? value : undefined)),
   breed: optionalText(80),

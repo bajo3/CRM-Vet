@@ -21,11 +21,11 @@ export default async function FichaMascotaPage({
   searchParams,
 }: {
   params: Promise<{ petId: string }>;
-  searchParams: Promise<{ ok?: string }>;
+  searchParams: Promise<{ ok?: string; abrir?: string }>;
 }) {
   const session = await requireSession();
   const { petId } = await params;
-  const { ok } = await searchParams;
+  const { ok, abrir } = await searchParams;
 
   const [clinic, detail, reminderRules] = await Promise.all([
     getClinicSettings(session.clinicId),
@@ -192,11 +192,11 @@ export default async function FichaMascotaPage({
 
       <div className="mb-6 grid gap-4 sm:grid-cols-2 [&:has([data-document-open=true])]:grid-cols-1">
         <div id="nuevo-presupuesto">
-          <QuotePanel petId={pet.id} />
+          <QuotePanel petId={pet.id} defaultOpen={abrir === "presupuesto"} />
         </div>
         {canCreatePrescription && (
           <div id="nueva-receta">
-            <PrescriptionPanel petId={pet.id} />
+            <PrescriptionPanel petId={pet.id} defaultOpen={abrir === "receta"} />
           </div>
         )}
       </div>

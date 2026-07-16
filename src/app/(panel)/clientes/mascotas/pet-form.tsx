@@ -1,12 +1,15 @@
 "use client";
 
-import { useState, useTransition } from "react";
-import { useForm } from "react-hook-form";
+import { useRef, useState, useTransition } from "react";
+import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useRouter } from "next/navigation";
-import { Loader2 } from "lucide-react";
+import { ImageIcon, Loader2, Trash2, Upload } from "lucide-react";
 import { petFormSchema, type PetFormInput, type PetFormValues } from "@/lib/validation/pet";
 import { createPet, updatePet } from "@/lib/actions/pets";
+import { resizeImageToDataUrl } from "@/lib/image-resize";
+
+const PHOTO_MAX_SIDE = 480;
 
 type ClientOption = { id: string; name: string; phone: string };
 
@@ -21,11 +24,15 @@ export function PetForm({ mode, petId, clients, defaultValues }: PetFormProps) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [formError, setFormError] = useState<string | null>(null);
+  const [photoError, setPhotoError] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const {
     register,
     handleSubmit,
     setError,
+    setValue,
+    control,
     formState: { errors },
   } = useForm<PetFormValues, unknown, PetFormInput>({
     resolver: zodResolver(petFormSchema),
@@ -42,6 +49,19 @@ export function PetForm({ mode, petId, clients, defaultValues }: PetFormProps) {
       notes: defaultValues?.notes ?? "",
     },
   });
+
+  const photoUrl = useWatch({ control, name: "photoUrl" });
+
+  async function handlePhotoChange(event: React.ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    setPhotoError(null);
+    try {
+      setValue("photoUrl", await resizeImageToDataUrl(file, PHOTO_MAX_SIDE), { shouldValidate: true });
+    } catch {
+      setPhotoError("No se pudo procesar la imagen. Probá con otro archivo.");
+    }
+  }
 
   const onSubmit = (data: PetFormInput) => {
     setFormError(null);
@@ -160,32 +180,58 @@ export function PetForm({ mode, petId, clients, defaultValues }: PetFormProps) {
         </div>
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-2">
-        <div>
-          <label htmlFor="weight" className="mb-1.5 block text-sm font-medium text-slate-700">
-            Peso (kg) <span className="font-normal text-slate-400">(opcional)</span>
-          </label>
-          <input
-            id="weight"
-            type="number"
-            step="0.1"
-            className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3.5 text-sm outline-none focus:border-emerald-400"
-            {...register("weight")}
-          />
-          {errors.weight && <p className="mt-1 text-xs text-rose-600">{errors.weight.message}</p>}
+      <div>
+        <label htmlFor="weight" className="mb-1.5 block text-sm font-medium text-slate-700">
+          Peso (kg) <span className="font-normal text-slate-400">(opcional)</span>
+        </label>
+        <input
+          id="weight"
+          type="number"
+          step="0.1"
+          className="h-11 w-full max-w-[calc(50%-0.5rem)] rounded-xl border border-slate-200 bg-white px-3.5 text-sm outline-none focus:border-emerald-400"
+          {...register("weight")}
+        />
+        {errors.weight && <p className="mt-1 text-xs text-rose-600">{errors.weight.message}</p>}
+      </div>
+
+      <div>
+        <input type="hidden" {...register("photoUrl")} />
+        <p className="mb-1.5 text-sm font-medium text-slate-700">
+          Foto <span className="font-normal text-slate-400">(opcional)</span>
+        </p>
+        <div className="flex items-center gap-4">
+          <span className="grid size-16 shrink-0 place-items-center overflow-hidden rounded-2xl border border-slate-200 bg-slate-50">
+            {photoUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={photoUrl} alt="Foto de la mascota" className="size-full object-cover" />
+            ) : (
+              <ImageIcon size={22} className="text-slate-300" />
+            )}
+          </span>
+          <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              className="flex h-9 items-center gap-1.5 rounded-lg border border-slate-200 px-3 text-xs font-medium text-slate-600 hover:bg-slate-50"
+            >
+              <Upload size={13} />
+              {photoUrl ? "Cambiar" : "Subir foto"}
+            </button>
+            {photoUrl && (
+              <button
+                type="button"
+                onClick={() => { setValue("photoUrl", "", { shouldValidate: true }); if (fileInputRef.current) fileInputRef.current.value = ""; }}
+                className="flex h-9 items-center gap-1.5 rounded-lg border border-slate-200 px-3 text-xs font-medium text-rose-600 hover:bg-rose-50"
+              >
+                <Trash2 size={13} />
+                Quitar
+              </button>
+            )}
+            <input ref={fileInputRef} type="file" accept="image/png,image/jpeg,image/webp" onChange={handlePhotoChange} className="hidden" />
+          </div>
         </div>
-        <div>
-          <label htmlFor="photoUrl" className="mb-1.5 block text-sm font-medium text-slate-700">
-            Foto (URL) <span className="font-normal text-slate-400">(opcional)</span>
-          </label>
-          <input
-            id="photoUrl"
-            className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3.5 text-sm outline-none focus:border-emerald-400"
-            placeholder="https://..."
-            {...register("photoUrl")}
-          />
-          {errors.photoUrl && <p className="mt-1 text-xs text-rose-600">{errors.photoUrl.message}</p>}
-        </div>
+        {photoError && <p className="mt-1.5 text-xs text-rose-600">{photoError}</p>}
+        {errors.photoUrl && <p className="mt-1.5 text-xs text-rose-600">{errors.photoUrl.message}</p>}
       </div>
 
       <div>

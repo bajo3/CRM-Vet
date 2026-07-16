@@ -4,7 +4,7 @@ import { useState, useTransition } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useRouter } from "next/navigation";
-import { KeyRound, Loader2, Plus, ShieldCheck, UserCog, UsersRound, X } from "lucide-react";
+import { KeyRound, Loader2, Plus, ShieldCheck, UserCheck, UserX, UsersRound, X } from "lucide-react";
 import { addTeamMemberSchema, type AddTeamMemberInput, type AddTeamMemberValues } from "@/lib/validation/team";
 import { addTeamMember, changeMemberRole, resetMemberPassword, toggleMemberActive } from "@/lib/actions/team";
 import { roleLabel } from "@/lib/format";
@@ -155,6 +155,7 @@ function MemberRow({ member, canManage, isSelf, onChanged }: { member: Member; c
   const [showReset, setShowReset] = useState(false);
   const [resetPassword, setResetPassword] = useState("");
   const [resetDone, setResetDone] = useState(false);
+  const [confirmDeactivate, setConfirmDeactivate] = useState(false);
   const initials = member.user.name.split(" ").map((part) => part[0]).slice(0, 2).join("").toUpperCase();
   const canEditThisRow = canManage && !isSelf;
 
@@ -168,7 +169,14 @@ function MemberRow({ member, canManage, isSelf, onChanged }: { member: Member; c
   };
 
   const onToggleActive = () => {
+    // Reactivar es inofensivo e inmediato; desactivar le corta el acceso a la persona al toque, así
+    // que pasa primero por una confirmación inline para que no sea un solo click accidental.
+    if (member.active && !confirmDeactivate) {
+      setConfirmDeactivate(true);
+      return;
+    }
     setError(null);
+    setConfirmDeactivate(false);
     startTransition(async () => {
       const result = await toggleMemberActive({ memberId: member.id, active: !member.active });
       if (!result.ok) { setError(result.message); return; }
@@ -229,13 +237,27 @@ function MemberRow({ member, canManage, isSelf, onChanged }: { member: Member; c
               onClick={onToggleActive}
               disabled={isPending}
               title={member.active ? "Desactivar integrante" : "Activar integrante"}
-              className="flex size-8 items-center justify-center rounded-lg border border-slate-200 text-slate-500 hover:bg-slate-50 disabled:opacity-60"
+              className={`flex size-8 items-center justify-center rounded-lg border text-slate-500 hover:bg-slate-50 disabled:opacity-60 ${
+                member.active ? "border-slate-200" : "border-emerald-200 text-emerald-600 hover:bg-emerald-50"
+              }`}
             >
-              {isPending ? <Loader2 size={14} className="animate-spin" /> : <UserCog size={14} />}
+              {isPending ? <Loader2 size={14} className="animate-spin" /> : member.active ? <UserX size={14} /> : <UserCheck size={14} />}
             </button>
           </div>
         )}
       </div>
+      {confirmDeactivate && (
+        <div className="flex flex-wrap items-center gap-2 rounded-xl bg-amber-50 px-3 py-2.5 text-xs text-amber-800">
+          <span className="flex-1">¿Desactivar a {member.user.name}? No va a poder iniciar sesión hasta que lo reactives.</span>
+          <button type="button" onClick={onToggleActive} disabled={isPending} className="flex h-7 items-center gap-1.5 rounded-lg bg-amber-600 px-2.5 font-semibold text-white disabled:opacity-60">
+            {isPending && <Loader2 size={12} className="animate-spin" />}
+            Sí, desactivar
+          </button>
+          <button type="button" onClick={() => setConfirmDeactivate(false)} disabled={isPending} className="h-7 rounded-lg border border-amber-200 px-2.5 font-medium text-amber-700 hover:bg-amber-100">
+            Cancelar
+          </button>
+        </div>
+      )}
       {showReset && canEditThisRow && (
         <div className="rounded-xl bg-slate-50 p-3">
           <label className="mb-1 block text-xs font-medium text-slate-600">Nueva contraseña temporal para {member.user.name}</label>

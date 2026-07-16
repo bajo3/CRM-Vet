@@ -1,14 +1,20 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Receipt, ChevronDown } from "lucide-react";
 import { QuoteForm } from "./quote-form";
 
-export function QuotePanel({ petId }: { petId: string }) {
-  const [open, setOpen] = useState(false);
+export function QuotePanel({ petId, defaultOpen = false }: { petId: string; defaultOpen?: boolean }) {
+  const [open, setOpen] = useState(defaultOpen);
+  const sectionRef = useRef<HTMLElement>(null);
+
+  useEffect(() => {
+    if (defaultOpen) sectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   return (
-    <section data-document-open={open} className={`overflow-hidden rounded-3xl border bg-white shadow-sm transition ${open ? "border-emerald-200 shadow-emerald-100/60" : "border-slate-200"}`}>
+    <section ref={sectionRef} data-document-open={open} className={`overflow-hidden rounded-3xl border bg-white shadow-sm transition ${open ? "border-emerald-200 shadow-emerald-100/60" : "border-slate-200"}`}>
       <button
         type="button"
         onClick={() => setOpen((value) => !value)}

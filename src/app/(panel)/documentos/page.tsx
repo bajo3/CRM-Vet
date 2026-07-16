@@ -1,9 +1,12 @@
 import Link from "next/link";
 import { FileText, FolderOpen, Receipt, Search } from "lucide-react";
-import { requireSession } from "@/lib/auth/session";
+import { requireSession, hasRole } from "@/lib/auth/session";
+import { PRESCRIPTION_ROLES } from "@/lib/auth/roles";
 import { listClinicDocuments } from "@/lib/queries/documents";
 import { getClinicSettings } from "@/lib/queries/clinic";
+import { listPetsForAppointmentForm } from "@/lib/queries/agenda";
 import { formatDate } from "@/lib/format";
+import { QuickCreate } from "./quick-create";
 
 function formatCurrency(value: number): string {
   return new Intl.NumberFormat("es-AR", { style: "currency", currency: "ARS", minimumFractionDigits: 2 }).format(value);
@@ -12,8 +15,13 @@ function formatCurrency(value: number): string {
 export default async function DocumentosPage({ searchParams }: { searchParams: Promise<{ q?: string }> }) {
   const session = await requireSession();
   const { q = "" } = await searchParams;
-  const [documents, clinic] = await Promise.all([listClinicDocuments(session.clinicId, q), getClinicSettings(session.clinicId)]);
+  const [documents, clinic, pets] = await Promise.all([
+    listClinicDocuments(session.clinicId, q),
+    getClinicSettings(session.clinicId),
+    listPetsForAppointmentForm(session.clinicId),
+  ]);
   const timezone = clinic?.timezone ?? "America/Argentina/Buenos_Aires";
+  const petOptions = pets.map((pet) => ({ id: pet.id, name: pet.name, species: pet.species, clientName: pet.client.name, clientPhone: pet.client.phone }));
 
   return (
     <section className="px-4 py-5 sm:px-7 lg:px-10 lg:py-8">
@@ -21,6 +29,8 @@ export default async function DocumentosPage({ searchParams }: { searchParams: P
         <h1 className="text-2xl font-semibold tracking-tight">Documentos</h1>
         <p className="mt-1 text-sm text-slate-500">Presupuestos y recetas generados, de todos los clientes.</p>
       </header>
+
+      <QuickCreate pets={petOptions} canCreatePrescription={hasRole(session, PRESCRIPTION_ROLES)} />
 
       <form className="mb-6 flex h-12 max-w-xl items-center gap-3 rounded-xl border border-slate-200 bg-white px-4 shadow-sm">
         <Search size={18} className="text-slate-400" />

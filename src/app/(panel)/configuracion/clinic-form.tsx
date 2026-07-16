@@ -3,6 +3,7 @@
 import { useRef, useState, useTransition } from "react";
 import { CheckCircle2, Clock3, Loader2, Save, Image as ImageIcon, Trash2, Upload } from "lucide-react";
 import { updateClinic } from "@/lib/actions/clinic";
+import { resizeImageToDataUrl } from "@/lib/image-resize";
 
 const DAYS = [
   ["monday", "Lunes"], ["tuesday", "Martes"], ["wednesday", "Miércoles"],
@@ -23,26 +24,6 @@ function normalizeRanges(raw: unknown): [string, string][] {
   return typeof raw[0] === "string" ? [raw as [string, string]] : (raw as [string, string][]);
 }
 
-/** Redimensiona la imagen elegida en el navegador (canvas) antes de guardarla, para no mandar fotos pesadas de cámara al servidor. */
-function resizeImageToDataUrl(file: File): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const img = document.createElement("img");
-    img.onload = () => {
-      const scale = Math.min(1, LOGO_MAX_SIDE / Math.max(img.width, img.height));
-      const canvas = document.createElement("canvas");
-      canvas.width = Math.round(img.width * scale);
-      canvas.height = Math.round(img.height * scale);
-      const ctx = canvas.getContext("2d");
-      if (!ctx) return reject(new Error("No se pudo procesar la imagen."));
-      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-      resolve(canvas.toDataURL("image/png"));
-      URL.revokeObjectURL(img.src);
-    };
-    img.onerror = () => reject(new Error("No se pudo leer la imagen."));
-    img.src = URL.createObjectURL(file);
-  });
-}
-
 export function ClinicForm({ clinic, editable }: ClinicFormProps) {
   const hours = clinic.openingHours as Record<string, unknown>;
   const [result, setResult] = useState<{ ok: boolean; message: string } | null>(null);
@@ -59,7 +40,7 @@ export function ClinicForm({ clinic, editable }: ClinicFormProps) {
     if (!file) return;
     setLogoError(null);
     try {
-      setLogoDataUrl(await resizeImageToDataUrl(file));
+      setLogoDataUrl(await resizeImageToDataUrl(file, LOGO_MAX_SIDE));
     } catch {
       setLogoError("No se pudo procesar la imagen. Probá con otro archivo.");
     }

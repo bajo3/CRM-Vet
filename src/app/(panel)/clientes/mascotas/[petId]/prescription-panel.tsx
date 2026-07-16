@@ -1,14 +1,20 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { FileText, ChevronDown } from "lucide-react";
 import { PrescriptionForm } from "./prescription-form";
 
-export function PrescriptionPanel({ petId }: { petId: string }) {
-  const [open, setOpen] = useState(false);
+export function PrescriptionPanel({ petId, defaultOpen = false }: { petId: string; defaultOpen?: boolean }) {
+  const [open, setOpen] = useState(defaultOpen);
+  const sectionRef = useRef<HTMLElement>(null);
+
+  useEffect(() => {
+    if (defaultOpen) sectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   return (
-    <section data-document-open={open} className={`overflow-hidden rounded-3xl border bg-white shadow-sm transition ${open ? "border-sky-200 shadow-sky-100/70" : "border-slate-200"}`}>
+    <section ref={sectionRef} data-document-open={open} className={`overflow-hidden rounded-3xl border bg-white shadow-sm transition ${open ? "border-sky-200 shadow-sky-100/70" : "border-slate-200"}`}>
       <button
         type="button"
         onClick={() => setOpen((value) => !value)}
