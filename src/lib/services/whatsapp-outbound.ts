@@ -46,19 +46,26 @@ export async function claimOutboundMessages(prisma: PrismaLike, clinicId: string
     .map((message) => ({ id: message.id, phone: message.conversation.phone, content: message.content }));
 }
 
-/** Registra una confirmación posterior de WhatsApp (entregado al dispositivo o leído). */
+export type OutboundDeliveryStatus = "DELIVERED" | "READ" | "FAILED";
+
+/** Registra una confirmación posterior de WhatsApp (entregado, leído o rechazado por el servidor). */
 export async function reportOutboundDelivery(
   prisma: PrismaLike,
   clinicId: string,
   externalMessageId: string,
-  status: "DELIVERED" | "READ"
+  status: OutboundDeliveryStatus
 ): Promise<boolean> {
+  const currentStatuses = status === "READ"
+    ? ["SENT", "DELIVERED", "READ"]
+    : status === "DELIVERED"
+      ? ["SENT", "DELIVERED"]
+      : ["SENT"];
   const result = await prisma.whatsappMessage.updateMany({
     where: {
       clinicId,
       externalMessageId,
       direction: "OUTBOUND",
-      status: { in: status === "READ" ? ["SENT", "DELIVERED", "READ"] : ["SENT", "DELIVERED"] },
+      status: { in: currentStatuses },
     },
     data: { status },
   });

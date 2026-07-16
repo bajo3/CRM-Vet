@@ -203,11 +203,13 @@ async function connect() {
     const deliveryUrl = `${appUrl}/api/internal/whatsapp/delivery?clinicKey=${encodeURIComponent(clinicKey)}`;
     for (const { key, update } of updates) {
       if (!key.fromMe || !key.id || update.status == null) continue;
-      const status = update.status >= WAMessageStatus.READ
-        ? "READ"
-        : update.status >= WAMessageStatus.DELIVERY_ACK
-          ? "DELIVERED"
-          : null;
+      const status = update.status === WAMessageStatus.ERROR
+        ? "FAILED"
+        : update.status >= WAMessageStatus.READ
+          ? "READ"
+          : update.status >= WAMessageStatus.DELIVERY_ACK
+            ? "DELIVERED"
+            : null;
       if (!status) continue;
       try {
         const response = await fetch(deliveryUrl, {
@@ -218,7 +220,10 @@ async function connect() {
         });
         if (!response.ok) throw new Error(`DELIVERY_HTTP_${response.status}`);
       } catch (error) {
-        logger.warn({ code: error instanceof Error ? error.message : "UNKNOWN" }, "No se pudo actualizar la confirmación de entrega");
+        logger.warn({
+          code: error instanceof Error ? error.message : "UNKNOWN",
+          whatsappError: update.messageStubParameters?.[0],
+        }, "No se pudo actualizar el estado final del mensaje");
       }
     }
   });

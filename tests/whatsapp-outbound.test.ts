@@ -110,6 +110,18 @@ describe("whatsapp-outbound: reclamo atómico y reintentos", () => {
     expect((await prisma.whatsappMessage.findUniqueOrThrow({ where: { id: message.id } })).status).toBe("READ");
   });
 
+  it("marca FAILED cuando WhatsApp rechaza un mensaje después de aceptarlo para envío", async () => {
+    const clinic = await createTestClinic();
+    const client = await createTestClient(clinic.id);
+    const message = await queueMessage(clinic.id, client.phone);
+    await claimOutboundMessages(prisma, clinic.id, 20);
+    await reportOutboundOutcome(prisma, clinic.id, message.id, "SENT", "wa-rejected-463");
+
+    expect(await reportOutboundDelivery(prisma, clinic.id, "wa-rejected-463", "FAILED")).toBe(true);
+    expect((await prisma.whatsappMessage.findUniqueOrThrow({ where: { id: message.id } })).status).toBe("FAILED");
+    expect(await reportOutboundDelivery(prisma, clinic.id, "wa-rejected-463", "DELIVERED")).toBe(false);
+  });
+
   it("reportOutboundOutcome nunca toca un mensaje de otra clínica (aislamiento multiempresa)", async () => {
     const clinicA = await createTestClinic({ name: "Clínica A" });
     const clinicB = await createTestClinic({ name: "Clínica B" });

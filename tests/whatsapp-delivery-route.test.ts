@@ -64,6 +64,15 @@ describe("POST /api/internal/whatsapp/delivery", () => {
     expect((await prisma.whatsappMessage.findUniqueOrThrow({ where: { id: message.id } })).status).toBe("READ");
   });
 
+  it("registra el rechazo tardío de WhatsApp como FAILED", async () => {
+    const { clinicKey, message } = await setupMessage("Clínica A", "wa-rejected-463");
+
+    const failed = await POST(deliveryRequest(clinicKey, { externalMessageId: "wa-rejected-463", status: "FAILED" }));
+    expect(failed.status).toBe(200);
+    expect(await failed.json()).toMatchObject({ ok: true, updated: true });
+    expect((await prisma.whatsappMessage.findUniqueOrThrow({ where: { id: message.id } })).status).toBe("FAILED");
+  });
+
   it("nunca modifica un mensaje de otra clínica", async () => {
     const clinicA = await setupMessage("Clínica A", "wa-isolated");
     const clinicB = await setupMessage("Clínica B", "wa-other");

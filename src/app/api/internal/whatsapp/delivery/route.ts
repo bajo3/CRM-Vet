@@ -21,8 +21,8 @@ export async function POST(request: NextRequest) {
     : null;
   if (!clinic) return NextResponse.json({ error: "clinic_not_found" }, { status: 404 });
 
-  const body = (await request.json()) as { externalMessageId?: string; status?: "DELIVERED" | "READ" };
-  if (!body.externalMessageId || !["DELIVERED", "READ"].includes(body.status ?? "")) {
+  const body = (await request.json()) as { externalMessageId?: string; status?: "DELIVERED" | "READ" | "FAILED" };
+  if (!body.externalMessageId || !["DELIVERED", "READ", "FAILED"].includes(body.status ?? "")) {
     return NextResponse.json({ error: "invalid" }, { status: 400 });
   }
 
