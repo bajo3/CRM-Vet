@@ -31,6 +31,7 @@ export async function ensureClinicAndUsers() {
         timezone: TIMEZONE,
         whatsappSessionKey: CLINIC_KEY,
         defaultAppointmentDuration: 30,
+        status: "APPROVED",
         openingHours: {
           monday: ["09:00", "18:00"],
           tuesday: ["09:00", "18:00"],
@@ -93,10 +94,32 @@ export async function ensureClinicAndUsers() {
   return { clinic, owner, receptionist, vetAna, vetMartin };
 }
 
+/**
+ * Da de alta (o promueve) al superadmin de la plataforma si vienen las env vars, sin tocar nada si
+ * no vienen — así el seed sigue corriendo igual en cualquier ambiente que no las tenga configuradas.
+ * El superadmin no pertenece a ninguna clínica: solo aprueba/rechaza altas desde /admin/clinicas.
+ */
+async function ensureSuperAdmin() {
+  const email = process.env.SUPERADMIN_EMAIL?.toLowerCase().trim();
+  const password = process.env.SUPERADMIN_PASSWORD;
+  if (!email || !password) return null;
+
+  const passwordHash = await hashPassword(password);
+  const superAdmin = await prisma.user.upsert({
+    where: { email },
+    update: { isSuperAdmin: true },
+    create: { name: "Superadmin", email, passwordHash, isSuperAdmin: true },
+  });
+  return superAdmin;
+}
+
 async function main() {
   const { clinic } = await ensureClinicAndUsers();
   console.log(`Seed mínimo listo: clínica "${clinic.name}" + 4 usuarios (sin datos de ejemplo).`);
   console.log(`Para cargar datos de ejemplo: npm run db:seed:demo`);
+
+  const superAdmin = await ensureSuperAdmin();
+  if (superAdmin) console.log(`Superadmin listo: ${superAdmin.email}`);
 }
 
 if (require.main === module) {

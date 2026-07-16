@@ -59,6 +59,12 @@ enum ReminderStatus {
   FAILED
 }
 
+enum ClinicStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
 model Clinic {
   id                         String                 @id @default(cuid())
   name                       String
@@ -70,6 +76,10 @@ model Clinic {
   whatsappSessionKey         String?                @unique
   whatsappPhoneNumberId      String?
   whatsappBusinessAccountId  String?
+  /// Clínicas creadas por el seed/scripts entran ya APPROVED; el registro público (`/registro`)
+  /// las crea PENDING hasta que un superadmin las apruebe desde `/admin/clinicas`.
+  status                     ClinicStatus           @default(PENDING)
+  statusReason               String?
   createdAt                  DateTime               @default(now())
   updatedAt                  DateTime               @updatedAt
   members                    ClinicMember[]
@@ -93,6 +103,10 @@ model User {
   email                 String                 @unique
   passwordHash          String?
   licenseNumber         String?
+  /// Cuenta de plataforma (no ligada a ninguna clínica) que puede aprobar/rechazar altas nuevas
+  /// desde `/admin/clinicas`. No es un `Role` de `ClinicMember` porque opera por encima de todas
+  /// las clínicas, no dentro de una.
+  isSuperAdmin          Boolean                @default(false)
   memberships           ClinicMember[]
   appointments          Appointment[]          @relation("VeterinarianAppointments")
   createdAppointments   Appointment[]          @relation("AppointmentCreatedBy")

@@ -1,3 +1,4 @@
+import { redirect } from "next/navigation";
 import { PawPrint, LogOut } from "lucide-react";
 import { requireSession } from "@/lib/auth/session";
 import { logout } from "@/lib/actions/auth";
@@ -9,6 +10,7 @@ import { WhatsappAlertBanner } from "./whatsapp-alert-banner";
 
 export default async function PanelLayout({ children }: { children: React.ReactNode }) {
   const session = await requireSession();
+  if (!session.clinicId) redirect("/admin/clinicas");
   const prisma = getPrisma();
   const [clinic, unreadConversations] = await Promise.all([
     getClinicSettings(session.clinicId),

@@ -33,7 +33,7 @@ export function LoginForm() {
         }
         return;
       }
-      router.push("/");
+      router.push(result.redirectTo ?? "/");
       router.refresh();
     });
   };

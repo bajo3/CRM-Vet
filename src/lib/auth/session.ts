@@ -12,6 +12,8 @@ export type SessionPayload = {
   clinicId: string;
   role: Role;
   name: string;
+  /** Cuenta de plataforma sin clínica propia, gatea únicamente /admin/*. Ver `requireSuperAdmin`. */
+  superAdmin?: boolean;
 };
 
 function getSecretKey() {
@@ -51,7 +53,8 @@ export async function deleteSession(): Promise<void> {
  *
  * El rol se vuelve a verificar en la base en cada request (no se confía en el valor firmado en el
  * JWT): si un OWNER cambia el rol de alguien o lo desactiva, ese cambio debe aplicarse de inmediato
- * y no recién cuando esa persona vuelva a iniciar sesión (la cookie dura 7 días).
+ * y no recién cuando esa persona vuelva a iniciar sesión (la cookie dura 7 días). Lo mismo aplica a
+ * `clinic.status` (una clínica rechazada/pendiente pierde acceso al toque) y a `isSuperAdmin`.
  */
 export async function getSession(): Promise<SessionPayload | null> {
   const cookieStore = await cookies();
@@ -60,21 +63,45 @@ export async function getSession(): Promise<SessionPayload | null> {
 
   try {
     const { payload } = await jwtVerify(token, getSecretKey(), { algorithms: ["HS256"] });
-    const { userId, clinicId, name } = payload as Record<string, unknown>;
+    const { userId, clinicId, name, superAdmin } = payload as Record<string, unknown>;
     if (typeof userId !== "string" || typeof clinicId !== "string" || typeof name !== "string") {
       return null;
     }
 
-    const membership = await getPrisma().clinicMember.findUnique({
-      where: { clinicId_userId: { clinicId, userId } },
-      select: { role: true, active: true },
-    });
-    if (!membership || !membership.active) return null;
+    const prisma = getPrisma();
 
-    return { userId, clinicId, role: membership.role, name };
+    // Sesión de superadmin puro (sin clínica propia): la única fuente de verdad es `isSuperAdmin`.
+    if (clinicId === "") {
+      const user = await prisma.user.findUnique({ where: { id: userId }, select: { isSuperAdmin: true } });
+      if (!user?.isSuperAdmin) return null;
+      return { userId, clinicId: "", role: "OWNER", name, superAdmin: true };
+    }
+
+    const membership = await prisma.clinicMember.findUnique({
+      where: { clinicId_userId: { clinicId, userId } },
+      select: { role: true, active: true, clinic: { select: { status: true } } },
+    });
+    if (!membership || !membership.active || membership.clinic.status !== "APPROVED") return null;
+
+    // El flag de superadmin en el JWT es solo una pista: si además tiene una clínica propia, se
+    // reconfirma acá contra la base antes de otorgarlo.
+    let stillSuperAdmin = false;
+    if (superAdmin === true) {
+      const user = await prisma.user.findUnique({ where: { id: userId }, select: { isSuperAdmin: true } });
+      stillSuperAdmin = user?.isSuperAdmin ?? false;
+    }
+
+    return { userId, clinicId, role: membership.role, name, ...(stillSuperAdmin ? { superAdmin: true } : {}) };
   } catch {
     return null;
   }
+}
+
+/** Exige una sesión de superadmin de plataforma (no ligada a ninguna clínica en particular). */
+export async function requireSuperAdmin(): Promise<SessionPayload> {
+  const session = await getSession();
+  if (!session?.superAdmin) redirect("/login");
+  return session;
 }
 
 /** Para Server Components/Pages del panel: exige sesión válida o redirige a /login. */
