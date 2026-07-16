@@ -8,8 +8,10 @@ export const MAX_OUTBOUND_ATTEMPTS = 3;
 export type ClaimedOutboundMessage = { id: string; phone: string; content: string };
 
 /**
- * Reclama de forma atómica hasta `limit` mensajes `HUMAN_QUEUED` de una clínica, pasándolos a
- * `SENDING`. Reclamar mensaje por mensaje con un `updateMany` condicionado a `status: "HUMAN_QUEUED"`
+ * Reclama de forma atómica hasta `limit` mensajes pendientes de una clínica, pasándolos a
+ * `SENDING`. Tanto el bot como el equipo crean mensajes `HUMAN_QUEUED`; el antiguo estado
+ * `QUEUED` se conserva sólo como histórico sin confirmación para no reenviar conversaciones
+ * previas al desplegar esta outbox. Reclamar mensaje por mensaje con un `updateMany` condicionado
  * asegura que, si dos llamadas corren en paralelo (por ejemplo el worker Baileys reintentando un
  * poll que tardó más de lo esperado), cada mensaje se le adjudique a una sola de las dos: la
  * segunda llamada obtiene `count: 0` para cualquier fila que la primera ya haya reclamado.
@@ -42,6 +44,25 @@ export async function claimOutboundMessages(prisma: PrismaLike, clinicId: string
     .map((id) => byId.get(id))
     .filter((message): message is NonNullable<typeof message> => Boolean(message))
     .map((message) => ({ id: message.id, phone: message.conversation.phone, content: message.content }));
+}
+
+/** Registra una confirmación posterior de WhatsApp (entregado al dispositivo o leído). */
+export async function reportOutboundDelivery(
+  prisma: PrismaLike,
+  clinicId: string,
+  externalMessageId: string,
+  status: "DELIVERED" | "READ"
+): Promise<boolean> {
+  const result = await prisma.whatsappMessage.updateMany({
+    where: {
+      clinicId,
+      externalMessageId,
+      direction: "OUTBOUND",
+      status: { in: status === "READ" ? ["SENT", "DELIVERED", "READ"] : ["SENT", "DELIVERED"] },
+    },
+    data: { status },
+  });
+  return result.count > 0;
 }
 
 export type OutboundOutcome = "SENT" | "FAILED";

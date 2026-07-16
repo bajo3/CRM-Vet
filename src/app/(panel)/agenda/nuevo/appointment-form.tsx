@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState, useTransition } from "react";
-import { useForm, Controller } from "react-hook-form";
+import { useForm, Controller, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useRouter } from "next/navigation";
 import { Loader2, PawPrint, Search, X } from "lucide-react";
@@ -28,7 +28,6 @@ export function AppointmentForm({
     register,
     handleSubmit,
     control,
-    watch,
     setValue,
     setError,
     formState: { errors },
@@ -37,9 +36,7 @@ export function AppointmentForm({
     defaultValues,
   });
 
-  const petId = watch("petId");
-  const veterinarianId = watch("veterinarianId");
-  const date = watch("date");
+  const [petId, veterinarianId, date] = useWatch({ control, name: ["petId", "veterinarianId", "date"] });
 
   const [petQuery, setPetQuery] = useState("");
   const selectedPet = useMemo(() => pets.find((pet) => pet.id === petId), [pets, petId]);
@@ -58,20 +55,23 @@ export function AppointmentForm({
   const [loadingSlots, setLoadingSlots] = useState(false);
 
   useEffect(() => {
-    if (!veterinarianId || !date) {
-      setSlots(null);
-      return;
-    }
     let cancelled = false;
-    setLoadingSlots(true);
-    getAvailableSlotsAction(veterinarianId, date).then((result) => {
-      if (cancelled) return;
-      setLoadingSlots(false);
-      if ("slots" in result) setSlots(result.slots);
-      else setSlots([]);
-    });
+    const timer = window.setTimeout(() => {
+      if (!veterinarianId || !date) {
+        setSlots(null);
+        return;
+      }
+      setLoadingSlots(true);
+      getAvailableSlotsAction(veterinarianId, date).then((result) => {
+        if (cancelled) return;
+        setLoadingSlots(false);
+        if ("slots" in result) setSlots(result.slots);
+        else setSlots([]);
+      });
+    }, 0);
     return () => {
       cancelled = true;
+      window.clearTimeout(timer);
     };
   }, [veterinarianId, date]);
 

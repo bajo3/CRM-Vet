@@ -1,6 +1,6 @@
 export default function MensajesLoading() {
   return (
-    <div className="grid min-h-[calc(100vh-65px)] animate-pulse bg-white lg:h-screen lg:min-h-0 lg:grid-cols-[380px_1fr] lg:overflow-hidden">
+    <div className="grid h-[calc(100dvh-7.5625rem)] min-h-0 animate-pulse overflow-hidden bg-white lg:h-screen lg:grid-cols-[380px_1fr]">
       <aside className="hidden flex-col border-r border-slate-200 bg-white lg:flex">
         <div className="border-b border-slate-100 p-5">
           <div className="h-7 w-32 rounded-lg bg-slate-200" />

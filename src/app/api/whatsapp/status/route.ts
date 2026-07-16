@@ -1,12 +1,13 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { getSession, hasRole } from "@/lib/auth/session";
 import { CLINIC_CONFIG_ROLES } from "@/lib/auth/roles";
 
 export const dynamic = "force-dynamic";
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   const session = await getSession();
-  if (!session || !hasRole(session, CLINIC_CONFIG_ROLES)) {
+  const summaryOnly = request.nextUrl.searchParams.get("summary") === "1";
+  if (!session || (!summaryOnly && !hasRole(session, CLINIC_CONFIG_ROLES))) {
     return NextResponse.json({ status: "UNAVAILABLE" }, { status: 403 });
   }
 
@@ -26,7 +27,9 @@ export async function GET() {
     const payload = (await response.json()) as { status?: string; qrDataUrl?: string | null; updatedAt?: string };
     return NextResponse.json({
       status: payload.status ?? "UNAVAILABLE",
-      qrDataUrl: payload.qrDataUrl ?? null,
+      // El resumen de la bandeja está disponible para cualquier miembro autenticado, pero el QR
+      // de vinculación sigue reservado a quienes administran la clínica.
+      qrDataUrl: summaryOnly ? null : payload.qrDataUrl ?? null,
       updatedAt: payload.updatedAt ?? null,
     });
   } catch {

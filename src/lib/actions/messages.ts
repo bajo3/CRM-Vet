@@ -67,3 +67,20 @@ export async function sendHumanReply(id: string, content: string): Promise<Actio
   revalidatePath("/mensajes");
   return { ok: true };
 }
+
+export async function retryFailedMessage(messageId: string): Promise<void> {
+  const session = await getSession();
+  if (!session) return;
+
+  const message = await getPrisma().whatsappMessage.findFirst({
+    where: { id: messageId, clinicId: session.clinicId, direction: "OUTBOUND", status: "FAILED" },
+    select: { id: true, conversationId: true },
+  });
+  if (!message || !await ownedConversation(message.conversationId, session.clinicId)) return;
+
+  await getPrisma().whatsappMessage.update({
+    where: { id: message.id },
+    data: { status: "HUMAN_QUEUED", attempts: 0 },
+  });
+  revalidatePath("/mensajes");
+}

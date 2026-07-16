@@ -5,6 +5,7 @@ import makeWASocket, {
   DisconnectReason,
   fetchLatestBaileysVersion,
   useMultiFileAuthState as loadMultiFileAuthState,
+  WAMessageStatus,
   type WAMessage,
 } from "@whiskeysockets/baileys";
 import pino from "pino";
@@ -132,27 +133,33 @@ async function connect() {
     }
   });
 
-  socket.ev.on("messages.upsert", async ({ messages, type }) => {
-    if (type !== "notify") return;
-    for (const message of messages) {
-      const jid = message.key.remoteJid;
-      const text = messageText(message);
-      if (!jid || !text || message.key.fromMe || jid.endsWith("@g.us") || jid === "status@broadcast") continue;
+  const outboundUrl = `${appUrl}/api/internal/whatsapp/outbound?clinicKey=${encodeURIComponent(clinicKey)}`;
+  const reportOutbound = async (body: { id: string; status: "SENT" | "FAILED"; externalMessageId?: string }) => {
+    let lastCode = "UNKNOWN";
+    for (let attempt = 1; attempt <= 3; attempt++) {
       try {
-        const result = await sendToCrm(message, text);
-        if (result.reply && !result.duplicate) await socket.sendMessage(jid, { text: result.reply });
+        const response = await fetch(outboundUrl, {
+          method: "POST",
+          headers: { "content-type": "application/json", "x-internal-token": internalToken! },
+          body: JSON.stringify(body),
+          signal: AbortSignal.timeout(10_000),
+        });
+        if (response.ok) return true;
+        lastCode = `HTTP_${response.status}`;
       } catch (error) {
-        logger.error({ code: error instanceof Error ? error.message : "UNKNOWN" }, "No se pudo procesar un mensaje entrante");
+        lastCode = error instanceof Error ? error.message : "UNKNOWN";
       }
+      if (attempt < 3) await new Promise((resolve) => setTimeout(resolve, attempt * 250));
     }
-  });
+    logger.error({ messageId: body.id, outcome: body.status, code: lastCode }, "No se pudo registrar el resultado del envío");
+    return false;
+  };
 
   let flushing = false;
   const flushOutbound = async () => {
     if (flushing || bridgeState.status !== "CONNECTED") return;
     flushing = true;
     try {
-      const outboundUrl = `${appUrl}/api/internal/whatsapp/outbound?clinicKey=${encodeURIComponent(clinicKey)}`;
       const response = await fetch(outboundUrl, {
         headers: { "x-internal-token": internalToken! },
         signal: AbortSignal.timeout(10_000),
@@ -162,17 +169,10 @@ async function connect() {
       for (const message of payload.messages) {
         try {
           const sent = await socket.sendMessage(`${message.phone}@s.whatsapp.net`, { text: message.content });
-          await fetch(outboundUrl, {
-            method: "POST",
-            headers: { "content-type": "application/json", "x-internal-token": internalToken! },
-            body: JSON.stringify({ id: message.id, status: "SENT", externalMessageId: sent?.key.id }),
-          });
-        } catch {
-          await fetch(outboundUrl, {
-            method: "POST",
-            headers: { "content-type": "application/json", "x-internal-token": internalToken! },
-            body: JSON.stringify({ id: message.id, status: "FAILED" }),
-          });
+          await reportOutbound({ id: message.id, status: "SENT", externalMessageId: sent?.key.id ?? undefined });
+        } catch (error) {
+          logger.warn({ messageId: message.id, code: error instanceof Error ? error.message : "UNKNOWN" }, "Falló el envío a WhatsApp");
+          await reportOutbound({ id: message.id, status: "FAILED" });
         }
       }
     } catch (error) {
@@ -181,6 +181,47 @@ async function connect() {
       flushing = false;
     }
   };
+
+  socket.ev.on("messages.upsert", async ({ messages, type }) => {
+    if (type !== "notify") return;
+    for (const message of messages) {
+      const jid = message.key.remoteJid;
+      const text = messageText(message);
+      if (!jid || !text || message.key.fromMe || jid.endsWith("@g.us") || jid === "status@broadcast") continue;
+      try {
+        const result = await sendToCrm(message, text);
+        // La respuesta del bot ya quedó persistida como `HUMAN_QUEUED`: se vacía por la misma outbox
+        // que usan los mensajes humanos, con estados reales y reintentos.
+        if (!result.duplicate) await flushOutbound();
+      } catch (error) {
+        logger.error({ code: error instanceof Error ? error.message : "UNKNOWN" }, "No se pudo procesar un mensaje entrante");
+      }
+    }
+  });
+
+  socket.ev.on("messages.update", async (updates) => {
+    const deliveryUrl = `${appUrl}/api/internal/whatsapp/delivery?clinicKey=${encodeURIComponent(clinicKey)}`;
+    for (const { key, update } of updates) {
+      if (!key.fromMe || !key.id || update.status == null) continue;
+      const status = update.status >= WAMessageStatus.READ
+        ? "READ"
+        : update.status >= WAMessageStatus.DELIVERY_ACK
+          ? "DELIVERED"
+          : null;
+      if (!status) continue;
+      try {
+        const response = await fetch(deliveryUrl, {
+          method: "POST",
+          headers: { "content-type": "application/json", "x-internal-token": internalToken! },
+          body: JSON.stringify({ externalMessageId: key.id, status }),
+          signal: AbortSignal.timeout(10_000),
+        });
+        if (!response.ok) throw new Error(`DELIVERY_HTTP_${response.status}`);
+      } catch (error) {
+        logger.warn({ code: error instanceof Error ? error.message : "UNKNOWN" }, "No se pudo actualizar la confirmación de entrega");
+      }
+    }
+  });
 
   const outboundTimer = setInterval(() => void flushOutbound(), 3_000);
   socket.ev.on("connection.update", ({ connection }) => {

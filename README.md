@@ -144,10 +144,13 @@ Cada recordatorio se reclama de forma atómica (`status: PENDING` como condició
 
 ### Salientes de WhatsApp (`/api/internal/whatsapp/outbound`)
 
-El worker de Baileys hace polling cada 3s a este endpoint para vaciar la cola de salientes (respuestas humanas desde `/mensajes` y, si `REMINDER_PROVIDER=outbox`, recordatorios automáticos):
+El worker de Baileys hace polling cada 3s a este endpoint para vaciar una única cola de salientes (respuestas del bot, respuestas humanas desde `/mensajes` y, si `REMINDER_PROVIDER=outbox`, recordatorios automáticos):
 
 - **GET** reclama de forma atómica los mensajes `HUMAN_QUEUED` de la clínica (`claimOutboundMessages` en `src/lib/services/whatsapp-outbound.ts`), pasándolos a `SENDING` uno por uno con un `updateMany` condicionado — si dos polls se solapan, cada mensaje queda adjudicado a uno solo, nunca se envía duplicado.
 - **POST** reporta el resultado (`SENT`/`FAILED`) filtrando siempre por `clinicId` además de `id` (aislamiento multiempresa: un `clinicKey` nunca puede tocar mensajes de otra clínica). Un fallo incrementa `attempts` (columna en `WhatsappMessage`) y vuelve a `HUMAN_QUEUED` para reintentar; al tercer fallo queda `FAILED` definitivo — mismo esquema de reintentos que el motor de recordatorios.
+- **POST `/api/internal/whatsapp/delivery`** registra los acuses posteriores de Baileys como `DELIVERED` y `READ`, para que la bandeja no confunda “guardado” con “llegó al celular”.
+
+El estado legado `QUEUED` no se reclama: identifica respuestas anteriores a la outbox unificada cuya entrega no pudo verificarse y evita reenviarlas de forma masiva después de un despliegue.
 
 ## Cómo probar el flujo
 

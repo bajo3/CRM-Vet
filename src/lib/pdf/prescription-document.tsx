@@ -1,23 +1,25 @@
 import { Document, Page, View, Text, StyleSheet } from "@react-pdf/renderer";
 import { DateTime } from "luxon";
 import type { PrescriptionWithDocumentData } from "../services/prescriptions";
-import { COLORS, DocumentHeader, sharedStyles } from "./theme";
+import { COLORS, DocumentFooter, DocumentHeader, sharedStyles } from "./theme";
 
 const styles = StyleSheet.create({
   rxSymbol: {
-    fontSize: 30,
+    fontSize: 26,
     fontWeight: 700,
     color: COLORS.primary,
-    marginBottom: -6,
+    marginBottom: -4,
   },
   contentBox: {
     marginTop: 4,
-    backgroundColor: "#f8fafc",
-    borderRadius: 6,
+    backgroundColor: "#ffffff",
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: COLORS.border,
     borderLeftWidth: 3,
     borderLeftColor: COLORS.primary,
     padding: 16,
-    minHeight: 180,
+    minHeight: 190,
   },
   contentText: {
     fontSize: 11,
@@ -26,6 +28,30 @@ const styles = StyleSheet.create({
   signatureBlock: {
     marginTop: 46,
     alignItems: "flex-end",
+  },
+  prescriptionHeading: {
+    flexDirection: "row",
+    alignItems: "flex-end",
+    justifyContent: "space-between",
+    marginBottom: 8,
+  },
+  prescriptionLabel: {
+    fontSize: 8.5,
+    fontWeight: 700,
+    color: COLORS.primaryDark,
+    textTransform: "uppercase",
+    letterSpacing: 0.6,
+    paddingBottom: 3,
+  },
+  safetyNote: {
+    marginTop: 14,
+    borderRadius: 8,
+    backgroundColor: COLORS.primaryTint,
+    paddingVertical: 8,
+    paddingHorizontal: 10,
+    fontSize: 8.5,
+    color: COLORS.primaryDark,
+    lineHeight: 1.35,
   },
   signatureLine: {
     width: 230,
@@ -58,7 +84,7 @@ export function PrescriptionDocument({ prescription, timezone }: { prescription:
     <Document title={`Receta - ${prescription.pet.name}`}>
       <Page size="A4" style={sharedStyles.page}>
         <View style={sharedStyles.spine} fixed />
-        <DocumentHeader clinicName={prescription.clinic.name} clinicPhone={prescription.clinic.phone} logoUrl={prescription.clinic.logoUrl} docLabel="RECETA" dateLabel={issuedAt} />
+        <DocumentHeader clinicName={prescription.clinic.name} clinicPhone={prescription.clinic.phone} logoUrl={prescription.clinic.logoUrl} docLabel="RECETA" dateLabel={issuedAt} documentId={prescription.id.slice(-8).toUpperCase()} />
 
         <View style={sharedStyles.body}>
           <View style={[sharedStyles.section, sharedStyles.row]}>
@@ -74,11 +100,11 @@ export function PrescriptionDocument({ prescription, timezone }: { prescription:
             </View>
           </View>
 
-          <Text style={styles.rxSymbol}>℞</Text>
-          <Text style={sharedStyles.sectionTitle}>Indicación</Text>
+          <View style={styles.prescriptionHeading}><Text style={styles.rxSymbol}>Rp. /</Text><Text style={styles.prescriptionLabel}>Indicación veterinaria</Text></View>
           <View style={styles.contentBox}>
             <Text style={styles.contentText}>{prescription.content}</Text>
           </View>
+          <Text style={styles.safetyNote}>Administrar únicamente según esta indicación. Ante una reacción inesperada o dudas con la medicación, comunicarse con la clínica.</Text>
 
           <View style={styles.signatureBlock}>
             <View style={styles.signatureLine}>
@@ -89,9 +115,7 @@ export function PrescriptionDocument({ prescription, timezone }: { prescription:
           </View>
         </View>
 
-        <Text style={sharedStyles.footer} fixed>
-          Receta emitida por {prescription.user.name} · {prescription.clinic.name}
-        </Text>
+        <DocumentFooter text={`Receta emitida por ${prescription.user.name} · ${prescription.clinic.name}`} />
       </Page>
     </Document>
   );

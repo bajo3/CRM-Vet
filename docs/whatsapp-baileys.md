@@ -10,8 +10,9 @@
 2. El worker ignora mensajes propios, grupos, estados y contenido vacío.
 3. Publica un sobre limitado al endpoint interno usando `x-internal-token`.
 4. El CRM deduplica por clínica y `eventId`.
-5. El CRM guarda mensaje y estado de conversación, aplica el flujo y devuelve texto de respuesta.
-6. El worker envía la respuesta al mismo JID.
+5. El CRM guarda mensaje y estado de conversación, aplica el flujo y encola la respuesta como `HUMAN_QUEUED`.
+6. El worker vacía inmediatamente la outbox, además del polling de respaldo cada 3 segundos.
+7. El resultado queda trazado como `SENT`, `DELIVERED`, `READ` o `FAILED` y se muestra en la bandeja.
 
 ## Operación
 
@@ -47,12 +48,14 @@ Después de vincular el teléfono, las credenciales quedan en el volumen y sobre
 
 ## Salientes: reclamo atómico y reintentos
 
-El worker consulta `GET /api/internal/whatsapp/outbound?clinicKey=...` cada 3s. Esa ruta reclama los mensajes `HUMAN_QUEUED` de forma atómica (pasan a `SENDING` antes de devolverse), así que si un envío tarda más que el intervalo de poll, el mismo mensaje nunca se reporta dos veces. El worker reporta el resultado con `POST` (mismo `clinicKey` en la query) — un fallo no marca `FAILED` al primer intento: incrementa `attempts` y vuelve a `HUMAN_QUEUED` hasta 3 intentos, recién ahí queda `FAILED` definitivo. Ver `src/lib/services/whatsapp-outbound.ts`.
+El worker consulta `GET /api/internal/whatsapp/outbound?clinicKey=...` cada 3s. Esa ruta reclama todas las respuestas nuevas (bot, equipo y recordatorios) en estado `HUMAN_QUEUED` de forma atómica: pasan a `SENDING` antes de devolverse, así que dos polls solapados nunca reciben el mismo mensaje. El worker reporta el resultado con `POST`; un fallo incrementa `attempts` y vuelve a `HUMAN_QUEUED` hasta 3 intentos, recién entonces queda `FAILED` definitivo.
+
+Las confirmaciones posteriores de Baileys (`messages.update`) se registran mediante `POST /api/internal/whatsapp/delivery`, pasando el mensaje de `SENT` a `DELIVERED` y luego a `READ`. El estado antiguo `QUEUED` queda reservado para respuestas históricas sin confirmación: no se reclama, evitando que un despliegue reenvíe mensajes viejos de golpe.
 
 ## Rate limiting
 
-`/api/internal/whatsapp/events` y `/api/internal/whatsapp/outbound` aplican, además del token interno, un límite de 60 requests/minuto por IP+ruta (`src/lib/rate-limit.ts`, en memoria del proceso). Es una mitigación básica para el caso de que el token se filtre, no un reemplazo de un firewall o WAF. Limitación conocida: al vivir en memoria del proceso no es distribuido — con una sola instancia (el despliegue actual) alcanza.
+`/api/internal/whatsapp/events` y `/api/internal/whatsapp/outbound` aplican, además del token interno, un límite de 60 requests/minuto por IP+ruta; `/delivery` admite 120 para absorber confirmaciones de entrega y lectura (`src/lib/rate-limit.ts`, en memoria del proceso). Es una mitigación básica para el caso de que el token se filtre, no un reemplazo de un firewall o WAF.
 
 ## Migración futura
 
-El contrato `IncomingWhatsappEvent` y la lógica `processIncomingWhatsapp` no dependen de Baileys. Un adaptador para Meta Cloud API deberá convertir sus webhooks al mismo contrato y enviar el `reply` mediante Graph API.
+El contrato `IncomingWhatsappEvent` y la lógica `processIncomingWhatsapp` no dependen de Baileys. Un adaptador para Meta Cloud API deberá convertir sus webhooks al mismo contrato y consumir la misma outbox mediante Graph API.

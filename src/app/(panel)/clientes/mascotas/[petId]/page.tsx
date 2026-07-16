@@ -190,7 +190,7 @@ export default async function FichaMascotaPage({
         <RegisterVisitPanel petId={pet.id} reminderRules={reminderRules} />
       </div>
 
-      <div className="mb-6 grid gap-4 sm:grid-cols-2">
+      <div className="mb-6 grid gap-4 sm:grid-cols-2 [&:has([data-document-open=true])]:grid-cols-1">
         <div id="nuevo-presupuesto">
           <QuotePanel petId={pet.id} />
         </div>

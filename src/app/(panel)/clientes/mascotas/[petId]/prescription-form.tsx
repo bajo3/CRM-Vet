@@ -1,10 +1,10 @@
 "use client";
 
 import { useEffect, useState, useTransition } from "react";
-import { useForm } from "react-hook-form";
+import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useRouter } from "next/navigation";
-import { CheckCircle2, Loader2, Download } from "lucide-react";
+import { CheckCircle2, Download, FilePenLine, Loader2, ShieldCheck } from "lucide-react";
 import { prescriptionFormSchema, type PrescriptionFormInput, type PrescriptionFormValues } from "@/lib/validation/prescription";
 import { createPrescriptionAction } from "@/lib/actions/prescriptions";
 
@@ -19,6 +19,7 @@ export function PrescriptionForm({ petId }: { petId: string }) {
   const {
     register,
     handleSubmit,
+    control,
     reset,
     setError,
     formState: { errors },
@@ -26,6 +27,7 @@ export function PrescriptionForm({ petId }: { petId: string }) {
     resolver: zodResolver(prescriptionFormSchema),
     defaultValues: DEFAULT_VALUES,
   });
+  const content = useWatch({ control, name: "content" }) ?? "";
 
   useEffect(() => {
     if (!downloadUrl) return;
@@ -58,18 +60,24 @@ export function PrescriptionForm({ petId }: { petId: string }) {
   };
 
   return (
-    <form onSubmit={handleSubmit(onSubmit)} className="space-y-4" noValidate>
+    <form onSubmit={handleSubmit(onSubmit)} className="space-y-5" noValidate>
+      <div className="flex gap-3 rounded-2xl border border-sky-100 bg-sky-50/70 p-4">
+        <ShieldCheck size={19} className="mt-0.5 shrink-0 text-sky-700" />
+        <div><p className="text-sm font-semibold text-sky-950">Indicación completa y legible</p><p className="mt-0.5 text-xs leading-5 text-sky-800/80">Incluí medicamento, dosis, frecuencia, duración y vía de administración.</p></div>
+      </div>
       <div>
-        <label htmlFor="prescription-content" className="mb-1.5 block text-sm font-medium text-slate-700">
-          Indicación
-        </label>
+        <div className="mb-2 flex items-end justify-between"><label htmlFor="prescription-content" className="block text-sm font-medium text-slate-700">Indicación médica</label><span className="text-[11px] text-slate-400">{content.length}/4000</span></div>
+        <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm focus-within:border-sky-400 focus-within:ring-4 focus-within:ring-sky-500/10">
+          <div className="flex items-center gap-2 border-b border-slate-100 bg-slate-50 px-3.5 py-2 text-xs font-medium text-slate-500"><FilePenLine size={14} />Rp. /</div>
         <textarea
           id="prescription-content"
           rows={6}
-          className="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm outline-none focus:border-emerald-400"
+          maxLength={4000}
+          className="w-full resize-y bg-white px-4 py-4 text-sm leading-6 outline-none"
           placeholder="Meloxicam 0,2mg/kg cada 24hs por 5 días, vía oral, con alimento..."
           {...register("content")}
         />
+        </div>
         {errors.content && <p className="mt-1 text-xs text-rose-600">{errors.content.message}</p>}
       </div>
 
@@ -90,7 +98,7 @@ export function PrescriptionForm({ petId }: { petId: string }) {
       <button
         type="submit"
         disabled={isPending}
-        className="flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-emerald-600 text-sm font-medium text-white shadow-sm shadow-emerald-200 disabled:opacity-60 sm:w-auto sm:px-6"
+        className="flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-slate-900 text-sm font-semibold text-white shadow-sm transition hover:bg-slate-800 disabled:opacity-60 sm:w-auto sm:px-6"
       >
         {isPending && <Loader2 size={16} className="animate-spin" />}
         Generar receta

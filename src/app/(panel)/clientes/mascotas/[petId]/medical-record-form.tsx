@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useRef, useState, useTransition } from "react";
-import { useForm, Controller } from "react-hook-form";
+import { useEffect, useState, useTransition } from "react";
+import { useForm, Controller, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useRouter } from "next/navigation";
 import { CheckCircle2, Loader2, Sparkles } from "lucide-react";
@@ -39,14 +39,13 @@ export function MedicalRecordForm({ petId, reminderRules }: { petId: string; rem
   const [formError, setFormError] = useState<string | null>(null);
   const [success, setSuccess] = useState<{ remindersScheduled: number } | null>(null);
   const [suggested, setSuggested] = useState<{ months: number } | null>(null);
-  const controlTouched = useRef(false);
+  const [controlTouched, setControlTouched] = useState(false);
 
   const {
     register,
     handleSubmit,
     control,
     reset,
-    watch,
     setValue,
     setError,
     formState: { errors },
@@ -55,24 +54,26 @@ export function MedicalRecordForm({ petId, reminderRules }: { petId: string; rem
     defaultValues: DEFAULT_VALUES,
   });
 
-  const nextControlOption = watch("nextControlOption");
-  const type = watch("type") ?? "CONSULTATION";
+  const [nextControlOption, watchedType] = useWatch({ control, name: ["nextControlOption", "type"] });
+  const type = watchedType ?? "CONSULTATION";
 
   useEffect(() => {
-    if (controlTouched.current) return;
-    const rule = reminderRules[type];
-    if (!rule?.enabled) {
-      setSuggested(null);
-      return;
-    }
-    setValue("nextControlOption", "custom");
-    setValue("nextControlDate", dateInNMonths(rule.months));
-    setSuggested({ months: rule.months });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [type]);
+    if (controlTouched) return;
+    const timer = window.setTimeout(() => {
+      const rule = reminderRules[type];
+      if (!rule?.enabled) {
+        setSuggested(null);
+        return;
+      }
+      setValue("nextControlOption", "custom");
+      setValue("nextControlDate", dateInNMonths(rule.months));
+      setSuggested({ months: rule.months });
+    }, 0);
+    return () => window.clearTimeout(timer);
+  }, [controlTouched, reminderRules, setValue, type]);
 
   function markTouched() {
-    controlTouched.current = true;
+    setControlTouched(true);
     setSuggested(null);
   }
 
@@ -91,7 +92,7 @@ export function MedicalRecordForm({ petId, reminderRules }: { petId: string; rem
         return;
       }
       reset(DEFAULT_VALUES);
-      controlTouched.current = false;
+      setControlTouched(false);
       setSuggested(null);
       setSuccess({ remindersScheduled: result.remindersScheduled });
       router.refresh();

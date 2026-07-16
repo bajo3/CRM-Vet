@@ -68,6 +68,8 @@ describe("flow de WhatsApp", () => {
 
     const inboundMessages = await prisma.whatsappMessage.count({ where: { clinicId: clinic.id, direction: "INBOUND" } });
     expect(inboundMessages).toBe(1);
+    const outbound = await prisma.whatsappMessage.findFirstOrThrow({ where: { clinicId: clinic.id, direction: "OUTBOUND" } });
+    expect(outbound.status).toBe("HUMAN_QUEUED");
   });
 
   it("una consulta médica deriva la conversación a REQUIRES_HUMAN sin ofrecer diagnóstico", async () => {

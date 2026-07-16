@@ -71,7 +71,7 @@ export default async function PanelLayout({ children }: { children: React.ReactN
           </form>
         </header>
 
-        <main className="flex-1">{children}</main>
+        <main className="min-h-0 flex-1">{children}</main>
       </div>
 
       <BottomNav unreadConversations={unreadConversations} />

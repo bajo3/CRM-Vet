@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useForm, Controller } from "react-hook-form";
+import { useForm, Controller, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useRouter } from "next/navigation";
 import { Loader2 } from "lucide-react";
@@ -16,14 +16,13 @@ export function RescheduleForm({ appointmentId, veterinarianId, defaultDate }: {
   const {
     handleSubmit,
     control,
-    watch,
     formState: { errors },
   } = useForm<RescheduleFormValues, unknown, RescheduleFormInput>({
     resolver: zodResolver(rescheduleFormSchema),
     defaultValues: { date: defaultDate, time: "" },
   });
 
-  const date = watch("date");
+  const date = useWatch({ control, name: "date" });
   const [slots, setSlots] = useState<string[] | null>(null);
   const [loadingSlots, setLoadingSlots] = useState(false);
 
@@ -38,7 +37,8 @@ export function RescheduleForm({ appointmentId, veterinarianId, defaultDate }: {
   }
 
   useEffect(() => {
-    loadSlots();
+    const timer = window.setTimeout(loadSlots, 0);
+    return () => window.clearTimeout(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [date]);
 

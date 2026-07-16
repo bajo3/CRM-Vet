@@ -1,14 +1,20 @@
 import { Document, Page, View, Text, StyleSheet } from "@react-pdf/renderer";
 import { DateTime } from "luxon";
 import type { QuoteWithDocumentData } from "../services/quotes";
-import { COLORS, DocumentHeader, sharedStyles } from "./theme";
+import { COLORS, DocumentFooter, DocumentHeader, sharedStyles } from "./theme";
 
 const styles = StyleSheet.create({
   quoteTitle: {
-    fontSize: 12.5,
+    fontSize: 15,
     fontWeight: 700,
-    marginBottom: 14,
+    marginBottom: 5,
     color: COLORS.ink,
+  },
+  quoteLead: {
+    marginBottom: 16,
+    fontSize: 9,
+    color: COLORS.muted,
+    lineHeight: 1.4,
   },
   table: {
     borderRadius: 6,
@@ -38,6 +44,10 @@ const styles = StyleSheet.create({
   colDescription: {
     flex: 1,
   },
+  colNumber: {
+    width: 28,
+    color: COLORS.muted,
+  },
   colAmount: {
     width: 92,
     textAlign: "right",
@@ -54,29 +64,34 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     alignItems: "center",
     marginTop: 14,
-    backgroundColor: COLORS.primaryTint,
-    borderRadius: 6,
-    paddingVertical: 10,
+    backgroundColor: COLORS.primary,
+    borderRadius: 8,
+    paddingVertical: 12,
     paddingHorizontal: 14,
   },
   totalLabel: {
     fontSize: 10.5,
     fontWeight: 700,
-    color: COLORS.primaryDark,
+    color: "#ffffff",
   },
   totalValue: {
     fontSize: 15,
     fontWeight: 700,
-    color: COLORS.primaryDark,
+    color: "#ffffff",
   },
   notes: {
     marginTop: 18,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    backgroundColor: "#f8fafc",
+    borderRadius: 8,
+    padding: 12,
     fontSize: 9.5,
     color: "#475569",
     lineHeight: 1.4,
   },
   validity: {
-    marginTop: 18,
+    marginTop: 14,
     fontSize: 8.5,
     color: COLORS.muted,
     fontStyle: "italic",
@@ -97,7 +112,7 @@ export function QuoteDocument({ quote, timezone }: { quote: QuoteWithDocumentDat
     <Document title={`Presupuesto - ${quote.pet.name}`}>
       <Page size="A4" style={sharedStyles.page}>
         <View style={sharedStyles.spine} fixed />
-        <DocumentHeader clinicName={quote.clinic.name} clinicPhone={quote.clinic.phone} logoUrl={quote.clinic.logoUrl} docLabel="PRESUPUESTO" dateLabel={issuedAt} />
+        <DocumentHeader clinicName={quote.clinic.name} clinicPhone={quote.clinic.phone} logoUrl={quote.clinic.logoUrl} docLabel="PRESUPUESTO" dateLabel={issuedAt} documentId={quote.id.slice(-8).toUpperCase()} />
 
         <View style={sharedStyles.body}>
           <View style={[sharedStyles.section, sharedStyles.row]}>
@@ -113,10 +128,12 @@ export function QuoteDocument({ quote, timezone }: { quote: QuoteWithDocumentDat
             </View>
           </View>
 
-          {quote.title && <Text style={styles.quoteTitle}>{quote.title}</Text>}
+          <Text style={styles.quoteTitle}>{quote.title || `Propuesta de atención para ${quote.pet.name}`}</Text>
+          <Text style={styles.quoteLead}>Detalle de prestaciones y valores estimados para la atención veterinaria.</Text>
 
           <View style={styles.table}>
             <View style={styles.tableHeaderRow}>
+              <Text style={[styles.colNumber, styles.tableHeaderText]}>#</Text>
               <Text style={[styles.colDescription, styles.tableHeaderText]}>Descripción</Text>
               <Text style={[styles.colAmount, styles.tableHeaderText]}>Monto</Text>
             </View>
@@ -125,6 +142,7 @@ export function QuoteDocument({ quote, timezone }: { quote: QuoteWithDocumentDat
                 key={index}
                 style={[styles.tableRow, index % 2 === 1 ? styles.tableRowAlt : {}, index === items.length - 1 ? styles.tableRowLast : {}]}
               >
+                <Text style={styles.colNumber}>{String(index + 1).padStart(2, "0")}</Text>
                 <Text style={styles.colDescription}>{item.description}</Text>
                 <Text style={styles.colAmount}>{formatCurrency(item.amount)}</Text>
               </View>
@@ -143,12 +161,10 @@ export function QuoteDocument({ quote, timezone }: { quote: QuoteWithDocumentDat
             </View>
           )}
 
-          <Text style={styles.validity}>Presupuesto sujeto a confirmación de la clínica. Los valores pueden variar según disponibilidad al momento de la atención.</Text>
+          <Text style={styles.validity}>Este presupuesto es informativo y está sujeto a confirmación de la clínica. Los valores pueden variar si cambia el diagnóstico, la complejidad o la disponibilidad al momento de la atención.</Text>
         </View>
 
-        <Text style={sharedStyles.footer} fixed>
-          Presupuesto generado por {quote.user.name} · {quote.clinic.name}
-        </Text>
+        <DocumentFooter text={`Presupuesto generado por ${quote.user.name} · ${quote.clinic.name}`} />
       </Page>
     </Document>
   );

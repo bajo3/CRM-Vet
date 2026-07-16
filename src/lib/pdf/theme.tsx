@@ -8,6 +8,7 @@ export const COLORS = {
   muted: "#64748b",
   border: "#e2e8f0",
   headerTint: "#f0fdfa",
+  soft: "#f8fafc",
 };
 
 export const sharedStyles = StyleSheet.create({
@@ -34,8 +35,10 @@ export const sharedStyles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    backgroundColor: COLORS.headerTint,
-    paddingVertical: 20,
+    backgroundColor: "#ffffff",
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.border,
+    paddingVertical: 22,
     paddingHorizontal: 42,
     marginBottom: 24,
   },
@@ -49,6 +52,17 @@ export const sharedStyles = StyleSheet.create({
     height: 42,
     borderRadius: 8,
     objectFit: "contain",
+  },
+  logoFallback: {
+    width: 42,
+    height: 42,
+    borderRadius: 10,
+    backgroundColor: COLORS.primary,
+    color: "#ffffff",
+    fontSize: 18,
+    fontWeight: 700,
+    textAlign: "center",
+    paddingTop: 11,
   },
   clinicName: {
     fontSize: 15,
@@ -79,6 +93,13 @@ export const sharedStyles = StyleSheet.create({
     color: COLORS.muted,
     textAlign: "right",
   },
+  docId: {
+    marginTop: 3,
+    fontSize: 7.5,
+    color: COLORS.muted,
+    textAlign: "right",
+    letterSpacing: 0.4,
+  },
   section: {
     marginBottom: 16,
   },
@@ -97,8 +118,10 @@ export const sharedStyles = StyleSheet.create({
   },
   infoCard: {
     flex: 1,
-    backgroundColor: "#f8fafc",
-    borderRadius: 6,
+    backgroundColor: COLORS.soft,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: COLORS.border,
     padding: 12,
   },
   infoLine: {
@@ -130,17 +153,21 @@ export function DocumentHeader({
   logoUrl,
   docLabel,
   dateLabel,
+  documentId,
 }: {
   clinicName: string;
   clinicPhone?: string | null;
   logoUrl?: string | null;
   docLabel: string;
   dateLabel: string;
+  documentId: string;
 }) {
   return (
     <View style={sharedStyles.header} fixed>
       <View style={sharedStyles.headerLeft}>
-        {logoUrl && <Image src={logoUrl} style={sharedStyles.logo} />}
+        {/* `Image` es de react-pdf (no HTML) y su API no admite `alt`. */}
+        {/* eslint-disable-next-line jsx-a11y/alt-text */}
+        {logoUrl ? <Image src={logoUrl} style={sharedStyles.logo} /> : <Text style={sharedStyles.logoFallback}>{clinicName.slice(0, 1).toUpperCase()}</Text>}
         <View>
           <Text style={sharedStyles.clinicName}>{clinicName}</Text>
           {clinicPhone && <Text style={sharedStyles.clinicPhone}>{clinicPhone}</Text>}
@@ -151,7 +178,18 @@ export function DocumentHeader({
           <Text style={sharedStyles.badgeText}>{docLabel}</Text>
         </View>
         <Text style={sharedStyles.docDate}>{dateLabel}</Text>
+        <Text style={sharedStyles.docId}>N.º {documentId}</Text>
       </View>
     </View>
+  );
+}
+
+export function DocumentFooter({ text }: { text: string }) {
+  return (
+    <Text
+      style={sharedStyles.footer}
+      fixed
+      render={({ pageNumber, totalPages }) => `${text}  ·  Página ${pageNumber} de ${totalPages}`}
+    />
   );
 }

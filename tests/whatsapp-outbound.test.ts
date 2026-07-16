@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from "vitest";
-import { claimOutboundMessages, MAX_OUTBOUND_ATTEMPTS, reportOutboundOutcome } from "../src/lib/services/whatsapp-outbound";
+import { claimOutboundMessages, MAX_OUTBOUND_ATTEMPTS, reportOutboundDelivery, reportOutboundOutcome } from "../src/lib/services/whatsapp-outbound";
 import { createTestClinic, createTestClient, resetDatabase, prisma } from "./setup/db";
 
 async function queueMessage(clinicId: string, phone: string, content = "Hola, este es un mensaje de prueba") {
@@ -28,6 +28,18 @@ describe("whatsapp-outbound: reclamo atómico y reintentos", () => {
 
     const updated = await prisma.whatsappMessage.findUniqueOrThrow({ where: { id: message.id } });
     expect(updated.status).toBe("SENDING");
+  });
+
+  it("no reenvía mensajes históricos QUEUED al activar la nueva outbox", async () => {
+    const clinic = await createTestClinic();
+    const client = await createTestClient(clinic.id);
+    const message = await queueMessage(clinic.id, client.phone);
+    await prisma.whatsappMessage.update({ where: { id: message.id }, data: { status: "QUEUED" } });
+
+    const claimed = await claimOutboundMessages(prisma, clinic.id, 20);
+
+    expect(claimed.map((item) => item.id)).not.toContain(message.id);
+    expect((await prisma.whatsappMessage.findUniqueOrThrow({ where: { id: message.id } })).status).toBe("QUEUED");
   });
 
   it("dos reclamos concurrentes sobre los mismos mensajes nunca devuelven el mismo mensaje dos veces", async () => {
@@ -83,6 +95,19 @@ describe("whatsapp-outbound: reclamo atómico y reintentos", () => {
     const updated = await prisma.whatsappMessage.findUniqueOrThrow({ where: { id: message.id } });
     expect(updated.status).toBe("SENT");
     expect(updated.externalMessageId).toBe("wa-msg-123");
+  });
+
+  it("registra las confirmaciones de entregado y leído de WhatsApp", async () => {
+    const clinic = await createTestClinic();
+    const client = await createTestClient(clinic.id);
+    const message = await queueMessage(clinic.id, client.phone);
+    await claimOutboundMessages(prisma, clinic.id, 20);
+    await reportOutboundOutcome(prisma, clinic.id, message.id, "SENT", "wa-receipt-123");
+
+    expect(await reportOutboundDelivery(prisma, clinic.id, "wa-receipt-123", "DELIVERED")).toBe(true);
+    expect((await prisma.whatsappMessage.findUniqueOrThrow({ where: { id: message.id } })).status).toBe("DELIVERED");
+    expect(await reportOutboundDelivery(prisma, clinic.id, "wa-receipt-123", "READ")).toBe(true);
+    expect((await prisma.whatsappMessage.findUniqueOrThrow({ where: { id: message.id } })).status).toBe("READ");
   });
 
   it("reportOutboundOutcome nunca toca un mensaje de otra clínica (aislamiento multiempresa)", async () => {
