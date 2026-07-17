@@ -175,11 +175,12 @@ async function resolveJid(socket: Socket, phone: string): Promise<string | null>
   if (cached && Date.now() - cached.at < NUMBER_CACHE_TTL_MS) return cached.jid;
   try {
     const result = (await socket.onWhatsApp(phone))?.[0];
-    let jid = result?.exists && result.jid ? result.jid : null;
-    // Clientes viejos que quedaron guardados con un LID como "teléfono" (los LIDs observados tienen
-    // 14+ dígitos; un teléfono E.164 real tiene hasta 15 pero los argentinos usan 13): onWhatsApp no
-    // resuelve LIDs, así que probamos mandar directo al chat @lid antes de dar el mensaje por muerto.
-    if (!jid && /^\d{14,}$/.test(phone)) jid = `${phone}@lid`;
+    // Nota: si el "teléfono" guardado es en realidad un LID (clientes creados antes del fix de
+    // senderPn), onWhatsApp no lo resuelve y el mensaje queda FAILED honesto. Enviar directo al JID
+    // @lid NO es alternativa: el servidor lo acepta localmente pero lo rechaza con un error ack y el
+    // mensaje nunca llega. Esos clientes se arreglan solos cuando vuelven a escribir (la conversación
+    // nueva se crea con el teléfono real).
+    const jid = result?.exists && result.jid ? result.jid : null;
     knownNumbers.set(phone, { jid, at: Date.now() });
     if (knownNumbers.size > 500) {
       const oldest = knownNumbers.keys().next().value;
@@ -333,6 +334,7 @@ async function connect() {
             continue;
           }
           const sent = await sendHumanized(socket, jid, message.content);
+          logger.info({ messageId: message.id, jidType: jid.replace(/^[^@]+/, "") }, "Mensaje saliente enviado");
           await reportOutbound({ id: message.id, status: "SENT", externalMessageId: sent?.key.id ?? undefined });
         } catch (error) {
           logger.warn({ messageId: message.id, code: error instanceof Error ? error.message : "UNKNOWN" }, "Falló el envío a WhatsApp");
@@ -354,10 +356,18 @@ async function connect() {
       if (!jid || !text || message.key.fromMe || jid.endsWith("@g.us") || jid === "status@broadcast") continue;
       try {
         const phone = inboundPhone(message);
-        // Sembramos el cache con el JID exacto del chat que nos escribió: la respuesta del bot va a
-        // salir por la outbox unos segundos después, y así vuelve al mismo chat (aunque sea @lid)
-        // sin depender de onWhatsApp, que no sabe resolver LIDs.
-        knownNumbers.set(phone, { jid, at: Date.now() });
+        // Sembramos el cache para que la respuesta del bot (que sale por la outbox unos segundos
+        // después) no dependa de onWhatsApp. OJO: siempre con el JID del teléfono real — enviar
+        // directo a un JID @lid parece funcionar localmente pero el servidor lo rechaza con un
+        // error ack y el mensaje nunca llega (Baileys 6.x no soporta envío a @lid).
+        const isLid = jid.endsWith("@lid");
+        if (!isLid) {
+          knownNumbers.set(phone, { jid, at: Date.now() });
+        } else if (phone !== jid.replace(/@.+$/, "")) {
+          // Tenemos el teléfono real (senderPn): la respuesta va al JID clásico de ese número.
+          knownNumbers.set(phone, { jid: `${phone}@s.whatsapp.net`, at: Date.now() });
+        }
+        logger.info({ lid: isLid, conocido: phone !== jid.replace(/@.+$/, "") || !isLid }, "Mensaje entrante procesado");
         const result = await sendToCrm(message, text, phone);
         // Tilde azul: se marca como leído solo cuando el bot va a responder. Si
         // el mensaje queda para un humano, se deja sin leer para que la
