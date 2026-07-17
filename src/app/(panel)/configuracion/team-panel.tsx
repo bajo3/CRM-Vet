@@ -196,10 +196,10 @@ function MemberRow({ member, canManage, isSelf, onChanged }: { member: Member; c
   };
 
   return (
-    <div className={`flex flex-col gap-2 py-4 ${member.active ? "" : "opacity-60"}`}>
+    <div className="flex flex-col gap-2 py-4">
       <div className="flex items-center gap-3">
-        <span className="grid size-10 shrink-0 place-items-center rounded-full bg-slate-100 text-xs font-semibold text-slate-600">{initials}</span>
-        <div className="min-w-0 flex-1">
+        <span className={`grid size-10 shrink-0 place-items-center rounded-full bg-slate-100 text-xs font-semibold text-slate-600 ${member.active ? "" : "opacity-60"}`}>{initials}</span>
+        <div className={`min-w-0 flex-1 ${member.active ? "" : "opacity-60"}`}>
           <p className="truncate text-sm font-medium">{member.user.name}{isSelf && <span className="ml-1.5 text-xs font-normal text-slate-400">(vos)</span>}</p>
           <p className="truncate text-xs text-slate-500">{member.user.email}</p>
         </div>
