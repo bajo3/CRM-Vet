@@ -677,7 +677,7 @@ export async function processIncomingWhatsapp(event: IncomingWhatsappEvent): Pro
     nextState = Object.fromEntries(Object.entries(nextState).filter(([key]) => key !== "misunderstoodCount"));
   }
 
-  await prisma.$transaction([
+  const [, outboundMessage] = await prisma.$transaction([
     prisma.whatsappConversation.update({ where: { id: conversation.id }, data: { status, flowState: nextState, petId: linkedPetId } }),
     // Todas las respuestas (automáticas o humanas) pasan por la misma outbox. El worker las
     // reclama, reintenta y registra sus confirmaciones de entrega.
@@ -685,5 +685,5 @@ export async function processIncomingWhatsapp(event: IncomingWhatsappEvent): Pro
     prisma.webhookEvent.update({ where: { clinicId_externalEventId: { clinicId: clinic.id, externalEventId: event.eventId } }, data: { processedAt: new Date() } }),
   ]);
 
-  return { accepted: true, reply };
+  return { accepted: true, reply, outboundMessageId: outboundMessage.id };
 }

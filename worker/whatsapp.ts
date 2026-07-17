@@ -70,16 +70,17 @@ function messageText(message: WAMessage) {
   ).trim();
 }
 
-// WhatsApp está migrando los chats a JIDs "@lid" (identificadores de privacidad que ocultan el
-// número real). El número visible de un JID @lid NO es un teléfono: si se guarda como tal, las
-// respuestas van a un destinatario inexistente y nunca llegan (esto rompió las respuestas del bot
-// en producción). Baileys expone el teléfono verdadero en `key.senderPn` cuando está disponible.
+// WhatsApp usa JIDs "@lid" como identidad principal. El CRM todavía identifica al cliente por
+// teléfono, pero el envío debe conservar el LID del chat: convertirlo a PN hace que una respuesta
+// parezca un chat nuevo y puede activar el bloqueo 463. Baileys v7 expone el PN alternativo en
+// `remoteJidAlt`; `senderPn` queda sólo como compatibilidad con eventos recibidos antes de migrar.
 type LidAwareKey = WAMessage["key"] & { senderPn?: string | null };
 
 function inboundPhone(message: WAMessage): string {
   const key = message.key as LidAwareKey;
   const remoteJid = message.key.remoteJid ?? "";
-  if (remoteJid.endsWith("@lid") && key.senderPn) return key.senderPn.replace(/@.+$/, "");
+  const alternatePn = key.remoteJidAlt ?? key.senderPn;
+  if (remoteJid.endsWith("@lid") && alternatePn) return alternatePn.replace(/@.+$/, "");
   return remoteJid.replace(/@.+$/, "");
 }
 
@@ -140,6 +141,42 @@ function queueSend<T>(task: () => Promise<T>): Promise<T> {
 // en un tilde gris para siempre.
 const sentMessages = new Map<string, proto.IMessage>();
 
+type InitialSendUpdate = { status: number; errorCode?: string };
+const recentSendUpdates = new Map<string, InitialSendUpdate>();
+const sendUpdateWaiters = new Map<string, (update: InitialSendUpdate | null) => void>();
+
+function rememberSendUpdate(id: string, update: InitialSendUpdate) {
+  recentSendUpdates.set(id, update);
+  const waiter = sendUpdateWaiters.get(id);
+  if (waiter) {
+    sendUpdateWaiters.delete(id);
+    waiter(update);
+  }
+  if (recentSendUpdates.size > 300) {
+    const oldest = recentSendUpdates.keys().next().value;
+    if (oldest) recentSendUpdates.delete(oldest);
+  }
+}
+
+async function waitForInitialSendUpdate(id: string, timeoutMs = 2_000): Promise<InitialSendUpdate | null> {
+  const existing = recentSendUpdates.get(id);
+  if (existing) {
+    recentSendUpdates.delete(id);
+    return existing;
+  }
+  return new Promise((resolve) => {
+    const timer = setTimeout(() => {
+      sendUpdateWaiters.delete(id);
+      resolve(null);
+    }, timeoutMs);
+    sendUpdateWaiters.set(id, (update) => {
+      clearTimeout(timer);
+      recentSendUpdates.delete(id);
+      resolve(update);
+    });
+  });
+}
+
 function rememberSent(sent: WAMessage | undefined) {
   if (!sent?.key?.id || !sent.message) return;
   sentMessages.set(sent.key.id, sent.message);
@@ -174,13 +211,17 @@ async function resolveJid(socket: Socket, phone: string): Promise<string | null>
   const cached = knownNumbers.get(phone);
   if (cached && Date.now() - cached.at < NUMBER_CACHE_TTL_MS) return cached.jid;
   try {
+    const pnJid = `${phone}@s.whatsapp.net`;
+    const knownLid = await socket.signalRepository.lidMapping.getLIDForPN(pnJid);
+    if (knownLid) {
+      knownNumbers.set(phone, { jid: knownLid, at: Date.now() });
+      return knownLid;
+    }
     const result = (await socket.onWhatsApp(phone))?.[0];
-    // Nota: si el "teléfono" guardado es en realidad un LID (clientes creados antes del fix de
-    // senderPn), onWhatsApp no lo resuelve y el mensaje queda FAILED honesto. Enviar directo al JID
-    // @lid NO es alternativa: el servidor lo acepta localmente pero lo rechaza con un error ack y el
-    // mensaje nunca llega. Esos clientes se arreglan solos cuando vuelven a escribir (la conversación
-    // nueva se crea con el teléfono real).
-    const jid = result?.exists && result.jid ? result.jid : null;
+    const normalizedPn = result?.exists && result.jid ? result.jid : null;
+    const jid = normalizedPn
+      ? (await socket.signalRepository.lidMapping.getLIDForPN(normalizedPn)) ?? normalizedPn
+      : null;
     knownNumbers.set(phone, { jid, at: Date.now() });
     if (knownNumbers.size > 500) {
       const oldest = knownNumbers.keys().next().value;
@@ -293,7 +334,12 @@ async function connect() {
   });
 
   const outboundUrl = `${appUrl}/api/internal/whatsapp/outbound?clinicKey=${encodeURIComponent(clinicKey)}`;
-  const reportOutbound = async (body: { id: string; status: "SENT" | "FAILED"; externalMessageId?: string }) => {
+  const reportOutbound = async (body: {
+    id: string;
+    status: "SENT" | "FAILED";
+    externalMessageId?: string;
+    retryable?: boolean;
+  }) => {
     let lastCode = "UNKNOWN";
     for (let attempt = 1; attempt <= 3; attempt++) {
       try {
@@ -315,8 +361,9 @@ async function connect() {
   };
 
   let flushing = false;
-  const flushOutbound = async () => {
-    if (flushing || bridgeState.status !== "CONNECTED") return;
+  const flushOutbound = async (): Promise<Set<string>> => {
+    const deliveredMessageIds = new Set<string>();
+    if (flushing || bridgeState.status !== "CONNECTED") return deliveredMessageIds;
     flushing = true;
     try {
       const response = await fetch(outboundUrl, {
@@ -330,15 +377,28 @@ async function connect() {
           const jid = await resolveJid(socket, message.phone);
           if (!jid) {
             logger.warn({ messageId: message.id, phone: message.phone }, "El número no tiene WhatsApp; se marca como fallido");
-            await reportOutbound({ id: message.id, status: "FAILED" });
+            await reportOutbound({ id: message.id, status: "FAILED", retryable: false });
             continue;
           }
           const sent = await sendHumanized(socket, jid, message.content);
-          logger.info({ messageId: message.id, jidType: jid.replace(/^[^@]+/, "") }, "Mensaje saliente enviado");
-          await reportOutbound({ id: message.id, status: "SENT", externalMessageId: sent?.key.id ?? undefined });
+          const externalMessageId = sent?.key.id;
+          if (!externalMessageId) throw new Error("WHATSAPP_MESSAGE_ID_MISSING");
+          const initialUpdate = await waitForInitialSendUpdate(externalMessageId);
+          if (initialUpdate?.status === WAMessageStatus.ERROR) {
+            const errorCode = initialUpdate.errorCode ?? "WHATSAPP_ERROR";
+            const retryable = errorCode !== "463";
+            logger.warn({ messageId: message.id, errorCode, retryable }, "WhatsApp rechazó el mensaje");
+            await reportOutbound({ id: message.id, status: "FAILED", retryable });
+            continue;
+          }
+          logger.info({ messageId: message.id, jidType: jid.replace(/^[^@]+/, "") }, "Mensaje saliente aceptado");
+          const reported = await reportOutbound({ id: message.id, status: "SENT", externalMessageId });
+          if (reported) deliveredMessageIds.add(message.id);
         } catch (error) {
-          logger.warn({ messageId: message.id, code: error instanceof Error ? error.message : "UNKNOWN" }, "Falló el envío a WhatsApp");
-          await reportOutbound({ id: message.id, status: "FAILED" });
+          const code = error instanceof Error ? error.message : "UNKNOWN";
+          const retryable = !/\b463\b/.test(code);
+          logger.warn({ messageId: message.id, code, retryable }, "Falló el envío a WhatsApp");
+          await reportOutbound({ id: message.id, status: "FAILED", retryable });
         }
       }
     } catch (error) {
@@ -346,6 +406,7 @@ async function connect() {
     } finally {
       flushing = false;
     }
+    return deliveredMessageIds;
   };
 
   socket.ev.on("messages.upsert", async ({ messages, type }) => {
@@ -356,29 +417,22 @@ async function connect() {
       if (!jid || !text || message.key.fromMe || jid.endsWith("@g.us") || jid === "status@broadcast") continue;
       try {
         const phone = inboundPhone(message);
-        // Sembramos el cache para que la respuesta del bot (que sale por la outbox unos segundos
-        // después) no dependa de onWhatsApp. OJO: siempre con el JID del teléfono real — enviar
-        // directo a un JID @lid parece funcionar localmente pero el servidor lo rechaza con un
-        // error ack y el mensaje nunca llega (Baileys 6.x no soporta envío a @lid).
         const isLid = jid.endsWith("@lid");
-        if (!isLid) {
-          knownNumbers.set(phone, { jid, at: Date.now() });
-        } else if (phone !== jid.replace(/@.+$/, "")) {
-          // Tenemos el teléfono real (senderPn): la respuesta va al JID clásico de ese número.
-          knownNumbers.set(phone, { jid: `${phone}@s.whatsapp.net`, at: Date.now() });
+        knownNumbers.set(phone, { jid, at: Date.now() });
+        if (isLid && phone !== jid.replace(/@.+$/, "")) {
+          await socket.signalRepository.lidMapping
+            .storeLIDPNMappings([{ lid: jid, pn: `${phone}@s.whatsapp.net` }])
+            .catch((error) => logger.debug({ error }, "No se pudo persistir el mapeo LID/PN"));
         }
         logger.info({ lid: isLid, conocido: phone !== jid.replace(/@.+$/, "") || !isLid }, "Mensaje entrante procesado");
         const result = await sendToCrm(message, text, phone);
-        // Tilde azul: se marca como leído solo cuando el bot va a responder. Si
-        // el mensaje queda para un humano, se deja sin leer para que la
-        // veterinaria conserve el indicador de no-leído en su teléfono.
-        if (result.reply && !result.duplicate) {
+        const sentMessageIds = !result.duplicate ? await flushOutbound() : new Set<string>();
+        // El tilde azul se manda recién después de que WhatsApp aceptó la respuesta. Así nunca
+        // dejamos al cliente en visto si el servidor rechaza el mensaje.
+        if (result.reply && result.outboundMessageId && sentMessageIds.has(result.outboundMessageId)) {
           await sleep(randomBetween(800, 2_500));
           await socket.readMessages([message.key]).catch(() => undefined);
         }
-        // La respuesta del bot ya quedó persistida como `HUMAN_QUEUED`: se vacía por la misma outbox
-        // que usan los mensajes humanos, con estados reales y reintentos.
-        if (!result.duplicate) await flushOutbound();
       } catch (error) {
         logger.error({ code: error instanceof Error ? error.message : "UNKNOWN" }, "No se pudo procesar un mensaje entrante");
       }
@@ -389,6 +443,17 @@ async function connect() {
     const deliveryUrl = `${appUrl}/api/internal/whatsapp/delivery?clinicKey=${encodeURIComponent(clinicKey)}`;
     for (const { key, update } of updates) {
       if (!key.fromMe || !key.id || update.status == null) continue;
+      const whatsappError = update.messageStubParameters?.[0];
+      const numericStatus = Number(update.status);
+      // Un SERVER_ACK todavía puede ser seguido por un rechazo del servidor. Para decidir si el
+      // envío fue aceptado sólo despertamos al waiter ante error o entrega real; si no llega
+      // ninguno, el timeout corto conserva el comportamiento normal de Baileys.
+      if (numericStatus === WAMessageStatus.ERROR || numericStatus >= WAMessageStatus.DELIVERY_ACK) {
+        rememberSendUpdate(key.id, {
+          status: numericStatus,
+          errorCode: typeof whatsappError === "string" ? whatsappError : undefined,
+        });
+      }
       const status = update.status === WAMessageStatus.ERROR
         ? "FAILED"
         : update.status >= WAMessageStatus.READ
@@ -408,7 +473,7 @@ async function connect() {
       } catch (error) {
         logger.warn({
           code: error instanceof Error ? error.message : "UNKNOWN",
-          whatsappError: update.messageStubParameters?.[0],
+          whatsappError,
         }, "No se pudo actualizar el estado final del mensaje");
       }
     }

@@ -38,11 +38,23 @@ export async function POST(request: NextRequest) {
   const clinic = await resolveClinic(clinicKey);
   if (!clinic) return NextResponse.json({ error: "clinic_not_found" }, { status: 404 });
 
-  const body = (await request.json()) as { id?: string; status?: "SENT" | "FAILED"; externalMessageId?: string };
+  const body = (await request.json()) as {
+    id?: string;
+    status?: "SENT" | "FAILED";
+    externalMessageId?: string;
+    retryable?: boolean;
+  };
   if (!body.id || !["SENT", "FAILED"].includes(body.status ?? "")) return NextResponse.json({ error: "invalid" }, { status: 400 });
 
   // Si el id no pertenece a esta clínica, `reportOutboundOutcome` no actualiza nada (se ignora en
   // silencio): evita que una clínica pueda tocar mensajes de otra a través de este endpoint.
-  await reportOutboundOutcome(getPrisma(), clinic.id, body.id, body.status!, body.externalMessageId);
+  await reportOutboundOutcome(
+    getPrisma(),
+    clinic.id,
+    body.id,
+    body.status!,
+    body.externalMessageId,
+    body.status === "FAILED" ? body.retryable !== false : true
+  );
   return NextResponse.json({ ok: true });
 }

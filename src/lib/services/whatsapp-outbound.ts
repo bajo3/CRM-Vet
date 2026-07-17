@@ -86,7 +86,8 @@ export async function reportOutboundOutcome(
   clinicId: string,
   id: string,
   outcome: OutboundOutcome,
-  externalMessageId?: string
+  externalMessageId?: string,
+  retryable = true
 ): Promise<boolean> {
   if (outcome === "SENT") {
     const result = await prisma.whatsappMessage.updateMany({
@@ -100,7 +101,7 @@ export async function reportOutboundOutcome(
   if (!message) return false;
 
   const attempts = message.attempts + 1;
-  const nextStatus = attempts >= MAX_OUTBOUND_ATTEMPTS ? "FAILED" : "HUMAN_QUEUED";
+  const nextStatus = !retryable || attempts >= MAX_OUTBOUND_ATTEMPTS ? "FAILED" : "HUMAN_QUEUED";
   const result = await prisma.whatsappMessage.updateMany({
     where: { id, clinicId },
     data: { status: nextStatus, attempts },

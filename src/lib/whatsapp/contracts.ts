@@ -15,4 +15,5 @@ export type WhatsappEventResponse = {
   accepted: boolean;
   duplicate?: boolean;
   reply?: string;
+  outboundMessageId?: string;
 };
