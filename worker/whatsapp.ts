@@ -70,15 +70,27 @@ function messageText(message: WAMessage) {
   ).trim();
 }
 
-async function sendToCrm(message: WAMessage, text: string): Promise<WhatsappEventResponse> {
-  const remoteJid = message.key.remoteJid!;
+// WhatsApp está migrando los chats a JIDs "@lid" (identificadores de privacidad que ocultan el
+// número real). El número visible de un JID @lid NO es un teléfono: si se guarda como tal, las
+// respuestas van a un destinatario inexistente y nunca llegan (esto rompió las respuestas del bot
+// en producción). Baileys expone el teléfono verdadero en `key.senderPn` cuando está disponible.
+type LidAwareKey = WAMessage["key"] & { senderPn?: string | null };
+
+function inboundPhone(message: WAMessage): string {
+  const key = message.key as LidAwareKey;
+  const remoteJid = message.key.remoteJid ?? "";
+  if (remoteJid.endsWith("@lid") && key.senderPn) return key.senderPn.replace(/@.+$/, "");
+  return remoteJid.replace(/@.+$/, "");
+}
+
+async function sendToCrm(message: WAMessage, text: string, phone: string): Promise<WhatsappEventResponse> {
   const response = await fetch(`${appUrl}/api/internal/whatsapp/events`, {
     method: "POST",
     headers: { "content-type": "application/json", "x-internal-token": internalToken! },
     body: JSON.stringify({
       eventId: message.key.id,
       clinicKey,
-      phone: remoteJid.replace(/@.+$/, ""),
+      phone,
       contactName: message.pushName || undefined,
       text,
       timestamp: new Date(Number(message.messageTimestamp) * 1000).toISOString(),
@@ -163,7 +175,11 @@ async function resolveJid(socket: Socket, phone: string): Promise<string | null>
   if (cached && Date.now() - cached.at < NUMBER_CACHE_TTL_MS) return cached.jid;
   try {
     const result = (await socket.onWhatsApp(phone))?.[0];
-    const jid = result?.exists && result.jid ? result.jid : null;
+    let jid = result?.exists && result.jid ? result.jid : null;
+    // Clientes viejos que quedaron guardados con un LID como "teléfono" (los LIDs observados tienen
+    // 14+ dígitos; un teléfono E.164 real tiene hasta 15 pero los argentinos usan 13): onWhatsApp no
+    // resuelve LIDs, así que probamos mandar directo al chat @lid antes de dar el mensaje por muerto.
+    if (!jid && /^\d{14,}$/.test(phone)) jid = `${phone}@lid`;
     knownNumbers.set(phone, { jid, at: Date.now() });
     if (knownNumbers.size > 500) {
       const oldest = knownNumbers.keys().next().value;
@@ -337,7 +353,12 @@ async function connect() {
       const text = messageText(message);
       if (!jid || !text || message.key.fromMe || jid.endsWith("@g.us") || jid === "status@broadcast") continue;
       try {
-        const result = await sendToCrm(message, text);
+        const phone = inboundPhone(message);
+        // Sembramos el cache con el JID exacto del chat que nos escribió: la respuesta del bot va a
+        // salir por la outbox unos segundos después, y así vuelve al mismo chat (aunque sea @lid)
+        // sin depender de onWhatsApp, que no sabe resolver LIDs.
+        knownNumbers.set(phone, { jid, at: Date.now() });
+        const result = await sendToCrm(message, text, phone);
         // Tilde azul: se marca como leído solo cuando el bot va a responder. Si
         // el mensaje queda para un humano, se deja sin leer para que la
         // veterinaria conserve el indicador de no-leído en su teléfono.
