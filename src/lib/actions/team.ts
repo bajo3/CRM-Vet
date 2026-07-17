@@ -11,11 +11,13 @@ import {
   changeOwnPasswordSchema,
   resetMemberPasswordSchema,
   toggleMemberActiveSchema,
+  updateOwnLicenseNumberSchema,
   type AddTeamMemberInput,
   type ChangeMemberRoleInput,
   type ChangeOwnPasswordInput,
   type ResetMemberPasswordInput,
   type ToggleMemberActiveInput,
+  type UpdateOwnLicenseNumberInput,
 } from "../validation/team";
 import type { ActionResult, ActionFailure } from "./types";
 
@@ -221,6 +223,27 @@ export async function resetMemberPassword(input: ResetMemberPasswordInput): Prom
   }
 
   await prisma.user.update({ where: { id: member.userId }, data: { passwordHash: await hashPassword(parsed.data.newPassword) } });
+  return { ok: true };
+}
+
+export type UpdateOwnLicenseNumberResult = ActionResult;
+
+/** Actualiza (o borra, si viene vacía) la matrícula profesional de la cuenta de la sesión. */
+export async function updateOwnLicenseNumber(input: UpdateOwnLicenseNumberInput): Promise<UpdateOwnLicenseNumberResult> {
+  const session = await getSession();
+  if (!session) return NO_SESSION;
+
+  const parsed = updateOwnLicenseNumberSchema.safeParse(input);
+  if (!parsed.success) {
+    return { ok: false, message: "Revisá los datos ingresados.", fieldErrors: fieldErrorsFrom(parsed.error) };
+  }
+
+  const prisma = getPrisma();
+  await prisma.user.update({
+    where: { id: session.userId },
+    data: { licenseNumber: parsed.data.licenseNumber || null },
+  });
+  revalidatePath("/configuracion");
   return { ok: true };
 }
 

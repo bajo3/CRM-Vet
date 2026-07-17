@@ -34,3 +34,8 @@ export const resetMemberPasswordSchema = z.object({
   newPassword: z.string().min(8, { error: "La contraseña debe tener al menos 8 caracteres." }).max(72),
 });
 export type ResetMemberPasswordInput = z.infer<typeof resetMemberPasswordSchema>;
+
+export const updateOwnLicenseNumberSchema = z.object({
+  licenseNumber: z.string().trim().max(40, { error: "Máximo 40 caracteres." }),
+});
+export type UpdateOwnLicenseNumberInput = z.infer<typeof updateOwnLicenseNumberSchema>;

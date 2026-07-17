@@ -3,7 +3,8 @@ import type { NextRequest } from "next/server";
 import { jwtVerify } from "jose";
 
 const COOKIE_NAME = "vetcrm_session";
-const PUBLIC_ROUTES = new Set(["/login", "/registro"]);
+const LANDING_ROUTE = "/bienvenida";
+const PUBLIC_ROUTES = new Set(["/login", "/registro", LANDING_ROUTE]);
 
 function getSecretKey() {
   const secret = process.env.SESSION_SECRET;
@@ -35,6 +36,10 @@ async function hasValidSession(request: NextRequest): Promise<boolean> {
  * combinación crea un loop infinito de redirects para cualquier usuario desactivado con la cookie
  * todavía puesta (el layout protegido lo manda a /login, y este proxy lo devuelve a /). La página de
  * login ya funciona bien mostrándose de nuevo aunque haya cookie.
+ *
+ * Un visitante sin sesión que pega en "/" ve la landing de marketing (LANDING_ROUTE) en vez de
+ * /login, porque "/" es la home pública del producto. El resto de las rutas protegidas siguen
+ * mandando a /login como siempre.
  */
 export default async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
@@ -42,7 +47,8 @@ export default async function proxy(request: NextRequest) {
   const authenticated = await hasValidSession(request);
 
   if (!isPublicRoute && !authenticated) {
-    return NextResponse.redirect(new URL("/login", request.url));
+    const destination = pathname === "/" ? LANDING_ROUTE : "/login";
+    return NextResponse.redirect(new URL(destination, request.url));
   }
 
   return NextResponse.next();

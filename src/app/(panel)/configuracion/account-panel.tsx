@@ -4,10 +4,10 @@ import { useState, useTransition } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { CheckCircle2, Loader2, LockKeyhole } from "lucide-react";
-import { changeOwnPasswordSchema, type ChangeOwnPasswordInput } from "@/lib/validation/team";
-import { changeOwnPassword } from "@/lib/actions/team";
+import { changeOwnPasswordSchema, updateOwnLicenseNumberSchema, type ChangeOwnPasswordInput, type UpdateOwnLicenseNumberInput } from "@/lib/validation/team";
+import { changeOwnPassword, updateOwnLicenseNumber } from "@/lib/actions/team";
 
-export function AccountPanel() {
+export function AccountPanel({ licenseNumber }: { licenseNumber: string }) {
   const [isPending, startTransition] = useTransition();
   const [formError, setFormError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
@@ -20,6 +20,19 @@ export function AccountPanel() {
   } = useForm<ChangeOwnPasswordInput>({
     resolver: zodResolver(changeOwnPasswordSchema),
     defaultValues: { currentPassword: "", newPassword: "" },
+  });
+
+  const [isLicensePending, startLicenseTransition] = useTransition();
+  const [licenseError, setLicenseError] = useState<string | null>(null);
+  const [licenseSaved, setLicenseSaved] = useState(false);
+  const {
+    register: registerLicense,
+    handleSubmit: handleLicenseSubmit,
+    setError: setLicenseFieldError,
+    formState: { errors: licenseErrors },
+  } = useForm<UpdateOwnLicenseNumberInput>({
+    resolver: zodResolver(updateOwnLicenseNumberSchema),
+    defaultValues: { licenseNumber },
   });
 
   const onSubmit = (data: ChangeOwnPasswordInput) => {
@@ -41,6 +54,24 @@ export function AccountPanel() {
     });
   };
 
+  const onLicenseSubmit = (data: UpdateOwnLicenseNumberInput) => {
+    setLicenseError(null);
+    setLicenseSaved(false);
+    startLicenseTransition(async () => {
+      const result = await updateOwnLicenseNumber(data);
+      if (!result.ok) {
+        setLicenseError(result.message);
+        if (result.fieldErrors) {
+          for (const [field, message] of Object.entries(result.fieldErrors)) {
+            setLicenseFieldError(field as keyof UpdateOwnLicenseNumberInput, { message });
+          }
+        }
+        return;
+      }
+      setLicenseSaved(true);
+    });
+  };
+
   return (
     <section className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
       <div className="flex items-center gap-3 border-b border-slate-100 p-5">
@@ -50,6 +81,36 @@ export function AccountPanel() {
           <p className="text-xs text-slate-500">Cambiá tu contraseña de acceso</p>
         </div>
       </div>
+
+      <form onSubmit={handleLicenseSubmit(onLicenseSubmit)} className="space-y-3 border-b border-slate-100 p-5" noValidate>
+        <div>
+          <label className="mb-1 block text-xs font-medium text-slate-600">Matrícula profesional</label>
+          <input
+            type="text"
+            placeholder="Ej: MP 12345"
+            maxLength={40}
+            className="h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm outline-none focus:border-emerald-400"
+            {...registerLicense("licenseNumber")}
+          />
+          <p className="mt-1 text-xs text-slate-400">Aparece en la firma de las recetas que generes.</p>
+          {licenseErrors.licenseNumber && <p className="mt-1 text-xs text-rose-600">{licenseErrors.licenseNumber.message}</p>}
+        </div>
+        {licenseError && <p className="rounded-xl bg-rose-50 px-3 py-2 text-sm text-rose-700">{licenseError}</p>}
+        {licenseSaved && (
+          <p className="flex items-center gap-2 rounded-xl bg-emerald-50 px-3 py-2 text-sm text-emerald-700">
+            <CheckCircle2 size={15} />
+            Matrícula actualizada.
+          </p>
+        )}
+        <button
+          type="submit"
+          disabled={isLicensePending}
+          className="flex h-10 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 text-sm font-medium text-slate-700 shadow-sm disabled:opacity-60"
+        >
+          {isLicensePending && <Loader2 size={16} className="animate-spin" />}
+          Guardar matrícula
+        </button>
+      </form>
 
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-3 p-5" noValidate>
         <div>
