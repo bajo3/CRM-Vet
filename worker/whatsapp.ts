@@ -4,6 +4,10 @@ import { rm } from "node:fs/promises";
 import makeWASocket, {
   DisconnectReason,
   fetchLatestBaileysVersion,
+  generateMessageIDV2,
+  getBinaryNodeChild,
+  getBinaryNodeChildren,
+  jidNormalizedUser,
   useMultiFileAuthState as loadMultiFileAuthState,
   WAMessageStatus,
   type WAMessage,
@@ -177,6 +181,11 @@ async function waitForInitialSendUpdate(id: string, timeoutMs = 2_000): Promise<
   });
 }
 
+function cancelInitialSendWait(id: string) {
+  sendUpdateWaiters.delete(id);
+  recentSendUpdates.delete(id);
+}
+
 function rememberSent(sent: WAMessage | undefined) {
   if (!sent?.key?.id || !sent.message) return;
   sentMessages.set(sent.key.id, sent.message);
@@ -194,9 +203,18 @@ async function sendHumanized(socket: Socket, jid: string, text: string) {
     await socket.sendPresenceUpdate("composing", jid).catch(() => undefined);
     await sleep(Math.min(Math.max(text.length * randomBetween(35, 60), 1_500), 8_000));
     await socket.sendPresenceUpdate("paused", jid).catch(() => undefined);
-    const sent = await socket.sendMessage(jid, { text });
-    rememberSent(sent ?? undefined);
-    return sent;
+    // Generate the ID and install the waiter before writing to the socket.
+    // An error ACK can arrive while sendMessage() is still resolving.
+    const messageId = generateMessageIDV2(socket.user?.id);
+    const initialUpdatePromise = waitForInitialSendUpdate(messageId, 4_000);
+    try {
+      const sent = await socket.sendMessage(jid, { text }, { messageId });
+      rememberSent(sent ?? undefined);
+      return { sent, initialUpdate: await initialUpdatePromise };
+    } catch (error) {
+      cancelInitialSendWait(messageId);
+      throw error;
+    }
   });
 }
 
@@ -241,6 +259,57 @@ async function resolveJid(socket: Socket, phone: string): Promise<string | null>
 // La versión de WhatsApp Web se cachea: si el endpoint de versiones se cuelga o
 // se cae, reconectamos igual con la última versión conocida en vez de dejar el
 // bridge muerto (esto ya pasó en producción).
+async function hasTrustedContactToken(socket: Socket, jid: string) {
+  const storageJid = jidNormalizedUser(jid);
+  const entries = await socket.authState.keys.get("tctoken", [storageJid]);
+  return !!entries[storageJid]?.token?.length;
+}
+
+// Baileys 6 did not persist trusted-contact tokens. During the v7 migration,
+// the first inbound message can race the privacy notification and make the
+// first reply fail with 463. Request and persist the peer token before sending.
+async function ensureTrustedContactToken(socket: Socket, jid: string, phone: string) {
+  if (await hasTrustedContactToken(socket, jid)) return true;
+
+  await sleep(350);
+  if (await hasTrustedContactToken(socket, jid)) return true;
+
+  try {
+    const result = await socket.issuePrivacyTokens([`${phone}@s.whatsapp.net`]);
+    const tokensNode = getBinaryNodeChild(result, "tokens");
+    const tokenNode = tokensNode
+      ? getBinaryNodeChildren(tokensNode, "token").find(
+          (node) =>
+            node.attrs.type === "trusted_contact" &&
+            node.content instanceof Uint8Array &&
+            node.content.length > 0 &&
+            !!node.attrs.t
+        )
+      : undefined;
+
+    if (tokenNode?.content instanceof Uint8Array && tokenNode.attrs.t) {
+      const storageJid = jidNormalizedUser(jid);
+      const current = await socket.authState.keys.get("tctoken", [storageJid]);
+      await socket.authState.keys.set({
+        tctoken: {
+          [storageJid]: {
+            ...current[storageJid],
+            token: Buffer.from(tokenNode.content),
+            timestamp: tokenNode.attrs.t,
+          },
+        },
+      });
+    }
+  } catch (error) {
+    logger.warn(
+      { code: error instanceof Error ? error.message : "UNKNOWN" },
+      "No se pudo solicitar el tctoken del contacto"
+    );
+  }
+
+  return hasTrustedContactToken(socket, jid);
+}
+
 let cachedWaVersion: Awaited<ReturnType<typeof fetchLatestBaileysVersion>>["version"] | undefined;
 
 async function resolveWaVersion() {
@@ -308,6 +377,24 @@ async function connect() {
       reconnectDelayMs = 2_000;
       updateBridgeState("CONNECTED", null);
       logger.info({ clinicKey }, "WhatsApp conectado");
+      void socket
+        .fetchAccountReachoutTimelock()
+        .then((standing) =>
+          logger.info(
+            {
+              active: !!standing.isActive,
+              enforcementType: standing.enforcementType,
+              until: standing.timeEnforcementEnds?.toISOString(),
+            },
+            "Estado de restricción de WhatsApp consultado"
+          )
+        )
+        .catch((error) =>
+          logger.warn(
+            { code: error instanceof Error ? error.message : "UNKNOWN" },
+            "No se pudo consultar el estado de restricción"
+          )
+        );
     }
 
     if (connection === "close") {
@@ -380,10 +467,27 @@ async function connect() {
             await reportOutbound({ id: message.id, status: "FAILED", retryable: false });
             continue;
           }
-          const sent = await sendHumanized(socket, jid, message.content);
+          const hasTcToken = await ensureTrustedContactToken(socket, jid, message.phone);
+          if (!hasTcToken) {
+            const standing = await socket.fetchAccountReachoutTimelock().catch(() => null);
+            logger.warn(
+              {
+                messageId: message.id,
+                accountRestricted: standing?.isActive ?? null,
+                enforcementType: standing?.enforcementType,
+              },
+              "No hay tctoken para responder al contacto"
+            );
+            await reportOutbound({
+              id: message.id,
+              status: "FAILED",
+              retryable: standing?.isActive ? false : true,
+            });
+            continue;
+          }
+          const { sent, initialUpdate } = await sendHumanized(socket, jid, message.content);
           const externalMessageId = sent?.key.id;
           if (!externalMessageId) throw new Error("WHATSAPP_MESSAGE_ID_MISSING");
-          const initialUpdate = await waitForInitialSendUpdate(externalMessageId);
           if (initialUpdate?.status === WAMessageStatus.ERROR) {
             const errorCode = initialUpdate.errorCode ?? "WHATSAPP_ERROR";
             const retryable = errorCode !== "463";
@@ -391,7 +495,10 @@ async function connect() {
             await reportOutbound({ id: message.id, status: "FAILED", retryable });
             continue;
           }
-          logger.info({ messageId: message.id, jidType: jid.replace(/^[^@]+/, "") }, "Mensaje saliente aceptado");
+          logger.info(
+            { messageId: message.id, externalMessageId, jidType: jid.replace(/^[^@]+/, "") },
+            "Mensaje saliente aceptado"
+          );
           const reported = await reportOutbound({ id: message.id, status: "SENT", externalMessageId });
           if (reported) deliveredMessageIds.add(message.id);
         } catch (error) {
@@ -449,6 +556,14 @@ async function connect() {
       // envío fue aceptado sólo despertamos al waiter ante error o entrega real; si no llega
       // ninguno, el timeout corto conserva el comportamiento normal de Baileys.
       if (numericStatus === WAMessageStatus.ERROR || numericStatus >= WAMessageStatus.DELIVERY_ACK) {
+        logger.info(
+          {
+            externalMessageId: key.id,
+            numericStatus,
+            errorCode: typeof whatsappError === "string" ? whatsappError : undefined,
+          },
+          "Actualización inicial del envío recibida"
+        );
         rememberSendUpdate(key.id, {
           status: numericStatus,
           errorCode: typeof whatsappError === "string" ? whatsappError : undefined,
