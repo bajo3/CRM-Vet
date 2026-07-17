@@ -484,16 +484,30 @@ async function connect() {
   const flushOutbound = async (): Promise<Set<string>> => {
     const deliveredMessageIds = new Set<string>();
     if (flushing || bridgeState.status !== "CONNECTED") return deliveredMessageIds;
-    const standing = await refreshAccountStanding();
-    if (restrictionIsActive(standing)) return deliveredMessageIds;
     flushing = true;
     try {
+      const standing = await refreshAccountStanding();
       const response = await fetch(outboundUrl, {
         headers: { "x-internal-token": internalToken! },
         signal: AbortSignal.timeout(10_000),
       });
       if (!response.ok) throw new Error(`OUTBOUND_HTTP_${response.status}`);
       const payload = (await response.json()) as { messages: { id: string; phone: string; content: string }[] };
+      if (restrictionIsActive(standing)) {
+        for (const message of payload.messages) {
+          await reportOutbound({ id: message.id, status: "FAILED", retryable: false });
+        }
+        if (payload.messages.length > 0) {
+          logger.warn(
+            {
+              count: payload.messages.length,
+              until: standing?.timeEnforcementEnds?.toISOString(),
+            },
+            "Outbox pausada por restricción; mensajes marcados como no enviados"
+          );
+        }
+        return deliveredMessageIds;
+      }
       for (const message of payload.messages) {
         try {
           const jid = await resolveJid(socket, message.phone);
