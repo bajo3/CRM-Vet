@@ -116,6 +116,7 @@ async function sendToCrm(message: WAMessage, text: string, phone: string): Promi
 // ---------------------------------------------------------------------------
 
 type Socket = ReturnType<typeof makeWASocket>;
+type AccountStanding = Awaited<ReturnType<Socket["fetchAccountReachoutTimelock"]>>;
 
 const sleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
 const randomBetween = (min: number, max: number) => Math.round(min + Math.random() * (max - min));
@@ -361,8 +362,47 @@ async function connect() {
     shouldIgnoreJid: (jid: string) => jid.endsWith("@g.us") || jid.endsWith("@broadcast") || jid.endsWith("@newsletter"),
   });
 
+  let accountStanding: AccountStanding | null = null;
+  let standingCheckedAt = 0;
+  let standingRequest: Promise<AccountStanding | null> | null = null;
+  const restrictionIsActive = (standing: AccountStanding | null) =>
+    !!standing?.isActive &&
+    (!standing.timeEnforcementEnds || standing.timeEnforcementEnds.getTime() > Date.now());
+  const refreshAccountStanding = (force = false): Promise<AccountStanding | null> => {
+    const restrictionExpired =
+      !!accountStanding?.isActive &&
+      !!accountStanding.timeEnforcementEnds &&
+      accountStanding.timeEnforcementEnds.getTime() <= Date.now();
+    if (!force && !restrictionExpired && accountStanding && Date.now() - standingCheckedAt < 5 * 60_000) {
+      return Promise.resolve(accountStanding);
+    }
+    if (standingRequest) return standingRequest;
+    standingRequest = socket
+      .fetchAccountReachoutTimelock()
+      .then((standing) => {
+        accountStanding = standing;
+        standingCheckedAt = Date.now();
+        return standing;
+      })
+      .catch((error) => {
+        logger.warn(
+          { code: error instanceof Error ? error.message : "UNKNOWN" },
+          "No se pudo consultar el estado de restricción"
+        );
+        return accountStanding;
+      })
+      .finally(() => {
+        standingRequest = null;
+      });
+    return standingRequest;
+  };
+
   socket.ev.on("creds.update", saveCreds);
-  socket.ev.on("connection.update", ({ connection, lastDisconnect, qr }) => {
+  socket.ev.on("connection.update", ({ connection, lastDisconnect, qr, reachoutTimeLock }) => {
+    if (reachoutTimeLock) {
+      accountStanding = reachoutTimeLock;
+      standingCheckedAt = Date.now();
+    }
     if (qr) {
       // Un QR nuevo implica que la conexión con WhatsApp está viva: el backoff
       // vuelve a empezar para que el QR se renueve sin pausas largas.
@@ -377,22 +417,15 @@ async function connect() {
       reconnectDelayMs = 2_000;
       updateBridgeState("CONNECTED", null);
       logger.info({ clinicKey }, "WhatsApp conectado");
-      void socket
-        .fetchAccountReachoutTimelock()
+      void refreshAccountStanding(true)
         .then((standing) =>
           logger.info(
             {
-              active: !!standing.isActive,
-              enforcementType: standing.enforcementType,
-              until: standing.timeEnforcementEnds?.toISOString(),
+              active: restrictionIsActive(standing),
+              enforcementType: standing?.enforcementType,
+              until: standing?.timeEnforcementEnds?.toISOString(),
             },
             "Estado de restricción de WhatsApp consultado"
-          )
-        )
-        .catch((error) =>
-          logger.warn(
-            { code: error instanceof Error ? error.message : "UNKNOWN" },
-            "No se pudo consultar el estado de restricción"
           )
         );
     }
@@ -451,6 +484,8 @@ async function connect() {
   const flushOutbound = async (): Promise<Set<string>> => {
     const deliveredMessageIds = new Set<string>();
     if (flushing || bridgeState.status !== "CONNECTED") return deliveredMessageIds;
+    const standing = await refreshAccountStanding();
+    if (restrictionIsActive(standing)) return deliveredMessageIds;
     flushing = true;
     try {
       const response = await fetch(outboundUrl, {
@@ -469,7 +504,7 @@ async function connect() {
           }
           const hasTcToken = await ensureTrustedContactToken(socket, jid, message.phone);
           if (!hasTcToken) {
-            const standing = await socket.fetchAccountReachoutTimelock().catch(() => null);
+            const standing = await refreshAccountStanding(true);
             logger.warn(
               {
                 messageId: message.id,
