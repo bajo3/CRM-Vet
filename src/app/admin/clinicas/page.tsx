@@ -1,5 +1,6 @@
 import { requireSuperAdmin } from "@/lib/auth/session";
 import { getPrisma } from "@/lib/prisma";
+import { AdminAccountPanel } from "../account-panel";
 import { DecidedClinicRow, PendingClinicRow } from "./clinics-panel";
 
 export default async function AdminClinicasPage() {
@@ -66,6 +67,8 @@ export default async function AdminClinicasPage() {
           </div>
         )}
       </section>
+
+      <AdminAccountPanel />
     </div>
   );
 }
