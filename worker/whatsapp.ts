@@ -278,15 +278,20 @@ async function ensureTrustedContactToken(socket: Socket, jid: string, phone: str
   try {
     const result = await socket.issuePrivacyTokens([`${phone}@s.whatsapp.net`]);
     const tokensNode = getBinaryNodeChild(result, "tokens");
-    const tokenNode = tokensNode
-      ? getBinaryNodeChildren(tokensNode, "token").find(
-          (node) =>
-            node.attrs.type === "trusted_contact" &&
-            node.content instanceof Uint8Array &&
-            node.content.length > 0 &&
-            !!node.attrs.t
-        )
-      : undefined;
+    const tokenNodes = tokensNode ? getBinaryNodeChildren(tokensNode, "token") : [];
+    const tokenNode = tokenNodes.find(
+      (node) =>
+        node.attrs.type === "trusted_contact" &&
+        node.content instanceof Uint8Array &&
+        node.content.length > 0 &&
+        !!node.attrs.t
+    );
+
+    // Diagnóstico temporal: queremos ver exactamente qué devuelve WhatsApp acá, porque el envío
+    // sigue fallando con "no hay tctoken" incluso después de que se levantó la restricción de cuenta.
+    logger.info(
+      `issuePrivacyTokens respondió :: phone=${phone} tag=${result?.tag} attrs=${JSON.stringify(result?.attrs)} tokenNodesFound=${tokenNodes.length} tokenNodeTypes=${JSON.stringify(tokenNodes.map((n) => n.attrs))} matched=${!!tokenNode}`
+    );
 
     if (tokenNode?.content instanceof Uint8Array && tokenNode.attrs.t) {
       const storageJid = jidNormalizedUser(jid);
@@ -303,8 +308,7 @@ async function ensureTrustedContactToken(socket: Socket, jid: string, phone: str
     }
   } catch (error) {
     logger.warn(
-      { code: error instanceof Error ? error.message : "UNKNOWN" },
-      "No se pudo solicitar el tctoken del contacto"
+      `No se pudo solicitar el tctoken del contacto :: phone=${phone} code=${error instanceof Error ? error.message : "UNKNOWN"} stack=${error instanceof Error ? error.stack : ""}`
     );
   }
 
@@ -419,13 +423,10 @@ async function connect() {
       logger.info({ clinicKey }, "WhatsApp conectado");
       void refreshAccountStanding(true)
         .then((standing) =>
+          // Nota diagnóstica: el visor de logs de Railway a veces no muestra los campos extra de
+          // pino (solo el mensaje), así que estos valores van directo en el texto para no perderlos.
           logger.info(
-            {
-              active: restrictionIsActive(standing),
-              enforcementType: standing?.enforcementType,
-              until: standing?.timeEnforcementEnds?.toISOString(),
-            },
-            "Estado de restricción de WhatsApp consultado"
+            `Estado de restricción de WhatsApp consultado :: active=${restrictionIsActive(standing)} enforcementType=${standing?.enforcementType ?? "null"} until=${standing?.timeEnforcementEnds?.toISOString() ?? "null"} raw=${JSON.stringify(standing)}`
           )
         );
     }
@@ -519,13 +520,9 @@ async function connect() {
           const hasTcToken = await ensureTrustedContactToken(socket, jid, message.phone);
           if (!hasTcToken) {
             const standing = await refreshAccountStanding(true);
+            // Ídem: valores embebidos en el texto para que sobrevivan al visor de logs de Railway.
             logger.warn(
-              {
-                messageId: message.id,
-                accountRestricted: standing?.isActive ?? null,
-                enforcementType: standing?.enforcementType,
-              },
-              "No hay tctoken para responder al contacto"
+              `No hay tctoken para responder al contacto :: messageId=${message.id} jid=${jid} phone=${message.phone} accountRestricted=${standing?.isActive ?? "null"} enforcementType=${standing?.enforcementType ?? "null"} raw=${JSON.stringify(standing)}`
             );
             await reportOutbound({
               id: message.id,
