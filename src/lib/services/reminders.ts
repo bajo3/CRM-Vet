@@ -2,9 +2,11 @@ import { DateTime } from "luxon";
 import type { Client, Clinic, Pet, Reminder } from "@prisma/client";
 import { getPrisma } from "../prisma";
 import type { WhatsAppProvider } from "./whatsapp-provider";
+import { DEFAULT_APPOINTMENT_REMINDER_TEMPLATE, DEFAULT_CONTROL_REMINDER_TEMPLATE, renderReminderTemplate } from "./reminder-templates";
 
 const MAX_ATTEMPTS = 3;
 const BATCH_SIZE = 50;
+const MS_PER_DAY = 24 * 60 * 60 * 1000;
 
 type PrismaLike = ReturnType<typeof getPrisma>;
 
@@ -16,26 +18,44 @@ function formatWhen(date: Date, timezone: string) {
   return DateTime.fromJSDate(date).setZone(timezone).setLocale("es").toFormat("cccc d 'de' LLLL 'a las' HH:mm");
 }
 
-/** Plantilla en español para el recordatorio de un turno próximo (24hs antes). */
-export function appointmentReminderMessage(params: { clientName: string; petName: string; clinicName: string; timezone: string; startAt: Date }) {
-  const when = formatWhen(params.startAt, params.timezone);
-  return `Hola ${params.clientName}! Te recordamos que ${params.petName} tiene turno el ${when} en ${params.clinicName}. Si necesitás cancelar o reprogramar, respondé este mensaje.`;
+/** Arma el texto del recordatorio de un turno próximo (24hs antes), usando el template de la clínica o el default. */
+export function appointmentReminderMessage(params: { clientName: string; petName: string; clinicName: string; timezone: string; startAt: Date; template?: string | null }) {
+  const template = params.template ?? DEFAULT_APPOINTMENT_REMINDER_TEMPLATE;
+  return renderReminderTemplate(template, {
+    cliente: params.clientName,
+    mascota: params.petName,
+    clinica: params.clinicName,
+    fecha: formatWhen(params.startAt, params.timezone),
+  });
 }
 
-/** Plantilla en español para el recordatorio de un control médico próximo a vencer. */
-export function controlDueReminderMessage(params: { clientName: string; petName: string; clinicName: string; timezone: string; dueDate: Date; reason: string }) {
-  const when = formatWhen(params.dueDate, params.timezone);
-  return `Hola ${params.clientName}! Te recordamos que ${params.petName} tiene un control pendiente (${params.reason}) para el ${when} en ${params.clinicName}. Escribinos para coordinar un turno.`;
+/** Arma el texto del recordatorio de un control médico próximo a vencer, usando el template de la clínica o el default. */
+export function controlDueReminderMessage(params: { clientName: string; petName: string; clinicName: string; timezone: string; dueDate: Date; reason: string; template?: string | null }) {
+  const template = params.template ?? DEFAULT_CONTROL_REMINDER_TEMPLATE;
+  const daysUntil = Math.max(0, Math.round((params.dueDate.getTime() - Date.now()) / MS_PER_DAY));
+  return renderReminderTemplate(template, {
+    cliente: params.clientName,
+    mascota: params.petName,
+    clinica: params.clinicName,
+    fecha: formatWhen(params.dueDate, params.timezone),
+    dias: String(daysUntil),
+    motivo: params.reason,
+  });
 }
 
 async function buildMessage(prisma: PrismaLike, reminder: Reminder, client: Client, pet: Pet, clinic: Clinic): Promise<string> {
   const shared = { clientName: client.name, petName: pet.name, clinicName: clinic.name, timezone: clinic.timezone };
   if (reminder.type === "APPOINTMENT_REMINDER") {
     const appointment = reminder.appointmentId ? await prisma.appointment.findUnique({ where: { id: reminder.appointmentId } }) : null;
-    return appointmentReminderMessage({ ...shared, startAt: appointment?.startAt ?? reminder.scheduledAt });
+    return appointmentReminderMessage({ ...shared, startAt: appointment?.startAt ?? reminder.scheduledAt, template: clinic.appointmentReminderTemplate });
   }
   const medicalRecord = reminder.medicalRecordId ? await prisma.medicalRecord.findUnique({ where: { id: reminder.medicalRecordId } }) : null;
-  return controlDueReminderMessage({ ...shared, dueDate: medicalRecord?.nextDueDate ?? reminder.scheduledAt, reason: medicalRecord?.reason ?? "control" });
+  return controlDueReminderMessage({
+    ...shared,
+    dueDate: medicalRecord?.nextDueDate ?? reminder.scheduledAt,
+    reason: medicalRecord?.reason ?? "control",
+    template: clinic.controlReminderTemplate,
+  });
 }
 
 async function recordOutboundMessage(prisma: PrismaLike, clinicId: string, client: Client, text: string, externalMessageId: string) {

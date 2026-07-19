@@ -73,36 +73,42 @@ enum ScheduledMessageStatus {
 }
 
 model Clinic {
-  id                         String                 @id @default(cuid())
-  name                       String
-  phone                      String?
-  timezone                   String                 @default("America/Argentina/Buenos_Aires")
-  openingHours               Json
-  defaultAppointmentDuration Int                    @default(30)
-  logoUrl                    String?
-  whatsappSessionKey         String?                @unique
-  whatsappPhoneNumberId      String?
-  whatsappBusinessAccountId  String?
+  id                          String                 @id @default(cuid())
+  name                        String
+  phone                       String?
+  timezone                    String                 @default("America/Argentina/Buenos_Aires")
+  openingHours                Json
+  defaultAppointmentDuration  Int                    @default(30)
+  logoUrl                     String?
+  whatsappSessionKey          String?                @unique
+  whatsappPhoneNumberId       String?
+  whatsappBusinessAccountId   String?
+  /// Texto personalizado del recordatorio de control (`ReminderType.CONTROL_DUE`). `null` = usar el
+  /// texto por defecto definido en código (`DEFAULT_CONTROL_REMINDER_TEMPLATE`).
+  controlReminderTemplate     String?
+  /// Texto personalizado del recordatorio de turno (`ReminderType.APPOINTMENT_REMINDER`). `null` =
+  /// usar el texto por defecto definido en código (`DEFAULT_APPOINTMENT_REMINDER_TEMPLATE`).
+  appointmentReminderTemplate String?
   /// Clínicas creadas por el seed/scripts entran ya APPROVED; el registro público (`/registro`)
   /// las crea PENDING hasta que un superadmin las apruebe desde `/admin/clinicas`.
-  status                     ClinicStatus           @default(PENDING)
-  statusReason               String?
-  createdAt                  DateTime               @default(now())
-  updatedAt                  DateTime               @updatedAt
-  members                    ClinicMember[]
-  clients                    Client[]
-  pets                       Pet[]
-  appointments               Appointment[]
-  conversations              WhatsappConversation[]
-  messages                   WhatsappMessage[]
-  webhookEvents              WebhookEvent[]
-  medicalRecords             MedicalRecord[]
-  reminders                  Reminder[]
-  appointmentActivities      AppointmentActivity[]
-  quotes                     Quote[]
-  prescriptions              Prescription[]
-  reminderRules              ReminderRule[]
-  scheduledMessages          ScheduledMessage[]
+  status                      ClinicStatus           @default(PENDING)
+  statusReason                String?
+  createdAt                   DateTime               @default(now())
+  updatedAt                   DateTime               @updatedAt
+  members                     ClinicMember[]
+  clients                     Client[]
+  pets                        Pet[]
+  appointments                Appointment[]
+  conversations               WhatsappConversation[]
+  messages                    WhatsappMessage[]
+  webhookEvents               WebhookEvent[]
+  medicalRecords              MedicalRecord[]
+  reminders                   Reminder[]
+  appointmentActivities       AppointmentActivity[]
+  quotes                      Quote[]
+  prescriptions               Prescription[]
+  reminderRules               ReminderRule[]
+  scheduledMessages           ScheduledMessage[]
 }
 
 model User {

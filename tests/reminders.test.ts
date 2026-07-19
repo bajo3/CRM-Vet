@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import { OutboxWhatsAppProvider, type WhatsAppProvider } from "../src/lib/services/whatsapp-provider";
 import { processDueReminders } from "../src/lib/services/reminders";
+import { renderReminderTemplate } from "../src/lib/services/reminder-templates";
 import { createTestClient, createTestClinic, createTestPet, createTestVet, resetDatabase, prisma } from "./setup/db";
 
 class CountingProvider implements WhatsAppProvider {
@@ -180,5 +181,124 @@ describe("reminders: envío y reintentos", () => {
 
     expect(result.cancelled).toBe(1);
     expect(provider.calls).toBe(0);
+  });
+});
+
+describe("renderReminderTemplate: sustitución de placeholders", () => {
+  it("reemplaza todos los placeholders conocidos", () => {
+    const result = renderReminderTemplate("Hola {cliente}, {mascota} tiene control el {fecha} en {clinica} (faltan {dias} días, motivo: {motivo})", {
+      cliente: "María",
+      mascota: "Firulais",
+      fecha: "15/08/2026",
+      clinica: "Veterinaria Patitas",
+      dias: "7",
+      motivo: "vacuna",
+    });
+    expect(result).toBe("Hola María, Firulais tiene control el 15/08/2026 en Veterinaria Patitas (faltan 7 días, motivo: vacuna)");
+  });
+
+  it("deja intacto un placeholder desconocido en vez de romper", () => {
+    const result = renderReminderTemplate("Hola {cliente}, tu código es {codigoInexistente}", { cliente: "María" });
+    expect(result).toBe("Hola María, tu código es {codigoInexistente}");
+  });
+
+  it("no toca el texto si no hay placeholders", () => {
+    expect(renderReminderTemplate("Mensaje fijo sin variables", {})).toBe("Mensaje fijo sin variables");
+  });
+});
+
+describe("reminders: templates personalizados por clínica", () => {
+  beforeEach(resetDatabase);
+
+  it("usa el texto por defecto cuando la clínica no tiene template propio (CONTROL_DUE)", async () => {
+    const { clinic, client, pet } = await setupClinic();
+    await createDueReminder(clinic.id, client.id, pet.id, { type: "CONTROL_DUE" });
+    const provider = new CountingProvider();
+
+    await processDueReminders(provider);
+
+    const [message] = await prisma.whatsappMessage.findMany({ where: { clinicId: clinic.id, direction: "OUTBOUND" } });
+    expect(message.content).toContain("Hola");
+    expect(message.content).toContain(client.name);
+    expect(message.content).toContain(pet.name);
+    expect(message.content).toContain(clinic.name);
+    // El texto por defecto siempre incluye "control pendiente" (viene del template default).
+    expect(message.content).toContain("control pendiente");
+  });
+
+  it("usa el template personalizado de la clínica cuando está configurado (CONTROL_DUE)", async () => {
+    const { clinic, client, pet } = await setupClinic();
+    await prisma.clinic.update({
+      where: { id: clinic.id },
+      data: { controlReminderTemplate: "Aviso para {cliente}: {mascota} necesita un control ({motivo}) en {dias} días. Saludos, {clinica}." },
+    });
+    await createDueReminder(clinic.id, client.id, pet.id, { type: "CONTROL_DUE" });
+    const provider = new CountingProvider();
+
+    await processDueReminders(provider);
+
+    const [message] = await prisma.whatsappMessage.findMany({ where: { clinicId: clinic.id, direction: "OUTBOUND" } });
+    expect(message.content).toBe(`Aviso para ${client.name}: ${pet.name} necesita un control (control) en 0 días. Saludos, ${clinic.name}.`);
+  });
+
+  it("usa el template personalizado de la clínica cuando está configurado (APPOINTMENT_REMINDER)", async () => {
+    const { clinic, vet, client, pet } = await setupClinic();
+    await prisma.clinic.update({
+      where: { id: clinic.id },
+      data: { appointmentReminderTemplate: "{clinica} te espera {cliente}! Turno de {mascota}: {fecha}." },
+    });
+    const appointment = await prisma.appointment.create({
+      data: { clinicId: clinic.id, petId: pet.id, veterinarianId: vet.id, reason: "Control", startAt: futureDate(1), endAt: new Date(futureDate(1).getTime() + 30 * 60_000), status: "PENDING" },
+    });
+    await createDueReminder(clinic.id, client.id, pet.id, { type: "APPOINTMENT_REMINDER", appointmentId: appointment.id });
+    const provider = new CountingProvider();
+
+    await processDueReminders(provider);
+
+    const [message] = await prisma.whatsappMessage.findMany({ where: { clinicId: clinic.id, direction: "OUTBOUND" } });
+    expect(message.content?.startsWith(`${clinic.name} te espera ${client.name}! Turno de ${pet.name}:`)).toBe(true);
+  });
+
+  it("vuelve a usar el texto por defecto si el template se resetea a null", async () => {
+    const { clinic, client, pet } = await setupClinic();
+    await prisma.clinic.update({ where: { id: clinic.id }, data: { controlReminderTemplate: "Texto custom {cliente}" } });
+    await prisma.clinic.update({ where: { id: clinic.id }, data: { controlReminderTemplate: null } });
+    await createDueReminder(clinic.id, client.id, pet.id, { type: "CONTROL_DUE" });
+    const provider = new CountingProvider();
+
+    await processDueReminders(provider);
+
+    const [message] = await prisma.whatsappMessage.findMany({ where: { clinicId: clinic.id, direction: "OUTBOUND" } });
+    expect(message.content).toContain("control pendiente");
+    expect(message.content).not.toContain("Texto custom");
+  });
+
+  it("completa {dias} y {motivo} a partir del MedicalRecord vinculado", async () => {
+    const { clinic, vet, client, pet } = await setupClinic();
+    await prisma.clinic.update({
+      where: { id: clinic.id },
+      data: { controlReminderTemplate: "{mascota}: faltan {dias} días para {motivo}." },
+    });
+    const nextDueDate = futureDate(7);
+    const medicalRecord = await prisma.medicalRecord.create({
+      data: { clinicId: clinic.id, petId: pet.id, userId: vet.id, type: "VACCINE", reason: "vacuna antirrábica", nextDueDate },
+    });
+    await prisma.reminder.create({
+      data: {
+        clinicId: clinic.id,
+        clientId: client.id,
+        petId: pet.id,
+        medicalRecordId: medicalRecord.id,
+        type: "CONTROL_DUE",
+        scheduledAt: pastDate(5),
+        deduplicationKey: `test:${clinic.id}:${pet.id}:${Math.random()}`,
+      },
+    });
+    const provider = new CountingProvider();
+
+    await processDueReminders(provider);
+
+    const [message] = await prisma.whatsappMessage.findMany({ where: { clinicId: clinic.id, direction: "OUTBOUND" } });
+    expect(message.content).toBe(`${pet.name}: faltan 7 días para vacuna antirrábica.`);
   });
 });

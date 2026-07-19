@@ -20,6 +20,8 @@ export const getClinicSettings = cache(async (clinicId: string) => {
       defaultAppointmentDuration: true,
       openingHours: true,
       logoUrl: true,
+      controlReminderTemplate: true,
+      appointmentReminderTemplate: true,
     },
   });
 });
