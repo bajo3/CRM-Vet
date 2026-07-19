@@ -1,6 +1,7 @@
 import "dotenv/config";
 import pino from "pino";
 import { processDueReminders } from "../src/lib/services/reminders";
+import { processDueScheduledMessages } from "../src/lib/services/scheduled-messages";
 import { MockWhatsAppProvider, OutboxWhatsAppProvider, type WhatsAppProvider } from "../src/lib/services/whatsapp-provider";
 
 const INTERVAL_MS = 60_000;
@@ -18,6 +19,15 @@ async function runOnce() {
   const total = Object.values(result).reduce((sum, value) => sum + value, 0);
   if (total > 0) logger.info(result, "Recordatorios procesados");
   else logger.debug("Sin recordatorios vencidos");
+
+  // Mismo poll de 60s, misma instancia de `provider`: los mensajes programados a mano desde
+  // /mensajes usan el mismo mecanismo de entrega que los recordatorios automáticos, así que no
+  // hace falta un segundo servicio de Railway para esto.
+  const scheduledResult = await processDueScheduledMessages(provider);
+  const scheduledTotal = Object.values(scheduledResult).reduce((sum, value) => sum + value, 0);
+  if (scheduledTotal > 0) logger.info(scheduledResult, "Mensajes programados procesados");
+  else logger.debug("Sin mensajes programados vencidos");
+
   return result;
 }
 

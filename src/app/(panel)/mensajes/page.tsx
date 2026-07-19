@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { DateTime } from "luxon";
-import { ArrowLeft, Bot, Check, CheckCheck, ChevronRight, Clock3, MessageCircle, PawPrint, RotateCcw, UserRound } from "lucide-react";
+import { ArrowLeft, Bot, CalendarClock, Check, CheckCheck, ChevronRight, Clock3, MessageCircle, PawPrint, RotateCcw, UserRound } from "lucide-react";
 import type { ConversationStatus } from "@prisma/client";
 import { requireSession } from "@/lib/auth/session";
 import { getClinicSettings } from "@/lib/queries/clinic";
@@ -67,6 +67,10 @@ export default async function MensajesPage({ searchParams }: { searchParams: Pro
       <aside className={`${mobileHasSelection ? "hidden lg:flex" : "flex"} h-full min-h-0 flex-col border-r border-slate-200 bg-white`}>
         <header className="border-b border-slate-100 p-4 sm:p-5">
           <div className="flex items-center justify-between"><div><p className="text-xs font-semibold uppercase tracking-[0.16em] text-emerald-600">Centro de atención</p><h1 className="mt-1 text-2xl font-semibold tracking-tight">Mensajes</h1></div><span className="grid size-11 place-items-center rounded-2xl bg-emerald-50 text-emerald-600"><MessageCircle size={21} /></span></div>
+          <Link href="/mensajes/programados" className="mt-3 flex h-9 w-fit items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 text-xs font-medium text-slate-600 hover:bg-slate-50">
+            <CalendarClock size={14} className="text-emerald-600" />
+            Programar mensaje
+          </Link>
           <nav className="mt-4 flex gap-2 overflow-x-auto pb-1" aria-label="Filtrar conversaciones">
             {FILTERS.map(([value, label]) => {
               const active = validStatus === value || (!validStatus && !value);

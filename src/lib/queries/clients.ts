@@ -42,3 +42,13 @@ export async function listClientsForSelect(clinicId: string) {
   const prisma = getPrisma();
   return prisma.client.findMany({ where: { clinicId }, select: { id: true, name: true, phone: true }, orderBy: { name: "asc" } });
 }
+
+/** Lista de clientes para el buscador de "Programar mensaje" en /mensajes: incluye `remindersEnabled` para avisar en la UI si el cliente elegido tiene los recordatorios desactivados. */
+export async function listClientsForScheduling(clinicId: string) {
+  const prisma = getPrisma();
+  return prisma.client.findMany({
+    where: { clinicId },
+    select: { id: true, name: true, phone: true, remindersEnabled: true },
+    orderBy: { name: "asc" },
+  });
+}
