@@ -5,9 +5,6 @@ import makeWASocket, {
   DisconnectReason,
   fetchLatestBaileysVersion,
   generateMessageIDV2,
-  getBinaryNodeChild,
-  getBinaryNodeChildren,
-  jidNormalizedUser,
   useMultiFileAuthState as loadMultiFileAuthState,
   WAMessageStatus,
   type WAMessage,
@@ -260,61 +257,6 @@ async function resolveJid(socket: Socket, phone: string): Promise<string | null>
 // La versión de WhatsApp Web se cachea: si el endpoint de versiones se cuelga o
 // se cae, reconectamos igual con la última versión conocida en vez de dejar el
 // bridge muerto (esto ya pasó en producción).
-async function hasTrustedContactToken(socket: Socket, jid: string) {
-  const storageJid = jidNormalizedUser(jid);
-  const entries = await socket.authState.keys.get("tctoken", [storageJid]);
-  return !!entries[storageJid]?.token?.length;
-}
-
-// Baileys 6 did not persist trusted-contact tokens. During the v7 migration,
-// the first inbound message can race the privacy notification and make the
-// first reply fail with 463. Request and persist the peer token before sending.
-async function ensureTrustedContactToken(socket: Socket, jid: string, phone: string) {
-  if (await hasTrustedContactToken(socket, jid)) return true;
-
-  await sleep(350);
-  if (await hasTrustedContactToken(socket, jid)) return true;
-
-  try {
-    const result = await socket.issuePrivacyTokens([`${phone}@s.whatsapp.net`]);
-    const tokensNode = getBinaryNodeChild(result, "tokens");
-    const tokenNodes = tokensNode ? getBinaryNodeChildren(tokensNode, "token") : [];
-    const tokenNode = tokenNodes.find(
-      (node) =>
-        node.attrs.type === "trusted_contact" &&
-        node.content instanceof Uint8Array &&
-        node.content.length > 0 &&
-        !!node.attrs.t
-    );
-
-    // Diagnóstico temporal: queremos ver exactamente qué devuelve WhatsApp acá, porque el envío
-    // sigue fallando con "no hay tctoken" incluso después de que se levantó la restricción de cuenta.
-    logger.info(
-      `issuePrivacyTokens respondió :: phone=${phone} tag=${result?.tag} attrs=${JSON.stringify(result?.attrs)} tokenNodesFound=${tokenNodes.length} tokenNodeTypes=${JSON.stringify(tokenNodes.map((n) => n.attrs))} matched=${!!tokenNode}`
-    );
-
-    if (tokenNode?.content instanceof Uint8Array && tokenNode.attrs.t) {
-      const storageJid = jidNormalizedUser(jid);
-      const current = await socket.authState.keys.get("tctoken", [storageJid]);
-      await socket.authState.keys.set({
-        tctoken: {
-          [storageJid]: {
-            ...current[storageJid],
-            token: Buffer.from(tokenNode.content),
-            timestamp: tokenNode.attrs.t,
-          },
-        },
-      });
-    }
-  } catch (error) {
-    logger.warn(
-      `No se pudo solicitar el tctoken del contacto :: phone=${phone} code=${error instanceof Error ? error.message : "UNKNOWN"} stack=${error instanceof Error ? error.stack : ""}`
-    );
-  }
-
-  return hasTrustedContactToken(socket, jid);
-}
-
 let cachedWaVersion: Awaited<ReturnType<typeof fetchLatestBaileysVersion>>["version"] | undefined;
 
 async function resolveWaVersion() {
@@ -517,25 +459,19 @@ async function connect() {
             await reportOutbound({ id: message.id, status: "FAILED", retryable: false });
             continue;
           }
-          const hasTcToken = await ensureTrustedContactToken(socket, jid, message.phone);
-          if (!hasTcToken) {
-            const standing = await refreshAccountStanding(true);
-            // Ídem: valores embebidos en el texto para que sobrevivan al visor de logs de Railway.
-            logger.warn(
-              `No hay tctoken para responder al contacto :: messageId=${message.id} jid=${jid} phone=${message.phone} accountRestricted=${standing?.isActive ?? "null"} enforcementType=${standing?.enforcementType ?? "null"} raw=${JSON.stringify(standing)}`
-            );
-            await reportOutbound({
-              id: message.id,
-              status: "FAILED",
-              retryable: standing?.isActive ? false : true,
-            });
-            continue;
-          }
+          // No se exige un tctoken confirmado antes de enviar: Baileys adjunta uno ya
+          // guardado si existe y, si no, igual manda el mensaje y pide el token en segundo
+          // plano para la próxima vez (comportamiento nativo de la librería). Exigirlo acá
+          // antes bloqueaba respuestas legítimas cuando issuePrivacyTokens no devolvía nada.
           const { sent, initialUpdate } = await sendHumanized(socket, jid, message.content);
           const externalMessageId = sent?.key.id;
           if (!externalMessageId) throw new Error("WHATSAPP_MESSAGE_ID_MISSING");
           if (initialUpdate?.status === WAMessageStatus.ERROR) {
             const errorCode = initialUpdate.errorCode ?? "WHATSAPP_ERROR";
+            // 463 = falta el token de contacto para este destinatario. Baileys ya lo resuelve
+            // solo en segundo plano tras este rechazo, así que no reintentamos este envío
+            // puntual (reintentar cuenta como otro "reachout" y empeora la restricción) pero
+            // el próximo mensaje a este mismo contacto debería salir bien.
             const retryable = errorCode !== "463";
             logger.warn({ messageId: message.id, errorCode, retryable }, "WhatsApp rechazó el mensaje");
             await reportOutbound({ id: message.id, status: "FAILED", retryable });
