@@ -81,6 +81,9 @@ model Clinic {
   defaultAppointmentDuration  Int                    @default(30)
   logoUrl                     String?
   whatsappSessionKey          String?                @unique
+  /// URL pública del bridge de Railway dedicado a esta clínica (un servicio = un número de
+  /// WhatsApp). `null` = todavía usa el bridge global de `WHATSAPP_BRIDGE_URL` (demo/transición).
+  whatsappBridgeUrl           String?
   whatsappPhoneNumberId       String?
   whatsappBusinessAccountId   String?
   /// Texto personalizado del recordatorio de control (`ReminderType.CONTROL_DUE`). `null` = usar el

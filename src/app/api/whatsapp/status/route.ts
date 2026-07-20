@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSession, hasRole } from "@/lib/auth/session";
 import { CLINIC_CONFIG_ROLES } from "@/lib/auth/roles";
+import { getPrisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
 
@@ -11,7 +12,13 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ status: "UNAVAILABLE" }, { status: 403 });
   }
 
-  const bridgeUrl = process.env.WHATSAPP_BRIDGE_URL;
+  // Cada clínica puede tener su propio bridge de Railway (un número de WhatsApp por clínica). Si
+  // todavía no tiene uno asignado, cae al bridge global (usado hoy por la clínica demo y durante
+  // la transición mientras se provisionan bridges dedicados para el resto).
+  const clinic = session.clinicId
+    ? await getPrisma().clinic.findUnique({ where: { id: session.clinicId }, select: { whatsappBridgeUrl: true } })
+    : null;
+  const bridgeUrl = clinic?.whatsappBridgeUrl || process.env.WHATSAPP_BRIDGE_URL;
   const internalToken = process.env.INTERNAL_WHATSAPP_TOKEN;
   if (!bridgeUrl || !internalToken) {
     return NextResponse.json({ status: "NOT_CONFIGURED" }, { status: 503 });
