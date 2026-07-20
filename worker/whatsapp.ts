@@ -30,10 +30,19 @@ const bridgeState: { status: BridgeStatus; qrDataUrl: string | null; updatedAt: 
   updatedAt: new Date().toISOString(),
 };
 
+// Distinto de `bridgeState.updatedAt`: ese campo se pisa en CADA intento de reconexión (aunque
+// falle), así que un bucle de reintentos que nunca logra conectar nunca lo deja "viejo" y el
+// watchdog de abajo jamás se dispara. Este timestamp solo se fija la PRIMERA vez que se cae de
+// CONNECTED, y se limpia recién cuando vuelve a conectar — mide la racha de caída completa, no el
+// último evento.
+let disconnectedSince: number | null = null;
+
 function updateBridgeState(status: BridgeStatus, qrDataUrl: string | null = bridgeState.qrDataUrl) {
   bridgeState.status = status;
   bridgeState.qrDataUrl = qrDataUrl;
   bridgeState.updatedAt = new Date().toISOString();
+  if (status === "CONNECTED") disconnectedSince = null;
+  else if (disconnectedSince === null) disconnectedSince = Date.now();
 }
 
 createServer((request, response) => {
@@ -592,10 +601,10 @@ function connectWithRetry() {
 
 const WATCHDOG_STALL_MS = 3 * 60_000;
 setInterval(() => {
-  if (bridgeState.status === "CONNECTED") return;
-  const idleMs = Date.now() - new Date(bridgeState.updatedAt).getTime();
+  if (bridgeState.status === "CONNECTED" || disconnectedSince === null) return;
+  const idleMs = Date.now() - disconnectedSince;
   if (idleMs > WATCHDOG_STALL_MS) {
-    logger.error({ idleMs }, "El bridge dejó de reportar actividad; reiniciando proceso");
+    logger.error({ idleMs }, "El bridge lleva desconectado demasiado tiempo; reiniciando proceso");
     process.exit(1);
   }
 }, 30_000);
