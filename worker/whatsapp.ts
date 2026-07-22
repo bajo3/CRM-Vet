@@ -37,6 +37,13 @@ const bridgeState: { status: BridgeStatus; qrDataUrl: string | null; updatedAt: 
 // último evento.
 let disconnectedSince: number | null = null;
 
+// DisconnectReason.forbidden (403) no es un corte de red transitorio: WhatsApp está rechazando el
+// login en sí. Reintentar con las mismas credenciales para siempre nunca se recupera solo (visto en
+// producción: 40+ minutos de reintentos ininterrumpidos el 20/07, y de nuevo el 22/07 tras un
+// restart manual). Al tercer 403 seguido tratamos la sesión como inválida, igual que `loggedOut`.
+const FORBIDDEN_RELINK_THRESHOLD = 3;
+let consecutiveForbidden = 0;
+
 function updateBridgeState(status: BridgeStatus, qrDataUrl: string | null = bridgeState.qrDataUrl) {
   bridgeState.status = status;
   bridgeState.qrDataUrl = qrDataUrl;
@@ -370,6 +377,7 @@ async function connect() {
 
     if (connection === "open") {
       reconnectDelayMs = 2_000;
+      consecutiveForbidden = 0;
       updateBridgeState("CONNECTED", null);
       logger.info({ clinicKey }, "WhatsApp conectado");
       void refreshAccountStanding(true)
@@ -397,6 +405,22 @@ async function connect() {
         updateBridgeState("RECONNECTING", null);
         logger.error("Conexión reemplazada por otra instancia; esperando antes de reintentar");
         scheduleReconnect("connectionReplaced", 60_000);
+      } else if (statusCode === DisconnectReason.forbidden) {
+        consecutiveForbidden += 1;
+        if (consecutiveForbidden >= FORBIDDEN_RELINK_THRESHOLD) {
+          updateBridgeState("LOGGED_OUT", null);
+          logger.error(
+            { consecutiveForbidden },
+            "WhatsApp rechazó el login varias veces seguidas (403). Borrando credenciales y generando un QR nuevo."
+          );
+          void rm(authDir, { recursive: true, force: true })
+            .catch((error) => logger.error({ error }, "No se pudo borrar el directorio de credenciales"))
+            .finally(() => scheduleReconnect("forbidden", 1_000));
+        } else {
+          updateBridgeState("RECONNECTING", null);
+          logger.warn({ statusCode, consecutiveForbidden }, "Conexión cerrada (forbidden); reconectando");
+          scheduleReconnect("forbidden");
+        }
       } else {
         updateBridgeState("RECONNECTING", null);
         logger.warn({ statusCode }, "Conexión cerrada; reconectando");
