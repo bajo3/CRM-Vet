@@ -5,9 +5,6 @@ import makeWASocket, {
   DisconnectReason,
   fetchLatestBaileysVersion,
   generateMessageIDV2,
-  getBinaryNodeChild,
-  getBinaryNodeChildren,
-  jidNormalizedUser,
   useMultiFileAuthState as loadMultiFileAuthState,
   WAMessageStatus,
   type WAMessage,
@@ -33,10 +30,26 @@ const bridgeState: { status: BridgeStatus; qrDataUrl: string | null; updatedAt: 
   updatedAt: new Date().toISOString(),
 };
 
+// Distinto de `bridgeState.updatedAt`: ese campo se pisa en CADA intento de reconexión (aunque
+// falle), así que un bucle de reintentos que nunca logra conectar nunca lo deja "viejo" y el
+// watchdog de abajo jamás se dispara. Este timestamp solo se fija la PRIMERA vez que se cae de
+// CONNECTED, y se limpia recién cuando vuelve a conectar — mide la racha de caída completa, no el
+// último evento.
+let disconnectedSince: number | null = null;
+
+// DisconnectReason.forbidden (403) no es un corte de red transitorio: WhatsApp está rechazando el
+// login en sí. Reintentar con las mismas credenciales para siempre nunca se recupera solo (visto en
+// producción: 40+ minutos de reintentos ininterrumpidos el 20/07, y de nuevo el 22/07 tras un
+// restart manual). Al tercer 403 seguido tratamos la sesión como inválida, igual que `loggedOut`.
+const FORBIDDEN_RELINK_THRESHOLD = 3;
+let consecutiveForbidden = 0;
+
 function updateBridgeState(status: BridgeStatus, qrDataUrl: string | null = bridgeState.qrDataUrl) {
   bridgeState.status = status;
   bridgeState.qrDataUrl = qrDataUrl;
   bridgeState.updatedAt = new Date().toISOString();
+  if (status === "CONNECTED") disconnectedSince = null;
+  else if (disconnectedSince === null) disconnectedSince = Date.now();
 }
 
 createServer((request, response) => {
@@ -260,57 +273,6 @@ async function resolveJid(socket: Socket, phone: string): Promise<string | null>
 // La versión de WhatsApp Web se cachea: si el endpoint de versiones se cuelga o
 // se cae, reconectamos igual con la última versión conocida en vez de dejar el
 // bridge muerto (esto ya pasó en producción).
-async function hasTrustedContactToken(socket: Socket, jid: string) {
-  const storageJid = jidNormalizedUser(jid);
-  const entries = await socket.authState.keys.get("tctoken", [storageJid]);
-  return !!entries[storageJid]?.token?.length;
-}
-
-// Baileys 6 did not persist trusted-contact tokens. During the v7 migration,
-// the first inbound message can race the privacy notification and make the
-// first reply fail with 463. Request and persist the peer token before sending.
-async function ensureTrustedContactToken(socket: Socket, jid: string, phone: string) {
-  if (await hasTrustedContactToken(socket, jid)) return true;
-
-  await sleep(350);
-  if (await hasTrustedContactToken(socket, jid)) return true;
-
-  try {
-    const result = await socket.issuePrivacyTokens([`${phone}@s.whatsapp.net`]);
-    const tokensNode = getBinaryNodeChild(result, "tokens");
-    const tokenNode = tokensNode
-      ? getBinaryNodeChildren(tokensNode, "token").find(
-          (node) =>
-            node.attrs.type === "trusted_contact" &&
-            node.content instanceof Uint8Array &&
-            node.content.length > 0 &&
-            !!node.attrs.t
-        )
-      : undefined;
-
-    if (tokenNode?.content instanceof Uint8Array && tokenNode.attrs.t) {
-      const storageJid = jidNormalizedUser(jid);
-      const current = await socket.authState.keys.get("tctoken", [storageJid]);
-      await socket.authState.keys.set({
-        tctoken: {
-          [storageJid]: {
-            ...current[storageJid],
-            token: Buffer.from(tokenNode.content),
-            timestamp: tokenNode.attrs.t,
-          },
-        },
-      });
-    }
-  } catch (error) {
-    logger.warn(
-      { code: error instanceof Error ? error.message : "UNKNOWN" },
-      "No se pudo solicitar el tctoken del contacto"
-    );
-  }
-
-  return hasTrustedContactToken(socket, jid);
-}
-
 let cachedWaVersion: Awaited<ReturnType<typeof fetchLatestBaileysVersion>>["version"] | undefined;
 
 async function resolveWaVersion() {
@@ -415,17 +377,15 @@ async function connect() {
 
     if (connection === "open") {
       reconnectDelayMs = 2_000;
+      consecutiveForbidden = 0;
       updateBridgeState("CONNECTED", null);
       logger.info({ clinicKey }, "WhatsApp conectado");
       void refreshAccountStanding(true)
         .then((standing) =>
+          // Nota diagnóstica: el visor de logs de Railway a veces no muestra los campos extra de
+          // pino (solo el mensaje), así que estos valores van directo en el texto para no perderlos.
           logger.info(
-            {
-              active: restrictionIsActive(standing),
-              enforcementType: standing?.enforcementType,
-              until: standing?.timeEnforcementEnds?.toISOString(),
-            },
-            "Estado de restricción de WhatsApp consultado"
+            `Estado de restricción de WhatsApp consultado :: active=${restrictionIsActive(standing)} enforcementType=${standing?.enforcementType ?? "null"} until=${standing?.timeEnforcementEnds?.toISOString() ?? "null"} raw=${JSON.stringify(standing)}`
           )
         );
     }
@@ -445,6 +405,22 @@ async function connect() {
         updateBridgeState("RECONNECTING", null);
         logger.error("Conexión reemplazada por otra instancia; esperando antes de reintentar");
         scheduleReconnect("connectionReplaced", 60_000);
+      } else if (statusCode === DisconnectReason.forbidden) {
+        consecutiveForbidden += 1;
+        if (consecutiveForbidden >= FORBIDDEN_RELINK_THRESHOLD) {
+          updateBridgeState("LOGGED_OUT", null);
+          logger.error(
+            { consecutiveForbidden },
+            "WhatsApp rechazó el login varias veces seguidas (403). Borrando credenciales y generando un QR nuevo."
+          );
+          void rm(authDir, { recursive: true, force: true })
+            .catch((error) => logger.error({ error }, "No se pudo borrar el directorio de credenciales"))
+            .finally(() => scheduleReconnect("forbidden", 1_000));
+        } else {
+          updateBridgeState("RECONNECTING", null);
+          logger.warn({ statusCode, consecutiveForbidden }, "Conexión cerrada (forbidden); reconectando");
+          scheduleReconnect("forbidden");
+        }
       } else {
         updateBridgeState("RECONNECTING", null);
         logger.warn({ statusCode }, "Conexión cerrada; reconectando");
@@ -516,29 +492,19 @@ async function connect() {
             await reportOutbound({ id: message.id, status: "FAILED", retryable: false });
             continue;
           }
-          const hasTcToken = await ensureTrustedContactToken(socket, jid, message.phone);
-          if (!hasTcToken) {
-            const standing = await refreshAccountStanding(true);
-            logger.warn(
-              {
-                messageId: message.id,
-                accountRestricted: standing?.isActive ?? null,
-                enforcementType: standing?.enforcementType,
-              },
-              "No hay tctoken para responder al contacto"
-            );
-            await reportOutbound({
-              id: message.id,
-              status: "FAILED",
-              retryable: standing?.isActive ? false : true,
-            });
-            continue;
-          }
+          // No se exige un tctoken confirmado antes de enviar: Baileys adjunta uno ya
+          // guardado si existe y, si no, igual manda el mensaje y pide el token en segundo
+          // plano para la próxima vez (comportamiento nativo de la librería). Exigirlo acá
+          // antes bloqueaba respuestas legítimas cuando issuePrivacyTokens no devolvía nada.
           const { sent, initialUpdate } = await sendHumanized(socket, jid, message.content);
           const externalMessageId = sent?.key.id;
           if (!externalMessageId) throw new Error("WHATSAPP_MESSAGE_ID_MISSING");
           if (initialUpdate?.status === WAMessageStatus.ERROR) {
             const errorCode = initialUpdate.errorCode ?? "WHATSAPP_ERROR";
+            // 463 = falta el token de contacto para este destinatario. Baileys ya lo resuelve
+            // solo en segundo plano tras este rechazo, así que no reintentamos este envío
+            // puntual (reintentar cuenta como otro "reachout" y empeora la restricción) pero
+            // el próximo mensaje a este mismo contacto debería salir bien.
             const retryable = errorCode !== "463";
             logger.warn({ messageId: message.id, errorCode, retryable }, "WhatsApp rechazó el mensaje");
             await reportOutbound({ id: message.id, status: "FAILED", retryable });
@@ -659,10 +625,10 @@ function connectWithRetry() {
 
 const WATCHDOG_STALL_MS = 3 * 60_000;
 setInterval(() => {
-  if (bridgeState.status === "CONNECTED") return;
-  const idleMs = Date.now() - new Date(bridgeState.updatedAt).getTime();
+  if (bridgeState.status === "CONNECTED" || disconnectedSince === null) return;
+  const idleMs = Date.now() - disconnectedSince;
   if (idleMs > WATCHDOG_STALL_MS) {
-    logger.error({ idleMs }, "El bridge dejó de reportar actividad; reiniciando proceso");
+    logger.error({ idleMs }, "El bridge lleva desconectado demasiado tiempo; reiniciando proceso");
     process.exit(1);
   }
 }, 30_000);

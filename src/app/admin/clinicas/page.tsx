@@ -1,5 +1,6 @@
 import { requireSuperAdmin } from "@/lib/auth/session";
 import { getPrisma } from "@/lib/prisma";
+import { AdminAccountPanel } from "../account-panel";
 import { DecidedClinicRow, PendingClinicRow } from "./clinics-panel";
 
 export default async function AdminClinicasPage() {
@@ -13,6 +14,8 @@ export default async function AdminClinicasPage() {
       status: true,
       statusReason: true,
       createdAt: true,
+      whatsappSessionKey: true,
+      whatsappBridgeUrl: true,
       members: { where: { role: "OWNER" }, take: 1, select: { user: { select: { name: true, email: true } } } },
     },
     orderBy: { createdAt: "desc" },
@@ -27,6 +30,8 @@ export default async function AdminClinicasPage() {
     createdAt: clinic.createdAt.toISOString(),
     ownerName: clinic.members[0]?.user.name ?? null,
     ownerEmail: clinic.members[0]?.user.email ?? null,
+    whatsappSessionKey: clinic.whatsappSessionKey,
+    whatsappBridgeUrl: clinic.whatsappBridgeUrl,
   }));
 
   const pending = rows.filter((row) => row.status === "PENDING");
@@ -66,6 +71,8 @@ export default async function AdminClinicasPage() {
           </div>
         )}
       </section>
+
+      <AdminAccountPanel />
     </div>
   );
 }

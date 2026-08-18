@@ -1,7 +1,9 @@
 # CRM Vet — Estado del proyecto y tareas para Codex
 
-Actualizado: 13/07/2026. Este archivo documenta el estado real verificado del proyecto y lo que falta,
+Actualizado: 20/07/2026. Este archivo documenta el estado real verificado del proyecto y lo que falta,
 para que un agente (Codex) continúe el trabajo. **Leé este archivo completo antes de tocar código.**
+**Empezá por la sección "Sesiones 13/07 al 20/07/2026" (al final, antes de "Cómo correr todo")**: es lo
+más reciente y donde están los pendientes activos de WhatsApp/multi-tenant.
 
 ## Reglas del proyecto (obligatorias)
 
@@ -210,7 +212,13 @@ Suite completa verificada: **100/100 tests pasan** (89 preexistentes + 11 nuevos
 - Etapa de calidad: `loading.tsx` por ruta, revisar estados vacíos, accesibilidad (focus, labels, contraste),
   revisión responsive completa, manejo de errores homogéneo. **Pendiente** (fuera del alcance de esta sesión,
   a cargo del agente que audita el panel en paralelo).
-- Multiempresa real de conversaciones: hoy 1 worker Baileys = 1 clínica (`WHATSAPP_CLINIC_KEY`). **Pendiente.**
+- **[PARCIALMENTE RESUELTO 20/07/2026]** ~~Multiempresa real de conversaciones: hoy 1 worker Baileys = 1
+  clínica~~: sigue siendo 1 worker Baileys = 1 clínica (eso no cambió, Baileys no soporta multiplexar
+  varios números en un mismo socket sin reescribir el worker), pero ahora el modelo de datos y la app SÍ
+  saben rutear a un bridge distinto por clínica (`Clinic.whatsappBridgeUrl`, panel en `/admin/clinicas`).
+  Antes de esto, **todas** las clínicas veían literalmente el mismo bridge en su Configuración sin darse
+  cuenta. Ver detalle completo en "Sesiones 13/07 al 20/07/2026" más abajo. Falta el paso de infraestructura
+  (crear un servicio de Railway nuevo por clínica real que lo necesite).
 - Bug cosmético menor detectado durante la verificación manual (no corregido, preexistente y fuera del texto
   que se pidió tocar): la confirmación de una reserva **nueva** ("¡Listo! Reservamos el turno... el {fecha}...")
   duplica "el el" cuando la fecha elegida es 3+ días en el futuro, porque `describeDate` ya devuelve
@@ -393,6 +401,201 @@ completo en el navegador al menos una vez.
 alta/edición de integrante (`team-panel.tsx`/`src/lib/actions/team.ts`) — el campo existe en el modelo y la
 receta lo muestra si está cargado, pero hoy no hay forma de cargarlo desde la UI (solo se podría setear
 directo en la base). Queda pendiente si se quiere que un veterinario cargue su propia matrícula.
+
+## Sesiones 13/07 al 20/07/2026 — hardening de WhatsApp, alta de clínicas, multi-tenant, mensajes programados
+
+Trabajo de varias sesiones (Claude + Codex en paralelo, coordinando por `git fetch`/`git log`, sin
+force-push). Reconstruido a partir del historial real de commits (`git log --since=2026-07-13`), no de
+memoria — si algo de acá no coincide con el código, el código manda. Lista de commits en orden:
+
+```
+6961e35 add postinstall prisma generate to fix Vercel deploys
+24d7aa8 add downloadable PDF quotes and prescriptions to the pet file        (ya documentado arriba)
+41472e5 run Vercel functions in São Paulo to co-locate with the database
+3afd35e add clinic branding, split shifts, automatic reminder rules, documents hub, drag-and-drop agenda, and fix session revocation
+bfdff0c fix WhatsApp bridge freezing indefinitely on stalled reconnects
+e783bef deploy the reminders worker as its own Railway service
+7e83879 make automatic client reminders visible and easy to trust
+5166a2d make WhatsApp delivery reliable and refresh clinical documents
+9ce2abc record WhatsApp acknowledgement failures
+274f3e3 harden the WhatsApp bridge: fewer disconnects, anti-ban behavior, read receipts
+8ce09a2 add password self-service, owner password reset, and a WhatsApp-down alert banner
+eaab612 add self-service clinic registration with superadmin approval
+2e168c4 add pet photo upload, confirm before deactivating a teammate, and quick-create documents
+098dd7e compress pet photos to JPEG and scroll the agenda to the current time
+3a6da1e Add public marketing landing page and vet license number field
+f1ae398 stop dimming the reactivate button on inactive teammates
+5630862 fix WhatsApp replies never reaching chats behind LID privacy JIDs
+6029594 send WhatsApp replies to the real phone JID, never to @lid chats
+832e039 fix WhatsApp LID replies and rejected-send handling
+1d80867 run the WhatsApp worker as ESM
+fedf8da fix WhatsApp trusted-contact replies
+567461e pause WhatsApp outbox during companion restrictions
+bb145a4 fail restricted WhatsApp messages without sending
+fec98fb embed diagnostic values in log text for the tctoken failure
+853fc8e Add scheduled WhatsApp messages, composed and scheduled from Mensajes
+e2fe297 Add per-clinic editable WhatsApp reminder templates
+b29bff2 let the superadmin change their own password from /admin
+44bb556 stop gating WhatsApp replies on a pre-fetched trusted-contact token
+bf796a1 support one dedicated WhatsApp bridge per clinic
+```
+
+### Infraestructura y deploy
+
+- **Carpeta canónica movida**: el proyecto vive ahora en `Desktop\Feli Web\crms\crm-vet` (para agrupar
+  todos los CRMs del dueño en una carpeta). Existe una carpeta vieja en `Desktop\Feli Web\crm-vet` que
+  quedó de una copia (`robocopy`) — **NO tocarla, el dueño la borra manualmente cuando quiera.** Si un
+  agente arranca en esa ruta vieja, está trabajando sobre una copia obsoleta.
+- **Vercel**: funciones corriendo en `gru1` (São Paulo) para estar cerca de la base de Supabase en
+  `sa-east-1` (antes `iad1`, EEUU — latencia extra en cada query). `postinstall` corre `prisma generate`
+  para que el deploy no falle por cliente desactualizado.
+- **Railway** (proyecto `charming-smile`): tres servicios —
+  - `CRM-Vet-WhatsApp`: el bridge de Baileys (worker/whatsapp.ts). Hoy conectado con
+    `WHATSAPP_CLINIC_KEY=patitas-demo`, es decir, **la clínica demo, NO la clínica real del dueño**
+    (ver "Bug de confusión de cuenta" más abajo).
+  - `CRM-Vet-Reminders`: recordatorios automáticos + mensajes programados a mano (mismo poll de 60s,
+    `worker/reminders.ts`, `REMINDER_PROVIDER=outbox`).
+  - `CRM-Autos`: proyecto no relacionado del dueño, ignorar.
+  - El Railway MCP pierde la autenticación periódicamente (`Unauthorized`); se resuelve con
+    `claude mcp add railway --transport http https://mcp.railway.com` (lo corre el dueño).
+- **Baileys**: pineado en `7.0.0-rc13` (`6.17.16` tiene un CVE de spoofing, GHSA-qvv5-jq5g-4cgg — nunca
+  usarlo). La v7 trae una dependencia ESM-only, por eso `worker/package.json` y el `package.json` raíz
+  tienen `"type": "module"`.
+
+### WhatsApp: saga de hardening anti-ban + LID + tctoken (la parte más delicada del proyecto)
+
+Se hizo, en este orden:
+1. **Reconexión**: `fetchLatestBaileysVersion()` se colgaba a veces y freezaba el loop de reconexión →
+   se agregó timeout de 10s con fallback a la última versión conocida, `keepAliveIntervalMs`,
+   `connectTimeoutMs`, backoff exponencial con jitter, y un watchdog que mata el proceso si queda 3 min
+   sin `CONNECTED` (Railway lo reinicia solo).
+2. **Anti-ban / "parecer más humano"**: cola de envío pausada (3.5–8s entre mensajes), indicador de
+   "escribiendo…" proporcional al largo del texto, tilde azul (visto) recién **después** de que WhatsApp
+   confirma el envío (nunca antes, para no dejar al cliente en visto si el server rechaza el mensaje),
+   verificación de número real antes de mandar (`onWhatsApp`, cache 12h), `markOnlineOnConnect: false`.
+3. **JIDs de privacidad `@lid`**: WhatsApp a veces identifica a un contacto por un JID `@lid` que NO es su
+   número real (el número real viene en `key.senderPn`). Mandar directo a un `@lid` daba error de servidor.
+   Se arregló resolviendo siempre `inboundPhone()` priorizando `senderPn`/`remoteJidAlt`, cacheando el
+   JID real (nunca el `@lid` crudo) y usando `signalRepository.lidMapping` para las conversiones.
+4. **El bug grande: "me clava el visto, escribe, pero no manda el mensaje"** (reportado por el dueño,
+   confirmado en producción el 20/07). Causa raíz encontrada leyendo el código fuente de Baileys 7
+   instalado en `node_modules`: nuestro propio código (`ensureTrustedContactToken` en
+   `worker/whatsapp.ts`, agregado el 17/07 en `fedf8da` para evitar el error 463) exigía tener un
+   "tctoken" (token de contacto de confianza) confirmado **antes** de intentar enviar. Si
+   `issuePrivacyTokens` no devolvía nada — algo común y normal —, el envío se abortaba **sin
+   intentarse siquiera**. Pero Baileys nativo NO funciona así: adjunta un tctoken ya guardado si existe,
+   y si no, igual manda el mensaje y pide uno nuevo en segundo plano para la próxima vez; si el server
+   rechaza con error 463 (`SenderReachoutTimelocked`/`MessageAccountRestriction`), Baileys mismo dispara
+   una recuperación automática del token en background (ver `messages-recv.js`, sección
+   `inFlight463Recoveries`) — pero esa recuperación nunca se disparaba porque nuestro gate previo
+   directamente evitaba que Baileys intentara el envío.
+   **Fix aplicado (`44bb556`, 20/07/2026)**: se eliminó por completo `ensureTrustedContactToken` y
+   `hasTrustedContactToken`; ahora se llama a `sendHumanized`/`socket.sendMessage` directo, dejando que
+   Baileys maneje el tctoken solo. Si un envío puntual falla con 463, se marca `FAILED` no reintentable
+   (reintentar cuenta como otro "reachout" y empeora la restricción), pero el próximo mensaje al mismo
+   contacto sale bien porque Baileys ya recuperó el token en background.
+   **Verificado de punta a punta con una conversación real por WhatsApp** (no solo tests): el dueño
+   escribió "hola", el bot completó todo el flujo de reserva de turno (mascota → motivo → fecha → hora),
+   y el turno quedó creado en la base con `source: WHATSAPP`, luego confirmado. Sin este fix, esa
+   respuesta se hubiera perdido en silencio como venía pasando.
+5. Quedan en el código (intencionalmente, no son bugs): `567461e` pausa el envío completo mientras la
+   cuenta tiene una restricción activa real (`fetchAccountReachoutTimelock`) — eso sigue siendo correcto,
+   es distinto del bug de arriba. `bb145a4` falla explícitamente (sin intentar) los mensajes cuando la
+   restricción de cuenta está activa — también correcto, se mantiene.
+
+### Bug de confusión de cuenta (importante, no es un bug de código)
+
+El bridge de Railway (`CRM-Vet-WhatsApp`) está conectado hoy con `whatsappSessionKey: "patitas-demo"`, es
+decir, a la **clínica demo del seed** ("Veterinaria Patitas", `sofia@patitas.com`, número ficticio
+`5491123456789`), **no** a la clínica real del dueño ("Veterinaria San Martin",
+`felipelentini98@hotmail.com`, `whatsappSessionKey: null`, sin bridge propio todavía). Cuando el dueño
+prueba escribiendo desde su WhatsApp personal, en realidad está hablando con la clínica demo — cualquier
+turno que se cree ahí (ej.: el de "Paco" del 20/07) aparece en la agenda de la clínica demo, no en la del
+dueño, por aislamiento multi-tenant correcto (todo filtra por `clinicId` de la sesión). **No es un bug
+de agenda ni de WhatsApp** — es la explicación de por qué "se confirmó el turno pero no aparece en mi
+agenda". Antes de dar por buena cualquier prueba de WhatsApp, verificar primero
+`Clinic.whatsappSessionKey`/`whatsappBridgeUrl` de la clínica que se está probando.
+
+### Multi-tenant real de WhatsApp: qué se resolvió y qué falta (`bf796a1`, 20/07/2026)
+
+Antes de este cambio, `/api/whatsapp/status` (la tarjeta "Canal de WhatsApp" en Configuración) leía
+`process.env.WHATSAPP_BRIDGE_URL` — una única URL global para **todas** las clínicas. Los endpoints de
+entrada/salida (`/api/internal/whatsapp/{events,outbound,delivery}`) ya routeaban todo por `clinicKey`
+desde antes (no hubo que tocarlos), así que el único hueco real era la tarjeta de estado.
+
+**Se agregó**:
+- `Clinic.whatsappBridgeUrl String?` (migración `20260720131413_clinic_whatsapp_bridge_url`), junto al ya
+  existente `whatsappSessionKey String? @unique`.
+- `/api/whatsapp/status` ahora resuelve `clinic.whatsappBridgeUrl` por `session.clinicId`; si es `null`,
+  cae al `WHATSAPP_BRIDGE_URL` global (backward-compatible, así la demo sigue andando sin backfill).
+- Editor en `/admin/clinicas` (solo superadmin, `src/app/admin/clinicas/clinics-panel.tsx` →
+  `WhatsappBridgeEditor`) para asignar/borrar `whatsappSessionKey` + `whatsappBridgeUrl` por clínica sin
+  tocar código ni base directo. Acción: `updateClinicWhatsappBridge` en
+  `src/lib/actions/platform-admin.ts`. Verificado en navegador (asignar, guardar, confirmar cambio de
+  label, borrar, confirmar que vuelve a "usa el bridge global").
+
+**Falta (paso de infraestructura, no de código)**: Baileys es 1 socket = 1 número. Para que una clínica
+real tenga su propio WhatsApp hay que:
+1. Crear un servicio de Railway nuevo (duplicar `CRM-Vet-WhatsApp`), con su propio volumen (para
+   persistir la sesión de auth) y su propia variable `WHATSAPP_CLINIC_KEY` (tiene que ser igual a la
+   `whatsappSessionKey` que se le asigne a esa clínica).
+2. Generar su dominio público y cargarlo como `whatsappBridgeUrl` de esa clínica desde `/admin/clinicas`.
+3. Escanear el QR con el teléfono real de esa veterinaria.
+Con la escala actual (pocas clínicas) esto es manejable a mano. Si el número de clínicas crece mucho, la
+alternativa (no implementada) sería un solo proceso multiplexando varias sesiones de Baileys — mucho más
+barato en infra pero bastante más complejo de mantener (aislar fallos/reconexiones por clínica).
+
+### Otras features de este período
+
+- **Alta de clínicas con aprobación de superadmin** (`eaab612`): `/registro` público, `ClinicStatus`
+  (`PENDING/APPROVED/REJECTED`), `User.isSuperAdmin` (booleano global, no es un `Role` de clínica), sesión
+  de superadmin usa `clinicId: ""` como sentinel. Login bloquea clínicas pendientes/rechazadas mostrando
+  el motivo. Panel `/admin/clinicas` para aprobar/rechazar (`src/lib/actions/platform-admin.ts`).
+- **Self-service de contraseña**: cambio de contraseña propia para cualquier usuario, reseteo de
+  contraseña de un integrante por el OWNER, y ahora (`b29bff2`) el superadmin también puede cambiar la
+  suya desde `/admin/clinicas` (`AdminAccountPanel`, reusa `changeOwnPassword`).
+- **Banner de "WhatsApp desconectado"** (`8ce09a2`): alerta visible en todo el panel cuando el bridge no
+  está `CONNECTED`, para que el dueño se entere sin tener que entrar a Configuración.
+- **Foto de mascota**: subida de archivo en vez de URL (`2e168c4`), comprimida a JPEG calidad 0.82 en el
+  cliente antes de subir (`098dd7e`, `src/lib/image-resize.ts`) — arregla el error "Too big: expected
+  string to have <=400000 characters" que daba con PNG sin comprimir.
+- **Agenda**: se auto-posiciona en la hora actual real al cargar la vista de día (`098dd7e`).
+- **Equipo**: confirmación antes de desactivar a alguien, y se arregló que el avatar/nombre atenuados en
+  gris (integrante inactivo) también atenuaban los **botones** — parecía que el integrante quedaba
+  "trabado" sin poder reactivarlo (`f1ae398`). Ahora solo se atenúa avatar+nombre.
+- **Documentos**: creación rápida de presupuesto/receta desde una búsqueda de mascota en `/documentos`
+  (deep link `?abrir=presupuesto|receta`), sin tener que ir primero a la ficha de la mascota (`2e168c4`).
+- **Landing pública** (`3a6da1e`, `src/app/bienvenida/page.tsx`) + campo `User.licenseNumber` (matrícula)
+  editable desde Configuración (antes existía el campo pero no había UI para cargarlo).
+- **Plantillas de recordatorio editables por clínica** (`e2fe297`): `Clinic.controlReminderTemplate` /
+  `appointmentReminderTemplate`, con variables (`{cliente}`, `{mascota}`, `{fecha}`, `{clinica}`, `{dias}`,
+  `{motivo}`) y vista previa en vivo (`src/app/(panel)/configuracion/reminder-templates-form.tsx`).
+- **Mensajes programados a mano** (`853fc8e`): desde `/mensajes/programados`, cualquier integrante puede
+  escribir un texto libre y programarlo para una fecha/hora futura a un cliente puntual — comparte el
+  mismo mecanismo de entrega que los recordatorios automáticos (mismo poll de `worker/reminders.ts`, no
+  hizo falta un tercer servicio de Railway). Se muestra un recordatorio visual en la tarjeta del cliente
+  cuando su próximo turno/control está a ≤20 días (`daysUntil`/`daysUntilLabel` en `src/lib/format.ts`).
+
+### Estado verificado al 20/07/2026
+
+`npx tsc --noEmit` limpio, `npm run lint` limpio, **134/134 tests** pasan (`vet_test`). Verificado en
+navegador real (no solo código): login superadmin, cambio de contraseña propia, editor de bridge de
+WhatsApp por clínica (asignar/guardar/borrar), y una conversación de WhatsApp real de punta a punta
+(reserva de turno completa tras el fix del tctoken).
+
+### Pendientes reales para la próxima sesión
+
+1. **Provisionar el bridge real de "Veterinaria San Martin"** (o la clínica que vaya a usarse en
+   producción real) — hoy solo la demo tiene un número conectado. Ver pasos en la sección de arriba.
+2. **Monitorear el fix del tctoken** (`44bb556`) contra más conversaciones reales — la teoría está
+   confirmada contra el código fuente de Baileys y contra una prueba real, pero todavía es reciente.
+3. Los campos `Clinic.whatsappPhoneNumberId` / `whatsappBusinessAccountId` en el schema están sin usar
+   (quedaron de un plan descartado de migrar a WhatsApp Cloud API de Meta — ver `MetaWhatsAppProvider`
+   pendiente más arriba en este archivo). Se pueden borrar si se descarta definitivamente esa migración,
+   o dejar si se retoma más adelante.
+4. Sería valioso mostrar en algún lado de la UI (ej. la tarjeta de Configuración) **qué número de
+   teléfono** está conectado al bridge de esa clínica, para que no vuelva a pasar la confusión de probar
+   sobre la cuenta equivocada sin darse cuenta.
 
 ## Cómo correr todo
 

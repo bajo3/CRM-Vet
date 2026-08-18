@@ -1,14 +1,22 @@
 import Link from "next/link";
-import { Pencil, Phone, Plus, Search, UsersRound } from "lucide-react";
+import { CalendarClock, Pencil, Phone, Plus, Search, UsersRound } from "lucide-react";
 import { requireSession, hasRole } from "@/lib/auth/session";
 import { CLIENT_MANAGE_ROLES } from "@/lib/auth/roles";
 import { searchClients } from "@/lib/queries/clients";
+import { getNextScheduledMessageByClient } from "@/lib/queries/scheduled-messages";
+import { getClinicSettings } from "@/lib/queries/clinic";
 import { SpeciesIcon } from "@/lib/pet-species-icon";
+import { daysUntil, daysUntilLabel } from "@/lib/format";
 
 export default async function ClientesPage({ searchParams }: { searchParams: Promise<{ q?: string; ok?: string }> }) {
   const session = await requireSession();
   const { q = "", ok } = await searchParams;
-  const clients = await searchClients(session.clinicId, q);
+  const [clients, nextScheduledByClient, clinic] = await Promise.all([
+    searchClients(session.clinicId, q),
+    getNextScheduledMessageByClient(session.clinicId),
+    getClinicSettings(session.clinicId),
+  ]);
+  const timezone = clinic?.timezone ?? "America/Argentina/Buenos_Aires";
   const canManage = hasRole(session, CLIENT_MANAGE_ROLES);
 
   return (
@@ -63,6 +71,12 @@ export default async function ClientesPage({ searchParams }: { searchParams: Pro
                     <Phone size={13} />
                     {client.phone}
                   </div>
+                  {nextScheduledByClient.has(client.id) && (
+                    <div className="mt-1.5 flex items-center gap-1.5 text-xs font-medium text-emerald-700">
+                      <CalendarClock size={13} />
+                      Mensaje programado {daysUntilLabel(daysUntil(nextScheduledByClient.get(client.id)!, timezone))}
+                    </div>
+                  )}
                 </div>
                 {canManage && (
                   <Link

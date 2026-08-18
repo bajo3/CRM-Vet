@@ -65,42 +65,59 @@ enum ClinicStatus {
   REJECTED
 }
 
+enum ScheduledMessageStatus {
+  PENDING
+  SENT
+  CANCELLED
+  FAILED
+}
+
 model Clinic {
-  id                         String                 @id @default(cuid())
-  name                       String
-  phone                      String?
-  timezone                   String                 @default("America/Argentina/Buenos_Aires")
-  openingHours               Json
-  defaultAppointmentDuration Int                    @default(30)
-  logoUrl                    String?
-  whatsappSessionKey         String?                @unique
-  whatsappPhoneNumberId      String?
-  whatsappBusinessAccountId  String?
+  id                          String                 @id @default(cuid())
+  name                        String
+  phone                       String?
+  timezone                    String                 @default("America/Argentina/Buenos_Aires")
+  openingHours                Json
+  defaultAppointmentDuration  Int                    @default(30)
+  logoUrl                     String?
+  whatsappSessionKey          String?                @unique
+  /// URL pública del bridge de Railway dedicado a esta clínica (un servicio = un número de
+  /// WhatsApp). `null` = todavía usa el bridge global de `WHATSAPP_BRIDGE_URL` (demo/transición).
+  whatsappBridgeUrl           String?
+  whatsappPhoneNumberId       String?
+  whatsappBusinessAccountId   String?
+  /// Texto personalizado del recordatorio de control (`ReminderType.CONTROL_DUE`). `null` = usar el
+  /// texto por defecto definido en código (`DEFAULT_CONTROL_REMINDER_TEMPLATE`).
+  controlReminderTemplate     String?
+  /// Texto personalizado del recordatorio de turno (`ReminderType.APPOINTMENT_REMINDER`). `null` =
+  /// usar el texto por defecto definido en código (`DEFAULT_APPOINTMENT_REMINDER_TEMPLATE`).
+  appointmentReminderTemplate String?
   /// Profile de Zernio (agrupa la cuenta de WhatsApp de esta clínica). Se crea la primera vez que
   /// alguien inicia la conexión desde Configuración; ver src/lib/whatsapp/zernio-client.ts.
-  zernioProfileId            String?                @unique
+  zernioProfileId             String?                @unique
   /// Cuenta de WhatsApp conectada dentro de ese profile. Null hasta que se completa el Embedded
   /// Signup de Meta y Zernio redirige de vuelta al callback con el accountId.
-  zernioAccountId            String?                @unique
+  zernioAccountId             String?                @unique
   /// Clínicas creadas por el seed/scripts entran ya APPROVED; el registro público (`/registro`)
   /// las crea PENDING hasta que un superadmin las apruebe desde `/admin/clinicas`.
-  status                     ClinicStatus           @default(PENDING)
-  statusReason               String?
-  createdAt                  DateTime               @default(now())
-  updatedAt                  DateTime               @updatedAt
-  members                    ClinicMember[]
-  clients                    Client[]
-  pets                       Pet[]
-  appointments               Appointment[]
-  conversations              WhatsappConversation[]
-  messages                   WhatsappMessage[]
-  webhookEvents              WebhookEvent[]
-  medicalRecords             MedicalRecord[]
-  reminders                  Reminder[]
-  appointmentActivities      AppointmentActivity[]
-  quotes                     Quote[]
-  prescriptions              Prescription[]
-  reminderRules              ReminderRule[]
+  status                      ClinicStatus           @default(PENDING)
+  statusReason                String?
+  createdAt                   DateTime               @default(now())
+  updatedAt                   DateTime               @updatedAt
+  members                     ClinicMember[]
+  clients                     Client[]
+  pets                        Pet[]
+  appointments                Appointment[]
+  conversations               WhatsappConversation[]
+  messages                    WhatsappMessage[]
+  webhookEvents               WebhookEvent[]
+  medicalRecords              MedicalRecord[]
+  reminders                   Reminder[]
+  appointmentActivities       AppointmentActivity[]
+  quotes                      Quote[]
+  prescriptions               Prescription[]
+  reminderRules               ReminderRule[]
+  scheduledMessages           ScheduledMessage[]
 }
 
 model User {
@@ -121,6 +138,7 @@ model User {
   appointmentActivities AppointmentActivity[]
   quotes                Quote[]
   prescriptions         Prescription[]
+  scheduledMessages     ScheduledMessage[]
 }
 
 model ClinicMember {
@@ -137,19 +155,20 @@ model ClinicMember {
 }
 
 model Client {
-  id               String                 @id @default(cuid())
-  clinicId         String
-  name             String
-  phone            String
-  email            String?
-  address          String?
-  remindersEnabled Boolean                @default(true)
-  createdAt        DateTime               @default(now())
-  updatedAt        DateTime               @updatedAt
-  clinic           Clinic                 @relation(fields: [clinicId], references: [id], onDelete: Cascade)
-  pets             Pet[]
-  conversations    WhatsappConversation[]
-  reminders        Reminder[]
+  id                String                 @id @default(cuid())
+  clinicId          String
+  name              String
+  phone             String
+  email             String?
+  address           String?
+  remindersEnabled  Boolean                @default(true)
+  createdAt         DateTime               @default(now())
+  updatedAt         DateTime               @updatedAt
+  clinic            Clinic                 @relation(fields: [clinicId], references: [id], onDelete: Cascade)
+  pets              Pet[]
+  conversations     WhatsappConversation[]
+  reminders         Reminder[]
+  scheduledMessages ScheduledMessage[]
 
   @@unique([clinicId, phone])
   @@index([clinicId, name])
@@ -304,7 +323,9 @@ model Prescription {
   @@index([clinicId, petId, createdAt])
 }
 
-/** Regla de recordatorio automático por clínica y tipo de visita (ej: vacuna -> cada 6 meses). Al registrar una visita de ese tipo, se usa como fecha sugerida del próximo control (editable por el profesional). */
+/**
+ * Regla de recordatorio automático por clínica y tipo de visita (ej: vacuna -> cada 6 meses). Al registrar una visita de ese tipo, se usa como fecha sugerida del próximo control (editable por el profesional).
+ */
 model ReminderRule {
   id        String            @id @default(cuid())
   clinicId  String
@@ -344,6 +365,33 @@ model Reminder {
 
   @@index([status, scheduledAt])
   @@index([clinicId, petId, type, status])
+}
+
+/**
+ * Mensaje de WhatsApp de texto libre, escrito a mano por un integrante del equipo desde `/mensajes`
+ * y programado para una fecha/hora futura (a diferencia de `Reminder`, que es automático y ligado
+ * a reglas por tipo de visita).
+ */
+model ScheduledMessage {
+  id                String                 @id @default(cuid())
+  clinicId          String
+  clientId          String
+  userId            String
+  content           String
+  scheduledAt       DateTime
+  status            ScheduledMessageStatus @default(PENDING)
+  attempts          Int                    @default(0)
+  sentAt            DateTime?
+  errorMessage      String?
+  externalMessageId String?
+  createdAt         DateTime               @default(now())
+  updatedAt         DateTime               @updatedAt
+  clinic            Clinic                 @relation(fields: [clinicId], references: [id], onDelete: Cascade)
+  client            Client                 @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  user              User                   @relation(fields: [userId], references: [id], onDelete: Restrict)
+
+  @@index([status, scheduledAt])
+  @@index([clinicId, clientId])
 }
 
 model AppointmentActivity {

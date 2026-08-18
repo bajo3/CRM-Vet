@@ -20,6 +20,20 @@ export function formatTime(date: Date, timezone: string): string {
   return DateTime.fromJSDate(date).setZone(timezone).toFormat("HH:mm");
 }
 
+/** Días de calendario entre ahora y `date` en la zona horaria de la clínica (puede ser negativo si ya pasó). Redondea al día calendario, no a 24hs exactas: "mañana a las 23:59" cuenta como 1, no como 0. */
+export function daysUntil(date: Date, timezone: string): number {
+  const now = DateTime.now().setZone(timezone).startOf("day");
+  const target = DateTime.fromJSDate(date).setZone(timezone).startOf("day");
+  return Math.round(target.diff(now, "days").days);
+}
+
+/** Texto corto en español para `daysUntil`: "hoy", "mañana", "en 3 días". */
+export function daysUntilLabel(days: number): string {
+  if (days <= 0) return "hoy";
+  if (days === 1) return "mañana";
+  return `en ${days} días`;
+}
+
 /** Capitaliza la primera letra (para encabezados de fecha en español, ej "Viernes 10 de julio"). */
 export function capitalize(text: string): string {
   return text.charAt(0).toUpperCase() + text.slice(1);
@@ -91,6 +105,17 @@ const REMINDER_STATUS_BADGES: Record<string, { label: string; className: string 
 
 export function reminderStatusBadge(status: string) {
   return REMINDER_STATUS_BADGES[status] ?? { label: status, className: "bg-slate-100 text-slate-700" };
+}
+
+const SCHEDULED_MESSAGE_STATUS_BADGES: Record<string, { label: string; className: string }> = {
+  PENDING: { label: "Programado", className: "bg-amber-100 text-amber-800" },
+  SENT: { label: "Enviado", className: "bg-emerald-100 text-emerald-800" },
+  CANCELLED: { label: "Cancelado", className: "bg-slate-200 text-slate-600" },
+  FAILED: { label: "Falló", className: "bg-rose-100 text-rose-800" },
+};
+
+export function scheduledMessageStatusBadge(status: string) {
+  return SCHEDULED_MESSAGE_STATUS_BADGES[status] ?? { label: status, className: "bg-slate-100 text-slate-700" };
 }
 
 const APPOINTMENT_STATUS_TEXT: Record<string, string> = {

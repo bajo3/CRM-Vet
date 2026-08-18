@@ -11,6 +11,7 @@ import { ZernioWhatsappCard } from "./zernio-whatsapp-card";
 import { TeamPanel } from "./team-panel";
 import { AccountPanel } from "./account-panel";
 import { ReminderRulesForm } from "./reminder-rules-form";
+import { ReminderTemplatesForm } from "./reminder-templates-form";
 
 export default async function ConfiguracionPage({ searchParams }: { searchParams: Promise<{ whatsapp?: string }> }) {
   const session = await requireSession();
@@ -68,6 +69,13 @@ export default async function ConfiguracionPage({ searchParams }: { searchParams
       </div>
 
       <ReminderRulesForm rules={reminderRules} editable={canEdit} />
+
+      <ReminderTemplatesForm
+        clinicName={clinic.name}
+        controlReminderTemplate={clinic.controlReminderTemplate}
+        appointmentReminderTemplate={clinic.appointmentReminderTemplate}
+        editable={canEdit}
+      />
     </div>
   );
 }

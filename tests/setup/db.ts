@@ -7,6 +7,7 @@ export const prisma = getPrisma();
 
 const TABLES = [
   "AppointmentActivity",
+  "ScheduledMessage",
   "Reminder",
   "Quote",
   "Prescription",
