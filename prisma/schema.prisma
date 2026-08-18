@@ -76,6 +76,12 @@ model Clinic {
   whatsappSessionKey         String?                @unique
   whatsappPhoneNumberId      String?
   whatsappBusinessAccountId  String?
+  /// Profile de Zernio (agrupa la cuenta de WhatsApp de esta clínica). Se crea la primera vez que
+  /// alguien inicia la conexión desde Configuración; ver src/lib/whatsapp/zernio-client.ts.
+  zernioProfileId            String?                @unique
+  /// Cuenta de WhatsApp conectada dentro de ese profile. Null hasta que se completa el Embedded
+  /// Signup de Meta y Zernio redirige de vuelta al callback con el accountId.
+  zernioAccountId            String?                @unique
   /// Clínicas creadas por el seed/scripts entran ya APPROVED; el registro público (`/registro`)
   /// las crea PENDING hasta que un superadmin las apruebe desde `/admin/clinicas`.
   status                     ClinicStatus           @default(PENDING)

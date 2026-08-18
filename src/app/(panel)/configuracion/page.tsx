@@ -7,12 +7,14 @@ import { CLINIC_CONFIG_ROLES, TEAM_MANAGE_ROLES } from "@/lib/auth/roles";
 import { getReminderRules } from "@/lib/queries/reminder-rules";
 import { ClinicForm } from "./clinic-form";
 import { WhatsappConnectionCard } from "./whatsapp-connection-card";
+import { ZernioWhatsappCard } from "./zernio-whatsapp-card";
 import { TeamPanel } from "./team-panel";
 import { AccountPanel } from "./account-panel";
 import { ReminderRulesForm } from "./reminder-rules-form";
 
-export default async function ConfiguracionPage() {
+export default async function ConfiguracionPage({ searchParams }: { searchParams: Promise<{ whatsapp?: string }> }) {
   const session = await requireSession();
+  const { whatsapp: whatsappResult } = await searchParams;
   const canEdit = CLINIC_CONFIG_ROLES.includes(session.role);
   const canManageTeam = TEAM_MANAGE_ROLES.includes(session.role);
   const [clinic, members, reminderRules, currentUser] = await Promise.all([
@@ -44,6 +46,7 @@ export default async function ConfiguracionPage() {
       </header>
 
       {canEdit && <WhatsappConnectionCard />}
+      {canEdit && <ZernioWhatsappCard connected={!!clinic.zernioAccountId} result={whatsappResult} />}
 
       <div className="grid items-start gap-6 xl:grid-cols-[1.35fr_0.65fr]">
         <ClinicForm
