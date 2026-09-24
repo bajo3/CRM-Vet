@@ -1,9 +1,9 @@
 # CRM Vet — Estado del proyecto y tareas para Codex
 
-Actualizado: 20/07/2026. Este archivo documenta el estado real verificado del proyecto y lo que falta,
+Actualizado: 24/09/2026. Este archivo documenta el estado real verificado del proyecto y lo que falta,
 para que un agente (Codex) continúe el trabajo. **Leé este archivo completo antes de tocar código.**
-**Empezá por la sección "Sesiones 13/07 al 20/07/2026" (al final, antes de "Cómo correr todo")**: es lo
-más reciente y donde están los pendientes activos de WhatsApp/multi-tenant.
+**Empezá por la sección "Sesión 24/09/2026 — WhatsApp oficial vía Zernio" (al final, antes de "Cómo
+correr todo")**: es lo más reciente y donde están los pendientes activos.
 
 ## Reglas del proyecto (obligatorias)
 
@@ -589,13 +589,95 @@ WhatsApp por clínica (asignar/guardar/borrar), y una conversación de WhatsApp 
    producción real) — hoy solo la demo tiene un número conectado. Ver pasos en la sección de arriba.
 2. **Monitorear el fix del tctoken** (`44bb556`) contra más conversaciones reales — la teoría está
    confirmada contra el código fuente de Baileys y contra una prueba real, pero todavía es reciente.
-3. Los campos `Clinic.whatsappPhoneNumberId` / `whatsappBusinessAccountId` en el schema están sin usar
+3. ~~[RESUELTO 24/09/2026: columnas borradas]~~ Los campos `Clinic.whatsappPhoneNumberId` / `whatsappBusinessAccountId` en el schema están sin usar
    (quedaron de un plan descartado de migrar a WhatsApp Cloud API de Meta — ver `MetaWhatsAppProvider`
    pendiente más arriba en este archivo). Se pueden borrar si se descarta definitivamente esa migración,
    o dejar si se retoma más adelante.
-4. Sería valioso mostrar en algún lado de la UI (ej. la tarjeta de Configuración) **qué número de
+4. ~~[RESUELTO 24/09/2026]~~ Sería valioso mostrar en algún lado de la UI (ej. la tarjeta de Configuración) **qué número de
    teléfono** está conectado al bridge de esa clínica, para que no vuelva a pasar la confusión de probar
    sobre la cuenta equivocada sin darse cuenta.
+
+
+## Sesión 24/09/2026 — WhatsApp oficial vía Zernio, accesibilidad, seed
+
+### Dos canales de WhatsApp por clínica
+
+- **Baileys** (histórico): un bridge por número en Railway, vinculado por QR. Sin cambios de fondo.
+- **Zernio** (nuevo, recomendado para vender): la clínica conecta su número a la Cloud API de Meta en
+  modo coexistencia (sigue usando la app de WhatsApp Business) desde Configuración → "Pasar a WhatsApp
+  oficial". El flujo de conexión existía desde el 18/08 (`d524f66`) pero **no mandaba ni recibía nada**;
+  eso se completó en `4a87554`.
+
+Una clínica usa Zernio cuando `Clinic.zernioAccountId` no es null. Piezas:
+
+- `src/lib/whatsapp/zernio-client.ts`: conexión (profile + Embedded Signup), `sendZernioWhatsappText`,
+  `getZernioNumberInfo`, `verifyZernioSignature` (HMAC-SHA256 hex del cuerpo crudo, header
+  `X-Zernio-Signature`).
+- `POST /api/whatsapp/zernio/webhook` + `src/lib/whatsapp/zernio-webhook.ts`: un solo webhook para todo
+  el equipo de Zernio; rutea por `account.accountId` → clínica. `message.received` entra al MISMO flujo
+  del bot (`processIncomingWhatsappForClinic`, extraído de `processIncomingWhatsapp`); `message.sent` con
+  `source: whatsapp_business_app` (alguien respondió desde el teléfono) se registra en la bandeja y pasa
+  la conversación a `HUMAN_ACTIVE` para que el bot se calle; `message.delivered/read/failed` actualizan el
+  estado. Zernio exige 2xx en <5 s: la respuesta del bot se envía con `after()`.
+- `src/lib/services/zernio-outbox.ts`: despacha la outbox (`HUMAN_QUEUED`, la misma que usa Baileys) por
+  la API de Zernio. Se llama después de encolar (webhook, respuesta humana, reintento manual) y además en
+  cada vuelta del worker de recordatorios (`worker/reminders.ts`) como barrido de reintentos y para los
+  recordatorios/mensajes programados. El bridge de Baileys ya no reclama mensajes de clínicas con Zernio.
+- **Ventana de 24 h de Meta**: dentro de la ventana (`WhatsappConversation.lastInboundAt`) se responde en la
+  conversación (`zernioConversationId`); fuera (recordatorios) se abre con **Direct Send de utilidad**
+  (`category: "utility"`, sin plantilla). Si la WABA no es elegible para Direct Send, Meta devuelve
+  `DIRECT_SEND_NOT_ELIGIBLE` y el mensaje queda "No enviado" sin reintentos. **Riesgo abierto**: si eso
+  pasa con una clínica real, hay que crear una plantilla de utilidad aprobada y usar `templateName`
+  en `sendZernioWhatsappText` (no implementado todavía, a propósito, hasta ver si hace falta).
+- Configuración muestra el **número conectado** (en los dos canales; el bridge expone `phoneNumber` en
+  `/status`) y ya no aparece la palabra "bridge"/"Railway" de cara al usuario.
+- Migración `20260924120000_zernio_messaging`: agrega `lastInboundAt` y `zernioConversationId`, y **borra**
+  `Clinic.whatsappPhoneNumberId` / `whatsappBusinessAccountId` (nunca se usaron).
+- Tests: `tests/zernio-channel.test.ts` (12 casos: firma, ruteo, dedupe, ventana, errores permanentes vs.
+  transitorios, recibos, eco del teléfono, bridge que no reclama).
+
+**Para activarlo en producción** (una sola vez):
+1. `npm run db:migrate` contra la base de producción (ANTES de desplegar el código nuevo).
+2. En Vercel: `ZERNIO_API_KEY` (ya está) y `ZERNIO_WEBHOOK_SECRET` (nuevo, inventarlo largo).
+3. En Railway, servicio `CRM-Vet-Reminders`: `ZERNIO_API_KEY` y `REMINDER_PROVIDER=outbox`.
+4. `ZERNIO_WEBHOOK_SECRET=... npm run zernio:webhook -- https://crm-vet-three.vercel.app`.
+5. Desde Configuración de la clínica, "Conectar WhatsApp oficial".
+
+### Otros cambios de esta sesión
+
+- Accesibilidad (`1e2bcc5`): auditoría a 375 px de todas las páginas del panel — **sin desbordes
+  horizontales**. Se les dio nombre accesible a buscadores, filtros de agenda, huecos vacíos de la agenda,
+  compositor de mensajes, reglas/plantillas de recordatorio, formularios de cuenta, registro y admin.
+- `npm run db:seed` estaba roto desde el paso a ESM (`require.main` no existe) — arreglado.
+- **Misterio del esqueleto de `loading.tsx` resuelto**: no es un bug. React 19 revela los límites de
+  Suspense en lote dentro de un `requestAnimationFrame`, que el navegador no ejecuta en pestañas ocultas.
+  Los paneles de navegador automatizado suelen estar ocultos (`document.visibilityState === "hidden"`),
+  así que el contenido queda en `<div hidden id="S:0">` hasta que la pestaña se ve. Para verificar en ese
+  entorno, leé el DOM (el contenido ya está ahí) en vez de fiarte de la captura.
+
+### Trampas del entorno local (máquina del dueño)
+
+- Hay variables **de usuario de Windows** `DATABASE_URL` (apunta a otro proyecto, `brecha_oscura` en
+  localhost) y `NODE_ENV=development`. Pisan al `.env`: `prisma` y los tests apuntan a otra base, y
+  `next build` falla prerenderizando (`useContext` de null). Correr con
+  `env -u DATABASE_URL -u NODE_ENV npm run build` (bash) o sacarlas de las variables de entorno.
+- Si Supabase está pausado (plan free, se pausa por inactividad), los tests se pueden correr contra un
+  Postgres local en UTF-8 poniendo `DATABASE_URL=postgresql://postgres:postgres@localhost:55432/<db>`;
+  la config `next-dev-localdb` de `.claude/launch.json` levanta la web contra `crm_vet_dev` en ese puerto.
+
+### Estado verificado al 24/09/2026
+
+`tsc` limpio, `eslint` limpio, **146/146 tests** (contra Postgres local: Supabase estaba pausado),
+`next build` OK. Producción (`crm-vet-three.vercel.app`) **caída** al momento de esta sesión: la base de
+Supabase respondía "tenant/user not found" (proyecto pausado). Hay que restaurarlo desde el dashboard.
+
+### Pendientes reales
+
+1. **Restaurar el proyecto de Supabase** y, recién después, aplicar la migración y desplegar.
+2. Activar Zernio en producción (pasos de arriba) y probar una conversación real + un recordatorio real
+   (confirma si la WABA es elegible para Direct Send).
+3. Si Direct Send no está disponible: soporte de plantilla aprobada para recordatorios.
+4. Plan free de Supabase se pausa solo: para vender, pasar a plan pago o a otra base sin pausa.
 
 ## Cómo correr todo
 

@@ -182,6 +182,18 @@ Baileys automatiza WhatsApp Web; no es la API oficial de Meta. Puede sufrir cier
 
 Más detalles en [docs/architecture.md](docs/architecture.md), [docs/whatsapp-baileys.md](docs/whatsapp-baileys.md) y [docs/deployment.md](docs/deployment.md).
 
+## WhatsApp oficial (Meta Cloud API vía Zernio)
+
+Cada clínica puede conectar su número a la API oficial de Meta desde **Configuración → Pasar a WhatsApp oficial**
+(Embedded Signup de Meta a través de [Zernio](https://docs.zernio.com), en modo coexistencia: la veterinaria sigue
+usando la app de WhatsApp Business). Desde ese momento esa clínica deja de usar Baileys: los mensajes entrantes
+llegan por `POST /api/whatsapp/zernio/webhook` al mismo bot, y la outbox se envía por la API de Zernio (al
+instante y, como barrido de reintentos, desde el worker de recordatorios). Fuera de la ventana de 24 h de Meta
+(recordatorios), el mensaje sale como Direct Send de utilidad, sin plantilla.
+
+Puesta en marcha: `ZERNIO_API_KEY` y `ZERNIO_WEBHOOK_SECRET` en Vercel, `ZERNIO_API_KEY` + `REMINDER_PROVIDER=outbox`
+en el worker de recordatorios, y una sola vez `npm run zernio:webhook -- <url pública del CRM>`.
+
 ## Verificación
 
 ```bash
@@ -204,12 +216,8 @@ contra una base remota son más lentos que un `sqlite`/`pg` local; por eso corre
 - Multiempresa real: hoy la sesión fija la primera membresía activa del usuario; falta selector de clínica para usuarios con más de una membresía.
 - Infraestructura: el pooler de Supabase corre en modo sesión con `pool_size: 15` compartido entre todos los procesos (dev, start, workers, tests, y cualquier otro checkout corriendo en simultáneo). Cada `PrismaClient` ahora limita su propio `connection_limit` a 4 (`src/lib/prisma.ts`), pero si corren muchos procesos a la vez el pool igual puede saturarse — considerar un pooler dedicado (PgBouncer en modo transacción) o subir `pool_size` en Supabase si esto seguís viéndolo seguido.
 - Reprogramación automática por WhatsApp (hoy se deriva a recepción; `rescheduleAppointment` ya se usa desde la Agenda del CRM).
-- Envío real de recordatorios: reemplazar `MockWhatsAppProvider` por un proveedor que use Baileys (o Meta Cloud API) una vez definido el canal productivo.
 - Rate limiting distribuido y métricas operativas.
-- Migración a Meta Cloud API antes de considerar el canal productivo.
-- `User.licenseNumber` (matrícula profesional, se muestra en la receta si está cargada) no tiene UI de
-  edición todavía — solo existe el campo en el modelo. Falta sumarlo al formulario de alta/edición de
-  integrante en `Configuración → Equipo`.
+- Si una clínica no es elegible para Direct Send de Meta, los recordatorios fuera de la ventana de 24 h fallan: falta soporte de plantilla aprobada.
 - El botón "Nueva receta"/"Nuevo presupuesto" de la ficha de mascota enlaza por ancla al panel
   correspondiente (que arranca cerrado, un clic lo despliega); se evaluó auto-abrirlo leyendo el hash de la
   URL pero se descartó por el lint `react-hooks/set-state-in-effect` (cascading render) — mejora de UX
