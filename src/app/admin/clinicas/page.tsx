@@ -41,26 +41,23 @@ export default async function AdminClinicasPage() {
     <div className="mx-auto max-w-4xl space-y-7 px-4 py-6 sm:px-7 lg:py-9">
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">Clínicas</h1>
-        <p className="mt-1 text-sm text-slate-500">Altas nuevas pendientes de revisión y el historial de aprobadas/rechazadas.</p>
+        <p className="mt-1 text-sm text-slate-500">Las clínicas se registran y activan solas. Desde acá podés suspender una (y reactivarla) si hace falta.</p>
       </div>
 
-      <section className="space-y-3">
-        <h2 className="text-sm font-semibold text-slate-700">Pendientes ({pending.length})</h2>
-        {pending.length === 0 ? (
-          <p className="rounded-2xl border border-dashed border-slate-200 bg-white p-6 text-center text-sm text-slate-400">
-            No hay altas esperando revisión.
-          </p>
-        ) : (
+      {/* Solo quedan pendientes las altas anteriores al autoservicio (24/09/2026). */}
+      {pending.length > 0 && (
+        <section className="space-y-3">
+          <h2 className="text-sm font-semibold text-slate-700">Pendientes ({pending.length})</h2>
           <div className="space-y-3">
             {pending.map((clinic) => (
               <PendingClinicRow key={clinic.id} clinic={clinic} />
             ))}
           </div>
-        )}
-      </section>
+        </section>
+      )}
 
       <section className="space-y-3">
-        <h2 className="text-sm font-semibold text-slate-700">Historial ({decided.length})</h2>
+        <h2 className="text-sm font-semibold text-slate-700">Clínicas ({decided.length})</h2>
         {decided.length === 0 ? (
           <p className="rounded-2xl border border-dashed border-slate-200 bg-white p-6 text-center text-sm text-slate-400">Todavía no hay nada acá.</p>
         ) : (

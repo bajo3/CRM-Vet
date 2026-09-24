@@ -183,6 +183,18 @@ export function DecidedClinicRow({ clinic }: { clinic: ClinicRow }) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
+  const [showSuspend, setShowSuspend] = useState(false);
+  const [reason, setReason] = useState("");
+
+  const onSuspend = () => {
+    setError(null);
+    startTransition(async () => {
+      const result = await rejectClinic({ clinicId: clinic.id, reason: reason.trim() || undefined });
+      if (!result.ok) { setError(result.message); return; }
+      setShowSuspend(false);
+      router.refresh();
+    });
+  };
 
   const onApprove = () => {
     setError(null);
@@ -208,8 +220,18 @@ export function DecidedClinicRow({ clinic }: { clinic: ClinicRow }) {
         </div>
         <div className="flex shrink-0 items-center gap-2">
           <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${clinic.status === "APPROVED" ? "bg-emerald-50 text-emerald-700" : "bg-rose-50 text-rose-700"}`}>
-            {clinic.status === "APPROVED" ? "Aprobada" : "Rechazada"}
+            {clinic.status === "APPROVED" ? "Activa" : "Suspendida"}
           </span>
+          {clinic.status === "APPROVED" && !showSuspend && (
+            <button
+              type="button"
+              onClick={() => setShowSuspend(true)}
+              className="flex h-8 items-center gap-1.5 rounded-lg border border-slate-200 px-2.5 text-xs font-medium text-rose-600 hover:bg-rose-50"
+            >
+              <X size={13} />
+              Suspender
+            </button>
+          )}
           {clinic.status === "REJECTED" && (
             <button
               type="button"
@@ -218,11 +240,41 @@ export function DecidedClinicRow({ clinic }: { clinic: ClinicRow }) {
               className="flex h-8 items-center gap-1.5 rounded-lg border border-slate-200 px-2.5 text-xs font-medium text-slate-600 hover:bg-slate-50 disabled:opacity-60"
             >
               {isPending ? <Loader2 size={13} className="animate-spin" /> : <Check size={13} />}
-              Revertir
+              Reactivar
             </button>
           )}
         </div>
       </div>
+      {showSuspend && (
+        <div className="mt-3 rounded-xl bg-slate-50 p-3">
+          <p className="mb-2 text-xs text-slate-600">Nadie de esta clínica va a poder entrar hasta que la reactives. No se borra ningún dato.</p>
+          <div className="flex flex-wrap gap-2">
+            <input
+              aria-label="Motivo de la suspensión"
+              value={reason}
+              onChange={(event) => setReason(event.target.value)}
+              placeholder="Motivo (opcional, se le muestra al intentar entrar)"
+              className="h-9 min-w-0 flex-1 rounded-lg border border-slate-200 bg-white px-3 text-sm outline-none focus:border-emerald-400"
+            />
+            <button
+              type="button"
+              onClick={onSuspend}
+              disabled={isPending}
+              className="flex h-9 items-center gap-1.5 rounded-lg bg-rose-600 px-3 text-xs font-semibold text-white hover:bg-rose-700 disabled:opacity-60"
+            >
+              {isPending && <Loader2 size={13} className="animate-spin" />}
+              Confirmar
+            </button>
+            <button
+              type="button"
+              onClick={() => setShowSuspend(false)}
+              className="flex h-9 items-center rounded-lg border border-slate-200 px-3 text-xs font-medium text-slate-600 hover:bg-white"
+            >
+              Cancelar
+            </button>
+          </div>
+        </div>
+      )}
       {clinic.status === "APPROVED" && <WhatsappBridgeEditor clinic={clinic} />}
     </div>
   );

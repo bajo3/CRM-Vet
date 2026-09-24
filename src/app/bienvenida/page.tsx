@@ -205,7 +205,7 @@ export default function BienvenidaPage() {
       <section className="mx-auto max-w-4xl px-4 py-14 text-center sm:px-7 sm:py-20 lg:px-10">
         <h2 className="text-2xl font-semibold tracking-tight sm:text-3xl">¿Lista para dejar de mandar recordatorios a mano?</h2>
         <p className="mx-auto mt-3 max-w-xl text-sm leading-6 text-slate-500 sm:text-base">
-          Registrá tu clínica hoy. El alta pasa por una aprobación rápida de nuestro equipo antes de activarse.
+          Registrá tu clínica en un minuto y empezá a usarla al instante: conectás tu WhatsApp vos mismo, sin esperar a nadie.
         </p>
         <div className="mt-7 flex justify-center">
           <Link

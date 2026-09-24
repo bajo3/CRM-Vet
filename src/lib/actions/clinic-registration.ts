@@ -3,6 +3,7 @@
 import { headers } from "next/headers";
 import { getPrisma } from "../prisma";
 import { hashPassword } from "../auth/password";
+import { createSession } from "../auth/session";
 import { checkRateLimit, clientIpFromHeaders } from "../rate-limit";
 import { registerClinicSchema, type RegisterClinicInput } from "../validation/clinic-registration";
 import type { ActionResult } from "./types";
@@ -22,9 +23,9 @@ function isUniqueEmailViolation(error: unknown): boolean {
 export type RegisterClinicResult = ActionResult;
 
 /**
- * Alta pública de una clínica nueva: crea la clínica en estado PENDING junto con su primer usuario
- * (rol OWNER). No crea sesión — la cuenta queda inactiva para loguearse hasta que un superadmin la
- * apruebe desde /admin/clinicas (`getSession`/`login` rechazan clínicas no aprobadas).
+ * Alta pública y autoservicio de una clínica nueva: crea la clínica ya activa (APPROVED) junto con su
+ * primer usuario (rol OWNER) y le abre la sesión, sin intervención del superadmin. El superadmin
+ * igual puede suspender una clínica después desde /admin/clinicas (`REJECTED` bloquea el login).
  */
 export async function registerClinic(input: RegisterClinicInput): Promise<RegisterClinicResult> {
   const requestHeaders = await headers();
@@ -58,11 +59,11 @@ export async function registerClinic(input: RegisterClinicInput): Promise<Regist
 
   try {
     const passwordHash = await hashPassword(parsed.data.password);
-    await prisma.clinic.create({
+    const clinic = await prisma.clinic.create({
       data: {
         name: parsed.data.clinicName,
         phone: parsed.data.clinicPhone || null,
-        status: "PENDING",
+        status: "APPROVED",
         openingHours: DEFAULT_OPENING_HOURS,
         members: {
           create: {
@@ -72,7 +73,9 @@ export async function registerClinic(input: RegisterClinicInput): Promise<Regist
           },
         },
       },
+      select: { id: true, members: { select: { userId: true } } },
     });
+    await createSession({ userId: clinic.members[0].userId, clinicId: clinic.id, role: "OWNER", name: parsed.data.name });
     return { ok: true };
   } catch (error) {
     if (isUniqueEmailViolation(error)) {

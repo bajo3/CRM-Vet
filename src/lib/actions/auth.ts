@@ -65,7 +65,7 @@ export async function login(input: LoginInput): Promise<LoginResult> {
     const reason = rejected.clinic.statusReason;
     return {
       ok: false,
-      message: reason ? `Tu solicitud fue rechazada: ${reason}` : "Tu solicitud de alta fue rechazada. Contactanos si creés que es un error.",
+      message: reason ? `La cuenta de tu clínica está suspendida: ${reason}` : "La cuenta de tu clínica está suspendida. Contactanos si creés que es un error.",
     };
   }
 

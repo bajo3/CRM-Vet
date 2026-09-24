@@ -46,8 +46,16 @@ export default async function ConfiguracionPage({ searchParams }: { searchParams
         </span>
       </header>
 
-      {canEdit && <WhatsappConnectionCard />}
-      {canEdit && <ZernioWhatsappCard connected={!!clinic.zernioAccountId} result={whatsappResult} />}
+      {/* Clínica sin ningún WhatsApp (típico recién registrada): la conexión oficial es el único
+          camino y es autoservicio. Con bridge por QR, se ofrece además pasarse al oficial. */}
+      {canEdit && (clinic.zernioAccountId || clinic.whatsappSessionKey) && <WhatsappConnectionCard />}
+      {canEdit && (
+        <ZernioWhatsappCard
+          connected={!!clinic.zernioAccountId}
+          primary={!clinic.zernioAccountId && !clinic.whatsappSessionKey}
+          result={whatsappResult}
+        />
+      )}
 
       <div className="grid items-start gap-6 xl:grid-cols-[1.35fr_0.65fr]">
         <ClinicForm

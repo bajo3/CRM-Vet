@@ -655,6 +655,26 @@ Una clínica usa Zernio cuando `Clinic.zernioAccountId` no es null. Piezas:
   así que el contenido queda en `<div hidden id="S:0">` hasta que la pestaña se ve. Para verificar en ese
   entorno, leé el DOM (el contenido ya está ahí) en vez de fiarte de la captura.
 
+### Autoservicio total (también 24/09/2026, a pedido del dueño)
+
+El dueño de la plataforma no quiere intervenir en las altas. Ahora:
+- `/registro` crea la clínica **ya `APPROVED`** y abre la sesión del OWNER (`registerClinic` →
+  `createSession`), redirige a `/?bienvenida=1`. Ya no hay aprobación manual.
+- `/admin/clinicas`: la sección "Pendientes" solo aparece si quedan altas viejas; cada clínica activa
+  tiene **Suspender** (reusa `rejectClinic`, estado `REJECTED` = suspendida, bloquea el login) y
+  **Reactivar**.
+- WhatsApp: una clínica **sin `whatsappSessionKey` ni `zernioAccountId` ya no cae en el bridge global**
+  (antes veía el QR del número de la demo y podía vincularlo). `/api/whatsapp/status` devuelve
+  `channel: "none"` / `NOT_CONFIGURED`, y Configuración le muestra como tarjeta principal "Conectá el
+  WhatsApp de tu veterinaria" (Zernio, autoservicio). Banner ámbar en todo el panel hasta conectarlo.
+- Inicio muestra una guía de primeros pasos (`src/app/(panel)/setup-checklist.tsx`) a OWNER/ADMIN:
+  WhatsApp, datos+logo, equipo, primer cliente. Se oculta sola cuando está todo hecho.
+- Outbox de Zernio: los mensajes con más de 12 h en cola se descartan (`STALE_OUTBOUND_MS`) para que al
+  conectar WhatsApp no salgan recordatorios viejos; el reintento manual renueva `createdAt`.
+- **Costo**: Zernio cobra por cuenta conectada. Con autoservicio sin cobro a la clínica, cualquiera que
+  se registre y conecte WhatsApp genera costo. Falta decidir precio/cobro (Mercado Pago estaba fuera de
+  alcance del MVP).
+
 ### Trampas del entorno local (máquina del dueño)
 
 - Hay variables **de usuario de Windows** `DATABASE_URL` (apunta a otro proyecto, `brecha_oscura` en
@@ -678,6 +698,7 @@ Supabase respondía "tenant/user not found" (proyecto pausado). Hay que restaura
    (confirma si la WABA es elegible para Direct Send).
 3. Si Direct Send no está disponible: soporte de plantilla aprobada para recordatorios.
 4. Plan free de Supabase se pausa solo: para vender, pasar a plan pago o a otra base sin pausa.
+5. Cobro a las clínicas (autoservicio abierto = cada alta que conecta WhatsApp cuesta en Zernio).
 
 ## Cómo correr todo
 

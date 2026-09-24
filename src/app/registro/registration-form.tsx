@@ -3,14 +3,15 @@
 import { useState, useTransition } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { CheckCircle2, Loader2 } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { Loader2 } from "lucide-react";
 import { registerClinicSchema, type RegisterClinicInput } from "@/lib/validation/clinic-registration";
 import { registerClinic } from "@/lib/actions/clinic-registration";
 
 export function RegistrationForm() {
   const [isPending, startTransition] = useTransition();
   const [formError, setFormError] = useState<string | null>(null);
-  const [submitted, setSubmitted] = useState(false);
+  const router = useRouter();
 
   const {
     register,
@@ -35,22 +36,11 @@ export function RegistrationForm() {
         }
         return;
       }
-      setSubmitted(true);
+      // La clínica queda activa y con la sesión abierta: directo al panel, con la guía de inicio.
+      router.replace("/?bienvenida=1");
+      router.refresh();
     });
   };
-
-  if (submitted) {
-    return (
-      <div className="flex flex-col items-center gap-3 py-4 text-center">
-        <CheckCircle2 size={40} className="text-emerald-600" />
-        <p className="font-medium">Recibimos tu solicitud</p>
-        <p className="text-sm leading-6 text-slate-500">
-          Vamos a revisar los datos de tu clínica y te habilitamos el acceso pronto. Cuando esté aprobada, vas a poder
-          iniciar sesión con el correo y la contraseña que registraste.
-        </p>
-      </div>
-    );
-  }
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-4" noValidate>
@@ -135,7 +125,7 @@ export function RegistrationForm() {
         className="flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-emerald-600 text-sm font-medium text-white shadow-sm shadow-emerald-200 disabled:opacity-60"
       >
         {isPending && <Loader2 size={16} className="animate-spin" />}
-        Registrar mi clínica
+        Crear mi cuenta y entrar
       </button>
     </form>
   );

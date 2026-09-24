@@ -92,7 +92,9 @@ export async function retryFailedMessage(messageId: string): Promise<void> {
 
   await getPrisma().whatsappMessage.update({
     where: { id: message.id },
-    data: { status: "HUMAN_QUEUED", attempts: 0 },
+    // Fecha nueva: es un reenvío pedido ahora por alguien del equipo, no un mensaje viejo que quedó en
+    // cola (esos se descartan por viejos, ver STALE_OUTBOUND_MS en zernio-outbox).
+    data: { status: "HUMAN_QUEUED", attempts: 0, createdAt: new Date() },
   });
   dispatchAfterResponse(session.clinicId);
   revalidatePath("/mensajes");

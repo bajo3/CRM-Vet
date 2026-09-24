@@ -23,6 +23,7 @@ export const getClinicSettings = cache(async (clinicId: string) => {
       controlReminderTemplate: true,
       appointmentReminderTemplate: true,
       zernioAccountId: true,
+      whatsappSessionKey: true,
     },
   });
 });

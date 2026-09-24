@@ -33,6 +33,9 @@ export function WhatsappChannelStatus() {
   if (["STARTING", "RECONNECTING"].includes(status)) {
     return <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-50 px-2.5 py-1 text-[11px] font-semibold text-amber-700"><Loader2 size={12} className="animate-spin" />Reconectando</span>;
   }
+  if (status === "NOT_CONFIGURED") {
+    return <span title="Conectalo desde Configuración" className="inline-flex items-center gap-1.5 rounded-full bg-amber-50 px-2.5 py-1 text-[11px] font-semibold text-amber-700"><CircleAlert size={12} />WhatsApp sin conectar</span>;
+  }
   const needsLink = status === "WAITING_QR" || status === "LOGGED_OUT";
   return <span title={needsLink ? "Hay que volver a vincular el dispositivo desde Configuración" : "Los mensajes quedarán en cola hasta recuperar la conexión"} className="inline-flex items-center gap-1.5 rounded-full bg-rose-50 px-2.5 py-1 text-[11px] font-semibold text-rose-700">{needsLink ? <CircleAlert size={12} /> : <WifiOff size={12} />}{needsLink ? "Requiere vinculación" : "WhatsApp sin conexión"}</span>;
 }

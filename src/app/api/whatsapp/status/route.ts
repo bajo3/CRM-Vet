@@ -29,7 +29,7 @@ export async function GET(request: NextRequest) {
   const clinic = session.clinicId
     ? await getPrisma().clinic.findUnique({
         where: { id: session.clinicId },
-        select: { whatsappBridgeUrl: true, zernioAccountId: true },
+        select: { whatsappBridgeUrl: true, whatsappSessionKey: true, zernioAccountId: true },
       })
     : null;
 
@@ -48,9 +48,15 @@ export async function GET(request: NextRequest) {
     });
   }
 
-  // Cada clínica puede tener su propio bridge de Railway (un número de WhatsApp por clínica). Si
-  // todavía no tiene uno asignado, cae al bridge global (usado hoy por la clínica demo y durante
-  // la transición mientras se provisionan bridges dedicados para el resto).
+  // Una clínica sin bridge propio (`whatsappSessionKey`) todavía no conectó ningún WhatsApp. NO la
+  // mandamos al bridge global: ese es el número de otra clínica (la demo) y vería su QR. La vía de
+  // autoservicio para conectarse es Zernio, desde Configuración.
+  if (!clinic?.whatsappSessionKey) {
+    return NextResponse.json({ channel: "none", status: "NOT_CONFIGURED", qrDataUrl: null });
+  }
+
+  // Cada clínica con bridge puede tener su propio servicio de Railway (un número por clínica). Si no
+  // tiene URL asignada, cae al bridge global (el de la clínica demo).
   const bridgeUrl = clinic?.whatsappBridgeUrl || process.env.WHATSAPP_BRIDGE_URL;
   const internalToken = process.env.INTERNAL_WHATSAPP_TOKEN;
   if (!bridgeUrl || !internalToken) {

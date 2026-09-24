@@ -150,6 +150,27 @@ describe("canal de WhatsApp vía Zernio", () => {
     expect((await prisma.whatsappMessage.findUniqueOrThrow({ where: { id: message.id } })).status).toBe("FAILED");
   });
 
+  it("no envía mensajes que esperaron demasiado en la cola (ej. antes de conectar WhatsApp)", async () => {
+    const clinic = await createZernioClinic();
+    const conversation = await prisma.whatsappConversation.create({ data: { clinicId: clinic.id, phone: PHONE } });
+    const message = await prisma.whatsappMessage.create({
+      data: {
+        clinicId: clinic.id,
+        conversationId: conversation.id,
+        direction: "OUTBOUND",
+        content: "Tu turno es mañana",
+        status: "HUMAN_QUEUED",
+        createdAt: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000),
+      },
+    });
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+
+    expect(await dispatchZernioOutbox(prisma, clinic.id)).toEqual({ sent: 0, failed: 1 });
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect((await prisma.whatsappMessage.findUniqueOrThrow({ where: { id: message.id } })).status).toBe("FAILED");
+  });
+
   it("un error transitorio vuelve el mensaje a la cola para reintentarlo", async () => {
     const clinic = await createZernioClinic();
     const conversation = await prisma.whatsappConversation.create({ data: { clinicId: clinic.id, phone: PHONE } });

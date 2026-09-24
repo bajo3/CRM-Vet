@@ -4,6 +4,12 @@ import { claimOutboundMessages, reportOutboundOutcome } from "./whatsapp-outboun
 
 type PrismaLike = ReturnType<typeof getPrisma>;
 
+/**
+ * Un mensaje que esperó más que esto en la cola (típicamente: recordatorios encolados antes de que la
+ * clínica conectara WhatsApp) ya no se envía: "tu turno es mañana" dicho tres días tarde confunde.
+ */
+export const STALE_OUTBOUND_MS = 12 * 60 * 60 * 1000;
+
 export type ZernioDispatchResult = { sent: number; failed: number };
 
 /**
@@ -24,12 +30,19 @@ export async function dispatchZernioOutbox(prisma: PrismaLike, clinicId: string,
 
   const conversations = await prisma.whatsappMessage.findMany({
     where: { id: { in: claimed.map((message) => message.id) } },
-    select: { id: true, conversation: { select: { id: true, lastInboundAt: true, zernioConversationId: true } } },
+    select: { id: true, createdAt: true, conversation: { select: { id: true, lastInboundAt: true, zernioConversationId: true } } },
   });
   const conversationByMessage = new Map(conversations.map((row) => [row.id, row.conversation]));
+  const createdAtByMessage = new Map(conversations.map((row) => [row.id, row.createdAt]));
 
   for (const message of claimed) {
     const conversation = conversationByMessage.get(message.id);
+    const createdAt = createdAtByMessage.get(message.id);
+    if (createdAt && Date.now() - createdAt.getTime() > STALE_OUTBOUND_MS) {
+      await reportOutboundOutcome(prisma, clinicId, message.id, "FAILED", undefined, false);
+      result.failed += 1;
+      continue;
+    }
     const windowOpen = Boolean(
       conversation?.lastInboundAt && Date.now() - conversation.lastInboundAt.getTime() < CUSTOMER_SERVICE_WINDOW_MS
     );

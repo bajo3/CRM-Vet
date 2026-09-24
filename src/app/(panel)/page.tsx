@@ -2,10 +2,11 @@ import Link from "next/link";
 import { DateTime } from "luxon";
 import { CalendarDays, ChevronRight, Clock3, MessageCircle, PawPrint, Plus, Search } from "lucide-react";
 import { requireSession, hasRole } from "@/lib/auth/session";
-import { AGENDA_MANAGE_ROLES } from "@/lib/auth/roles";
+import { AGENDA_MANAGE_ROLES, CLINIC_CONFIG_ROLES } from "@/lib/auth/roles";
 import { getClinicSettings } from "@/lib/queries/clinic";
 import { getDashboardData } from "@/lib/queries/dashboard";
 import { appointmentStatusBadge, capitalize, formatTime } from "@/lib/format";
+import { SetupChecklist } from "./setup-checklist";
 
 function greeting(hour: number) {
   if (hour < 12) return "Buen día";
@@ -13,8 +14,9 @@ function greeting(hour: number) {
   return "Buenas noches";
 }
 
-export default async function InicioPage() {
+export default async function InicioPage({ searchParams }: { searchParams: Promise<{ bienvenida?: string }> }) {
   const session = await requireSession();
+  const { bienvenida } = await searchParams;
   const clinic = await getClinicSettings(session.clinicId);
   const timezone = clinic?.timezone ?? "America/Argentina/Buenos_Aires";
 
@@ -59,6 +61,8 @@ export default async function InicioPage() {
           </Link>
         </div>
       </header>
+
+      {hasRole(session, CLINIC_CONFIG_ROLES) && <SetupChecklist clinicId={session.clinicId} welcome={bienvenida === "1"} />}
 
       <form action="/clientes" className="mb-7 flex h-12 max-w-xl items-center gap-3 rounded-xl border border-slate-200 bg-white px-4 shadow-sm">
         <Search size={18} className="text-slate-400" />
