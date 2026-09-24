@@ -62,7 +62,7 @@ export default async function InicioPage() {
 
       <form action="/clientes" className="mb-7 flex h-12 max-w-xl items-center gap-3 rounded-xl border border-slate-200 bg-white px-4 shadow-sm">
         <Search size={18} className="text-slate-400" />
-        <input name="q" className="w-full bg-transparent text-sm outline-none placeholder:text-slate-400" placeholder="Buscar cliente, mascota o teléfono" />
+        <input name="q" className="w-full bg-transparent text-sm outline-none placeholder:text-slate-400" placeholder="Buscar cliente, mascota o teléfono" aria-label="Buscar cliente, mascota o teléfono" />
       </form>
 
       <div className="mb-7 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">

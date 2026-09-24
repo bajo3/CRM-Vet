@@ -62,6 +62,7 @@ export function ReminderRulesForm({
                 Cada
                 <input
                   type="number"
+                  aria-label={`Meses entre controles: ${option.label}`}
                   min={1}
                   max={36}
                   disabled={!value.enabled}

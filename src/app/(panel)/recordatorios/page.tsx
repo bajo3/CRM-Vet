@@ -75,6 +75,7 @@ export default async function RecordatoriosPage({ searchParams }: { searchParams
           defaultValue={q}
           className="w-full bg-transparent text-sm outline-none placeholder:text-slate-400"
           placeholder="Buscar por cliente o mascota"
+          aria-label="Buscar recordatorios"
         />
       </form>
 

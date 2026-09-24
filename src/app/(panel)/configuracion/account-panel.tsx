@@ -84,8 +84,9 @@ export function AccountPanel({ licenseNumber }: { licenseNumber: string }) {
 
       <form onSubmit={handleLicenseSubmit(onLicenseSubmit)} className="space-y-3 border-b border-slate-100 p-5" noValidate>
         <div>
-          <label className="mb-1 block text-xs font-medium text-slate-600">Matrícula profesional</label>
+          <label htmlFor="account-license" className="mb-1 block text-xs font-medium text-slate-600">Matrícula profesional</label>
           <input
+            id="account-license"
             type="text"
             placeholder="Ej: MP 12345"
             maxLength={40}
@@ -114,8 +115,9 @@ export function AccountPanel({ licenseNumber }: { licenseNumber: string }) {
 
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-3 p-5" noValidate>
         <div>
-          <label className="mb-1 block text-xs font-medium text-slate-600">Contraseña actual</label>
+          <label htmlFor="account-current-password" className="mb-1 block text-xs font-medium text-slate-600">Contraseña actual</label>
           <input
+            id="account-current-password"
             type="password"
             autoComplete="current-password"
             className="h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm outline-none focus:border-emerald-400"
@@ -124,8 +126,9 @@ export function AccountPanel({ licenseNumber }: { licenseNumber: string }) {
           {errors.currentPassword && <p className="mt-1 text-xs text-rose-600">{errors.currentPassword.message}</p>}
         </div>
         <div>
-          <label className="mb-1 block text-xs font-medium text-slate-600">Contraseña nueva</label>
+          <label htmlFor="account-new-password" className="mb-1 block text-xs font-medium text-slate-600">Contraseña nueva</label>
           <input
+            id="account-new-password"
             type="password"
             autoComplete="new-password"
             placeholder="Mínimo 8 caracteres"

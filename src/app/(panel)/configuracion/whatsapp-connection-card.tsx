@@ -103,14 +103,14 @@ export function WhatsappConnectionCard() {
             <div>
               <p className="text-sm font-semibold text-slate-800">Cómo vincularlo</p>
               <ol className="mt-3 space-y-3 text-sm text-slate-600">
-                {["Abrí WhatsApp en el teléfono de la veterinaria.", "Entrá a Dispositivos vinculados y tocá Vincular dispositivo.", "Escaneá el código que aparece a la derecha."].map((step, index) => (
+                {["Abrí WhatsApp en el teléfono de la veterinaria.", "Entrá a Dispositivos vinculados y tocá Vincular dispositivo.", "Escaneá el código QR que aparece en esta tarjeta."].map((step, index) => (
                   <li key={step} className="flex gap-3">
                     <span className="grid size-6 shrink-0 place-items-center rounded-full bg-emerald-100 text-xs font-semibold text-emerald-700">{index + 1}</span>
                     <span className="pt-0.5">{step}</span>
                   </li>
                 ))}
               </ol>
-              <p className="mt-4 text-xs leading-5 text-slate-400">El QR se renueva automáticamente. La sesión queda guardada en Railway después de vincular el dispositivo.</p>
+              <p className="mt-4 text-xs leading-5 text-slate-400">El código se renueva solo. Una vez vinculado, no hace falta volver a escanearlo.</p>
             </div>
           )}
         </div>

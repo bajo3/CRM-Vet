@@ -60,6 +60,7 @@ export function MessageComposer({
           disabled={pending}
           maxLength={2000}
           placeholder="Escribí un mensaje…"
+          aria-label="Mensaje"
           rows={2}
           className="max-h-32 min-h-11 flex-1 resize-none bg-transparent px-2 py-2 text-sm outline-none placeholder:text-slate-400"
         />

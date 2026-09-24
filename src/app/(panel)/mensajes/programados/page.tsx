@@ -82,7 +82,7 @@ export default async function MensajesProgramadosPage({ searchParams }: { search
         <div className="space-y-6">
           <form className="flex h-12 items-center gap-3 rounded-xl border border-slate-200 bg-white px-4 shadow-sm">
             <Search size={18} className="text-slate-400" />
-            <input name="q" defaultValue={q} className="w-full bg-transparent text-sm outline-none placeholder:text-slate-400" placeholder="Buscar por cliente" />
+            <input name="q" defaultValue={q} className="w-full bg-transparent text-sm outline-none placeholder:text-slate-400" aria-label="Buscar mensajes programados" placeholder="Buscar por cliente" />
           </form>
 
           <section className="rounded-2xl border border-slate-200 bg-white shadow-sm">

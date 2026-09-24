@@ -75,6 +75,7 @@ function TemplateEditor({
         maxLength={500}
         rows={3}
         placeholder={defaultTemplate}
+        aria-label={title}
         className={textareaClass}
       />
       <div className="flex justify-end text-xs text-slate-400">

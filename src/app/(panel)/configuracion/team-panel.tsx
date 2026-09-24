@@ -207,6 +207,7 @@ function MemberRow({ member, canManage, isSelf, onChanged }: { member: Member; c
           {canEditThisRow ? (
             <select
               value={member.role}
+              aria-label={`Rol de ${member.user.name}`}
               disabled={isPending}
               onChange={(event) => onRoleChange(event.target.value)}
               className="h-8 rounded-lg border border-slate-200 bg-white px-2 text-xs font-medium text-slate-700 outline-none disabled:opacity-60"

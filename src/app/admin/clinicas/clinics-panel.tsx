@@ -59,6 +59,7 @@ function WhatsappBridgeEditor({ clinic }: { clinic: ClinicRow }) {
           <div>
             <label className="mb-1 block text-xs font-medium text-slate-600">Clave de sesión</label>
             <input
+              aria-label="Clave de sesión"
               value={sessionKey}
               onChange={(event) => setSessionKey(event.target.value)}
               placeholder="ej: san-martin"
@@ -69,6 +70,7 @@ function WhatsappBridgeEditor({ clinic }: { clinic: ClinicRow }) {
           <div>
             <label className="mb-1 block text-xs font-medium text-slate-600">URL del bridge</label>
             <input
+              aria-label="URL del bridge"
               value={bridgeUrl}
               onChange={(event) => setBridgeUrl(event.target.value)}
               placeholder="https://....up.railway.app"
@@ -154,6 +156,7 @@ export function PendingClinicRow({ clinic }: { clinic: ClinicRow }) {
           <label className="mb-1 block text-xs font-medium text-slate-600">Motivo (opcional, se le muestra a quien se registró)</label>
           <div className="flex gap-2">
             <input
+              aria-label="Motivo del rechazo"
               value={reason}
               onChange={(event) => setReason(event.target.value)}
               className="h-9 min-w-0 flex-1 rounded-lg border border-slate-200 bg-white px-3 text-sm outline-none focus:border-emerald-400"

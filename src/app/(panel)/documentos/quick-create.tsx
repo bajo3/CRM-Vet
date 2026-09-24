@@ -56,6 +56,7 @@ export function QuickCreate({ pets, canCreatePrescription }: { pets: PetOption[]
               value={query}
               onChange={(event) => setQuery(event.target.value)}
               placeholder="Buscá la mascota por nombre, tutor o teléfono..."
+              aria-label="Buscar mascota"
               className="w-full bg-transparent text-sm outline-none placeholder:text-slate-400"
             />
           </div>

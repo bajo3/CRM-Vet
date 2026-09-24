@@ -55,8 +55,9 @@ export function RegistrationForm() {
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-4" noValidate>
       <div>
-        <label className="mb-1.5 block text-sm font-medium text-slate-700">Nombre de la clínica</label>
+        <label htmlFor="registro-1" className="mb-1.5 block text-sm font-medium text-slate-700">Nombre de la clínica</label>
         <input
+          id="registro-1"
           className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm outline-none focus:border-emerald-400"
           placeholder="Veterinaria San Martín"
           {...register("clinicName")}
@@ -65,8 +66,9 @@ export function RegistrationForm() {
       </div>
 
       <div>
-        <label className="mb-1.5 block text-sm font-medium text-slate-700">Teléfono de la clínica (opcional)</label>
+        <label htmlFor="registro-2" className="mb-1.5 block text-sm font-medium text-slate-700">Teléfono de la clínica (opcional)</label>
         <input
+          id="registro-2"
           className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm outline-none focus:border-emerald-400"
           placeholder="+54 9 11 1234-5678"
           {...register("clinicPhone")}
@@ -77,8 +79,9 @@ export function RegistrationForm() {
       <hr className="border-slate-100" />
 
       <div>
-        <label className="mb-1.5 block text-sm font-medium text-slate-700">Tu nombre y apellido</label>
+        <label htmlFor="registro-3" className="mb-1.5 block text-sm font-medium text-slate-700">Tu nombre y apellido</label>
         <input
+          id="registro-3"
           className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm outline-none focus:border-emerald-400"
           placeholder="Julia Pérez"
           {...register("name")}
@@ -87,8 +90,9 @@ export function RegistrationForm() {
       </div>
 
       <div>
-        <label className="mb-1.5 block text-sm font-medium text-slate-700">Tu correo</label>
+        <label htmlFor="registro-4" className="mb-1.5 block text-sm font-medium text-slate-700">Tu correo</label>
         <input
+          id="registro-4"
           type="email"
           autoComplete="email"
           className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm outline-none focus:border-emerald-400"
@@ -99,8 +103,9 @@ export function RegistrationForm() {
       </div>
 
       <div>
-        <label className="mb-1.5 block text-sm font-medium text-slate-700">Contraseña</label>
+        <label htmlFor="registro-5" className="mb-1.5 block text-sm font-medium text-slate-700">Contraseña</label>
         <input
+          id="registro-5"
           type="password"
           autoComplete="new-password"
           placeholder="Mínimo 8 caracteres"
@@ -111,8 +116,9 @@ export function RegistrationForm() {
       </div>
 
       <div>
-        <label className="mb-1.5 block text-sm font-medium text-slate-700">Repetir contraseña</label>
+        <label htmlFor="registro-6" className="mb-1.5 block text-sm font-medium text-slate-700">Repetir contraseña</label>
         <input
+          id="registro-6"
           type="password"
           autoComplete="new-password"
           className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm outline-none focus:border-emerald-400"

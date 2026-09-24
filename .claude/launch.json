@@ -7,6 +7,15 @@
       "runtimeArgs": ["run", "dev"],
       "port": 3000,
       "autoPort": true
+    },
+    {
+      "name": "next-dev-localdb",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": ["next", "dev", "-p", "3107"],
+      "port": 3107,
+      "env": {
+        "DATABASE_URL": "postgresql://postgres:postgres@localhost:55432/crm_vet_dev"
+      }
     }
   ]
 }

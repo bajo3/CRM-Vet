@@ -60,6 +60,7 @@ export function AdminAccountPanel() {
         <div>
           <label className="mb-1 block text-xs font-medium text-slate-600">Contraseña actual</label>
           <input
+            aria-label="Contraseña actual"
             type="password"
             autoComplete="current-password"
             className="h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm outline-none focus:border-emerald-400"
@@ -70,6 +71,7 @@ export function AdminAccountPanel() {
         <div>
           <label className="mb-1 block text-xs font-medium text-slate-600">Contraseña nueva</label>
           <input
+            aria-label="Contraseña nueva"
             type="password"
             autoComplete="new-password"
             placeholder="Mínimo 8 caracteres"

@@ -1,4 +1,5 @@
 import "dotenv/config";
+import { pathToFileURL } from "node:url";
 import { getPrisma } from "../src/lib/prisma";
 import { hashPassword } from "../src/lib/auth/password";
 
@@ -122,7 +123,9 @@ async function main() {
   if (superAdmin) console.log(`Superadmin listo: ${superAdmin.email}`);
 }
 
-if (require.main === module) {
+// El proyecto es ESM (`"type": "module"`): `require.main` no existe. Solo corremos `main()` cuando
+// este archivo es el punto de entrada, no cuando `seed-demo.ts` lo importa para reusar funciones.
+if (import.meta.url === pathToFileURL(process.argv[1] ?? "").href) {
   main()
     .catch((error) => {
       console.error(error);

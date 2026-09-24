@@ -208,6 +208,7 @@ export function DayView({
                       ) : (
                         <Link
                           href={`/agenda/nuevo?date=${date}&time=${slot}&vetId=${vet.id}`}
+                          aria-label={`Nuevo turno a las ${slot} con ${vet.name}`}
                           className="flex h-[74px] items-center justify-center rounded-xl border border-dashed border-slate-200 text-slate-300 transition-colors hover:border-emerald-300 hover:text-emerald-500"
                         >
                           <PlusCircle size={18} />

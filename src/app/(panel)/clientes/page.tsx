@@ -42,6 +42,7 @@ export default async function ClientesPage({ searchParams }: { searchParams: Pro
           defaultValue={q}
           className="w-full bg-transparent text-sm outline-none placeholder:text-slate-400"
           placeholder="Buscar por cliente, mascota o teléfono"
+          aria-label="Buscar clientes"
         />
       </form>
 

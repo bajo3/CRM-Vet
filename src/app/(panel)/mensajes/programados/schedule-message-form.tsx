@@ -103,6 +103,7 @@ export function ScheduleMessageForm({ clients }: { clients: ClientOption[] }) {
                 value={query}
                 onChange={(event) => setQuery(event.target.value)}
                 placeholder="Buscá al cliente por nombre o teléfono..."
+                aria-label="Buscar cliente"
                 className="w-full bg-transparent text-sm outline-none placeholder:text-slate-400"
               />
             </div>

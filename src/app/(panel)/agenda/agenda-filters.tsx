@@ -62,6 +62,7 @@ export function AgendaFilters({
         </Link>
         <input
           type="date"
+          aria-label="Ir a la fecha"
           value={date}
           onChange={(event) => event.target.value && router.push(hrefFor({ date: event.target.value }))}
           className="h-10 rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-700 outline-none focus:border-emerald-400"
@@ -85,6 +86,7 @@ export function AgendaFilters({
         </div>
         <select
           value={vetId ?? "todos"}
+          aria-label="Filtrar por veterinario"
           onChange={(event) => router.push(hrefFor({ vet: event.target.value }))}
           className="h-10 rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-700 outline-none focus:border-emerald-400"
         >
