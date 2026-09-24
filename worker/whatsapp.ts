@@ -24,10 +24,12 @@ const logger = pino({ level: process.env.WHATSAPP_LOG_LEVEL || "info" });
 if (!internalToken) throw new Error("Falta INTERNAL_WHATSAPP_TOKEN");
 
 type BridgeStatus = "STARTING" | "WAITING_QR" | "CONNECTED" | "RECONNECTING" | "LOGGED_OUT";
-const bridgeState: { status: BridgeStatus; qrDataUrl: string | null; updatedAt: string } = {
+const bridgeState: { status: BridgeStatus; qrDataUrl: string | null; updatedAt: string; phoneNumber: string | null } = {
   status: "STARTING",
   qrDataUrl: null,
   updatedAt: new Date().toISOString(),
+  // Número vinculado (solo dígitos), para mostrar en Configuración qué teléfono está conectado.
+  phoneNumber: null,
 };
 
 // Distinto de `bridgeState.updatedAt`: ese campo se pisa en CADA intento de reconexión (aunque
@@ -378,6 +380,7 @@ async function connect() {
     if (connection === "open") {
       reconnectDelayMs = 2_000;
       consecutiveForbidden = 0;
+      bridgeState.phoneNumber = socket.user?.id?.split(/[:@]/)[0]?.replace(/\D/g, "") || null;
       updateBridgeState("CONNECTED", null);
       logger.info({ clinicKey }, "WhatsApp conectado");
       void refreshAccountStanding(true)

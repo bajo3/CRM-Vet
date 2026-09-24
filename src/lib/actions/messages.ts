@@ -1,10 +1,21 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { after } from "next/server";
 import { ConversationStatus } from "@prisma/client";
 import { getSession } from "@/lib/auth/session";
 import { getPrisma } from "@/lib/prisma";
+import { dispatchZernioOutbox } from "@/lib/services/zernio-outbox";
 import type { ActionResult } from "./types";
+
+/** Con Zernio no hay un bridge haciendo poll: el mensaje recién encolado se envía al terminar la respuesta. */
+function dispatchAfterResponse(clinicId: string) {
+  after(async () => {
+    await dispatchZernioOutbox(getPrisma(), clinicId).catch((error) => {
+      console.error("No se pudo despachar el mensaje por Zernio", { code: error instanceof Error ? error.message : "UNKNOWN" });
+    });
+  });
+}
 
 async function ownedConversation(id: string, clinicId: string) {
   return getPrisma().whatsappConversation.findFirst({ where: { id, clinicId }, select: { id: true } });
@@ -64,6 +75,7 @@ export async function sendHumanReply(id: string, content: string): Promise<Actio
       data: { status: ConversationStatus.HUMAN_ACTIVE, assignedUserId: session.userId, unreadCount: 0, lastMessageAt: new Date() },
     }),
   ]);
+  dispatchAfterResponse(session.clinicId);
   revalidatePath("/mensajes");
   return { ok: true };
 }
@@ -82,5 +94,6 @@ export async function retryFailedMessage(messageId: string): Promise<void> {
     where: { id: message.id },
     data: { status: "HUMAN_QUEUED", attempts: 0 },
   });
+  dispatchAfterResponse(session.clinicId);
   revalidatePath("/mensajes");
 }

@@ -84,8 +84,6 @@ model Clinic {
   /// URL pública del bridge de Railway dedicado a esta clínica (un servicio = un número de
   /// WhatsApp). `null` = todavía usa el bridge global de `WHATSAPP_BRIDGE_URL` (demo/transición).
   whatsappBridgeUrl           String?
-  whatsappPhoneNumberId       String?
-  whatsappBusinessAccountId   String?
   /// Texto personalizado del recordatorio de control (`ReminderType.CONTROL_DUE`). `null` = usar el
   /// texto por defecto definido en código (`DEFAULT_CONTROL_REMINDER_TEMPLATE`).
   controlReminderTemplate     String?
@@ -227,24 +225,29 @@ model Appointment {
 }
 
 model WhatsappConversation {
-  id             String             @id @default(cuid())
-  clinicId       String
-  clientId       String?
-  petId          String?
-  assignedUserId String?
-  phone          String
-  contactName    String?
-  status         ConversationStatus @default(AUTOMATED)
-  flowState      Json?
-  unreadCount    Int                @default(0)
-  lastMessageAt  DateTime           @default(now())
-  createdAt      DateTime           @default(now())
-  updatedAt      DateTime           @updatedAt
-  clinic         Clinic             @relation(fields: [clinicId], references: [id], onDelete: Cascade)
-  client         Client?            @relation(fields: [clientId], references: [id], onDelete: SetNull)
-  pet            Pet?               @relation(fields: [petId], references: [id], onDelete: SetNull)
-  assignedUser   User?              @relation(fields: [assignedUserId], references: [id], onDelete: SetNull)
-  messages       WhatsappMessage[]
+  id                   String             @id @default(cuid())
+  clinicId             String
+  clientId             String?
+  petId                String?
+  assignedUserId       String?
+  phone                String
+  contactName          String?
+  status               ConversationStatus @default(AUTOMATED)
+  flowState            Json?
+  unreadCount          Int                @default(0)
+  lastMessageAt        DateTime           @default(now())
+  /// Última vez que el cliente escribió. Con Zernio (Cloud API de Meta) define si la ventana de
+  /// 24 h de atención está abierta: fuera de ella solo se puede escribir con mensaje de utilidad.
+  lastInboundAt        DateTime?
+  /// Conversación equivalente en Zernio, para responder dentro de ella en vez de abrir una nueva.
+  zernioConversationId String?
+  createdAt            DateTime           @default(now())
+  updatedAt            DateTime           @updatedAt
+  clinic               Clinic             @relation(fields: [clinicId], references: [id], onDelete: Cascade)
+  client               Client?            @relation(fields: [clientId], references: [id], onDelete: SetNull)
+  pet                  Pet?               @relation(fields: [petId], references: [id], onDelete: SetNull)
+  assignedUser         User?              @relation(fields: [assignedUserId], references: [id], onDelete: SetNull)
+  messages             WhatsappMessage[]
 
   @@unique([clinicId, phone])
   @@index([clinicId, status, lastMessageAt])

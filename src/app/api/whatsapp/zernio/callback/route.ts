@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getSession } from "@/lib/auth/session";
+import { getSession, hasRole } from "@/lib/auth/session";
+import { CLINIC_CONFIG_ROLES } from "@/lib/auth/roles";
 import { getPrisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
@@ -20,6 +21,11 @@ export async function GET(request: NextRequest) {
 
   const session = await getSession();
   if (!session) return NextResponse.redirect(new URL("/login", request.nextUrl.origin));
+  // Mismo permiso que para iniciar la conexión: solo quien administra la clínica puede cambiar su canal.
+  if (!hasRole(session, CLINIC_CONFIG_ROLES)) {
+    settingsUrl.searchParams.set("whatsapp", "error");
+    return NextResponse.redirect(settingsUrl);
+  }
 
   const prisma = getPrisma();
   const clinic = await prisma.clinic.findUnique({

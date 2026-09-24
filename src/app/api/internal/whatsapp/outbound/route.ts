@@ -15,7 +15,7 @@ function rateLimited(request: NextRequest, route: string) {
 
 async function resolveClinic(clinicKey: string | null) {
   if (!clinicKey) return null;
-  return getPrisma().clinic.findUnique({ where: { whatsappSessionKey: clinicKey }, select: { id: true } });
+  return getPrisma().clinic.findUnique({ where: { whatsappSessionKey: clinicKey }, select: { id: true, zernioAccountId: true } });
 }
 
 export async function GET(request: NextRequest) {
@@ -25,6 +25,10 @@ export async function GET(request: NextRequest) {
   const clinicKey = request.nextUrl.searchParams.get("clinicKey");
   const clinic = await resolveClinic(clinicKey);
   if (!clinic) return NextResponse.json({ error: "clinic_not_found" }, { status: 404 });
+
+  // Si la clínica ya envía por Zernio, el bridge de Baileys no debe reclamar sus mensajes: se
+  // mandarían dos veces por dos canales distintos.
+  if (clinic.zernioAccountId) return NextResponse.json({ messages: [] });
 
   const claimed = await claimOutboundMessages(getPrisma(), clinic.id, 20);
   return NextResponse.json({ messages: claimed });

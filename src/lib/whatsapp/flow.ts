@@ -369,12 +369,36 @@ function startFreshBooking(ctx: BookingCtx, text: string): Promise<StepResult> {
 }
 
 export async function processIncomingWhatsapp(event: IncomingWhatsappEvent): Promise<WhatsappEventResponse> {
-  const prisma = getPrisma();
-  const clinic = await prisma.clinic.findUnique({ where: { whatsappSessionKey: event.clinicKey } });
+  const clinic = await getPrisma().clinic.findUnique({ where: { whatsappSessionKey: event.clinicKey } });
   if (!clinic) throw new Error("CLINIC_NOT_CONFIGURED");
+  return processIncomingWhatsappForClinic(clinic, event);
+}
+
+export type IncomingChannelInfo = {
+  /** Id de la conversación en Zernio, cuando el mensaje llegó por el webhook de Zernio. */
+  zernioConversationId?: string;
+};
+
+/**
+ * Procesa un mensaje entrante ya asociado a su clínica, sin importar el canal por el que llegó
+ * (bridge de Baileys o webhook de Zernio). La respuesta del bot queda en la outbox (`HUMAN_QUEUED`).
+ */
+export async function processIncomingWhatsappForClinic(
+  clinic: Clinic,
+  event: Omit<IncomingWhatsappEvent, "clinicKey">,
+  channel: IncomingChannelInfo = {}
+): Promise<WhatsappEventResponse> {
+  const prisma = getPrisma();
 
   try {
-    await prisma.webhookEvent.create({ data: { clinicId: clinic.id, externalEventId: event.eventId, eventType: "message.upsert", payload: event } });
+    await prisma.webhookEvent.create({
+      data: {
+        clinicId: clinic.id,
+        externalEventId: event.eventId,
+        eventType: channel.zernioConversationId ? "zernio.message.received" : "message.upsert",
+        payload: event,
+      },
+    });
   } catch (error) {
     if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") return { accepted: true, duplicate: true };
     throw error;
@@ -388,8 +412,23 @@ export async function processIncomingWhatsapp(event: IncomingWhatsappEvent): Pro
 
   const conversation = await prisma.whatsappConversation.upsert({
     where: { clinicId_phone: { clinicId: clinic.id, phone } },
-    create: { clinicId: clinic.id, clientId: client.id, phone, contactName: event.contactName, unreadCount: 1 },
-    update: { clientId: client.id, contactName: event.contactName, lastMessageAt: new Date(event.timestamp), unreadCount: { increment: 1 } },
+    create: {
+      clinicId: clinic.id,
+      clientId: client.id,
+      phone,
+      contactName: event.contactName,
+      unreadCount: 1,
+      lastInboundAt: new Date(event.timestamp),
+      zernioConversationId: channel.zernioConversationId,
+    },
+    update: {
+      clientId: client.id,
+      contactName: event.contactName,
+      lastMessageAt: new Date(event.timestamp),
+      lastInboundAt: new Date(event.timestamp),
+      unreadCount: { increment: 1 },
+      ...(channel.zernioConversationId ? { zernioConversationId: channel.zernioConversationId } : {}),
+    },
   });
 
   await prisma.whatsappMessage.create({

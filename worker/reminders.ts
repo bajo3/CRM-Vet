@@ -1,7 +1,9 @@
 import "dotenv/config";
 import pino from "pino";
 import { processDueReminders } from "../src/lib/services/reminders";
+import { getPrisma } from "../src/lib/prisma";
 import { processDueScheduledMessages } from "../src/lib/services/scheduled-messages";
+import { dispatchAllZernioOutboxes } from "../src/lib/services/zernio-outbox";
 import { MockWhatsAppProvider, OutboxWhatsAppProvider, type WhatsAppProvider } from "../src/lib/services/whatsapp-provider";
 
 const INTERVAL_MS = 60_000;
@@ -27,6 +29,11 @@ async function runOnce() {
   const scheduledTotal = Object.values(scheduledResult).reduce((sum, value) => sum + value, 0);
   if (scheduledTotal > 0) logger.info(scheduledResult, "Mensajes programados procesados");
   else logger.debug("Sin mensajes programados vencidos");
+
+  // Clínicas conectadas por Zernio: no tienen un bridge haciendo poll de la outbox, así que este
+  // mismo worker envía lo pendiente (recordatorios recién encolados y reintentos).
+  const zernioResult = await dispatchAllZernioOutboxes(getPrisma());
+  if (zernioResult.sent + zernioResult.failed > 0) logger.info(zernioResult, "Salientes enviados por Zernio");
 
   return result;
 }

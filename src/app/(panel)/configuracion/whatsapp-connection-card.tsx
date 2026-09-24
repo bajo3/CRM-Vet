@@ -7,16 +7,23 @@ import { CheckCircle2, Loader2, MessageCircle, RefreshCw, Smartphone, WifiOff } 
 type BridgeState = {
   status: "STARTING" | "WAITING_QR" | "CONNECTED" | "RECONNECTING" | "LOGGED_OUT" | "NOT_CONFIGURED" | "UNAVAILABLE";
   qrDataUrl?: string | null;
+  channel?: "baileys" | "zernio";
+  phoneNumber?: string | null;
+  displayName?: string | null;
 };
 
+function formatPhone(value: string) {
+  return value.startsWith("+") ? value : `+${value.replace(/\D/g, "")}`;
+}
+
 const STATUS_COPY: Record<BridgeState["status"], { label: string; detail: string; tone: string }> = {
-  STARTING: { label: "Iniciando", detail: "El bridge se está preparando.", tone: "bg-amber-50 text-amber-700" },
+  STARTING: { label: "Iniciando", detail: "El canal se está preparando.", tone: "bg-amber-50 text-amber-700" },
   WAITING_QR: { label: "Esperando vinculación", detail: "Escaneá el código con el teléfono de la veterinaria.", tone: "bg-blue-50 text-blue-700" },
   CONNECTED: { label: "WhatsApp conectado", detail: "El canal está listo para recibir y enviar mensajes.", tone: "bg-emerald-50 text-emerald-700" },
   RECONNECTING: { label: "Reconectando", detail: "Estamos recuperando la conexión automáticamente.", tone: "bg-amber-50 text-amber-700" },
   LOGGED_OUT: { label: "Sesión cerrada", detail: "Vinculá el dispositivo nuevamente para continuar.", tone: "bg-rose-50 text-rose-700" },
-  NOT_CONFIGURED: { label: "Sin configurar", detail: "Falta asociar el bridge a esta instalación.", tone: "bg-slate-100 text-slate-600" },
-  UNAVAILABLE: { label: "Sin respuesta", detail: "El bridge no está disponible en este momento.", tone: "bg-rose-50 text-rose-700" },
+  NOT_CONFIGURED: { label: "Sin configurar", detail: "Todavía no hay un número de WhatsApp asociado a esta clínica.", tone: "bg-slate-100 text-slate-600" },
+  UNAVAILABLE: { label: "Sin respuesta", detail: "El canal no responde en este momento. Los mensajes quedan en cola y se envían al recuperarse.", tone: "bg-rose-50 text-rose-700" },
 };
 
 export function WhatsappConnectionCard() {
@@ -46,6 +53,7 @@ export function WhatsappConnectionCard() {
 
   const copy = STATUS_COPY[state.status];
   const connected = state.status === "CONNECTED";
+  const official = state.channel === "zernio";
 
   return (
     <section className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
@@ -56,7 +64,7 @@ export function WhatsappConnectionCard() {
           </span>
           <div>
             <h2 className="font-semibold">Canal de WhatsApp</h2>
-            <p className="text-sm text-slate-500">Conexión del número de la veterinaria</p>
+            <p className="text-sm text-slate-500">{official ? "WhatsApp oficial de Meta, conectado vía Zernio" : "Conexión del número de la veterinaria"}</p>
           </div>
         </div>
         <div className="flex items-center gap-2">
@@ -82,7 +90,16 @@ export function WhatsappConnectionCard() {
             </div>
           </div>
 
-          {!connected && (
+          {connected && state.phoneNumber && (
+            <div className="rounded-2xl border border-slate-200 p-4">
+              <p className="text-xs font-medium uppercase tracking-wide text-slate-400">Número conectado</p>
+              <p className="mt-1 text-lg font-semibold text-slate-900">{formatPhone(state.phoneNumber)}</p>
+              {state.displayName && <p className="text-sm text-slate-500">{state.displayName}</p>}
+              <p className="mt-2 text-xs leading-5 text-slate-500">Los mensajes del bot, del equipo y los recordatorios salen desde este número. Si no es el de la veterinaria, no lo uses para probar.</p>
+            </div>
+          )}
+
+          {!connected && !official && (
             <div>
               <p className="text-sm font-semibold text-slate-800">Cómo vincularlo</p>
               <ol className="mt-3 space-y-3 text-sm text-slate-600">
@@ -98,7 +115,7 @@ export function WhatsappConnectionCard() {
           )}
         </div>
 
-        <div className="flex min-h-64 min-w-64 items-center justify-center rounded-3xl border border-dashed border-slate-200 bg-slate-50 p-4">
+        {!official && <div className="flex min-h-64 min-w-64 items-center justify-center rounded-3xl border border-dashed border-slate-200 bg-slate-50 p-4">
           {state.qrDataUrl ? (
             <Image src={state.qrDataUrl} width={280} height={280} unoptimized alt="Código QR para vincular WhatsApp" className="rounded-2xl bg-white p-2 shadow-sm" />
           ) : connected ? (
@@ -106,7 +123,7 @@ export function WhatsappConnectionCard() {
           ) : (
             <div className="max-w-52 text-center"><Smartphone size={44} className="mx-auto text-slate-300" /><p className="mt-3 text-sm font-medium text-slate-600">Preparando el código QR</p><p className="mt-1 text-xs text-slate-400">Puede demorar unos segundos.</p></div>
           )}
-        </div>
+        </div>}
       </div>
     </section>
   );

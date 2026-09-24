@@ -21,6 +21,7 @@ export async function GET(request: NextRequest) {
   });
   if (!clinic) return NextResponse.json({ error: "Clínica no encontrada." }, { status: 404 });
 
+  const settingsUrl = new URL("/configuracion", request.nextUrl.origin);
   try {
     let profileId = clinic.zernioProfileId;
     if (!profileId) {
@@ -32,10 +33,9 @@ export async function GET(request: NextRequest) {
     const authUrl = await getWhatsappConnectUrl(profileId, redirectUrl);
     return NextResponse.redirect(authUrl);
   } catch (error) {
-    const code = error instanceof Error ? error.message : "UNKNOWN";
-    if (code === "ZERNIO_NOT_CONFIGURED") {
-      return NextResponse.json({ error: "Falta configurar ZERNIO_API_KEY en el servidor." }, { status: 503 });
-    }
-    return NextResponse.json({ error: "No se pudo iniciar la conexión con Zernio.", code }, { status: 502 });
+    // El detalle técnico queda en el log; la persona vuelve a Configuración con un aviso claro.
+    console.error("No se pudo iniciar la conexión con Zernio", { code: error instanceof Error ? error.message : "UNKNOWN" });
+    settingsUrl.searchParams.set("whatsapp", "error");
+    return NextResponse.redirect(settingsUrl);
   }
 }
