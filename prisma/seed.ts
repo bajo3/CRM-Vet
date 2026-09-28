@@ -7,7 +7,7 @@ import { hashPassword } from "../src/lib/auth/password";
  * Seed MÍNIMO: sólo la clínica y los 4 usuarios de login, sin datos de ejemplo (clientes,
  * mascotas, turnos, etc.). Es el que corre `npm run db:seed`.
  *
- * Idempotente y NO destructivo: si la clínica ya existe (por `whatsappSessionKey`), no la borra
+ * Idempotente y NO destructivo: si la clínica ya existe (la de la dueña demo), no la borra
  * ni la recrea — sólo asegura que los usuarios y sus membresías existan con la contraseña demo.
  * Pensado para poder correrse en la base de producción sin riesgo de pisar datos reales (clientes,
  * turnos, conversaciones de WhatsApp) que ya vivan en esa clínica.
@@ -16,21 +16,23 @@ import { hashPassword } from "../src/lib/auth/password";
  * `npm run db:seed:demo` (ver `prisma/seed-demo.ts`).
  */
 
-export const CLINIC_KEY = "patitas-demo";
 export const TIMEZONE = "America/Argentina/Buenos_Aires";
 export const DEMO_PASSWORD = "Patitas2026!";
+export const DEMO_OWNER_EMAIL = "sofia@patitas.com";
 
 const prisma = getPrisma();
 
 export async function ensureClinicAndUsers() {
-  let clinic = await prisma.clinic.findUnique({ where: { whatsappSessionKey: CLINIC_KEY } });
+  let clinic = await prisma.clinic.findFirst({
+    where: { members: { some: { role: "OWNER", user: { email: DEMO_OWNER_EMAIL } } } },
+    orderBy: { createdAt: "asc" },
+  });
   if (!clinic) {
     clinic = await prisma.clinic.create({
       data: {
         name: "Veterinaria Patitas",
         phone: "5491123456789",
         timezone: TIMEZONE,
-        whatsappSessionKey: CLINIC_KEY,
         defaultAppointmentDuration: 30,
         status: "APPROVED",
         openingHours: {

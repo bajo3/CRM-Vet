@@ -14,7 +14,7 @@ export async function SetupChecklist({ clinicId, welcome }: { clinicId: string; 
   const [clinic, memberCount, clientCount] = await Promise.all([
     prisma.clinic.findUnique({
       where: { id: clinicId },
-      select: { phone: true, logoUrl: true, zernioAccountId: true, whatsappSessionKey: true },
+      select: { phone: true, logoUrl: true, zernioAccountId: true },
     }),
     prisma.clinicMember.count({ where: { clinicId, active: true } }),
     prisma.client.count({ where: { clinicId } }),
@@ -23,7 +23,7 @@ export async function SetupChecklist({ clinicId, welcome }: { clinicId: string; 
 
   const steps: Step[] = [
     {
-      done: Boolean(clinic.zernioAccountId || clinic.whatsappSessionKey),
+      done: Boolean(clinic.zernioAccountId),
       title: "Conectá el WhatsApp de la veterinaria",
       detail: "Para que el bot reserve turnos solo y salgan los recordatorios.",
       href: "/configuracion#whatsapp",

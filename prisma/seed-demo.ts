@@ -351,7 +351,7 @@ async function main() {
     ],
   });
 
-  console.log("Datos de ejemplo cargados sobre: Veterinaria Patitas / patitas-demo");
+  console.log("Datos de ejemplo cargados sobre: Veterinaria Patitas");
 }
 
 main()

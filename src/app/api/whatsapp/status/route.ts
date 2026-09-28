@@ -27,60 +27,22 @@ export async function GET(request: NextRequest) {
   }
 
   const clinic = session.clinicId
-    ? await getPrisma().clinic.findUnique({
-        where: { id: session.clinicId },
-        select: { whatsappBridgeUrl: true, whatsappSessionKey: true, zernioAccountId: true },
-      })
+    ? await getPrisma().clinic.findUnique({ where: { id: session.clinicId }, select: { zernioAccountId: true } })
     : null;
 
-  // Clínicas con WhatsApp oficial (Cloud API de Meta vía Zernio): no hay QR ni bridge propio.
-  if (clinic?.zernioAccountId) {
-    const info = await cachedZernioInfo(clinic.zernioAccountId);
-    // Si Zernio no responde no marcamos el canal como caído: los envíos se reintentan solos.
-    const disconnected = info?.status && info.status !== "CONNECTED";
-    return NextResponse.json({
-      channel: "zernio",
-      status: disconnected ? "UNAVAILABLE" : "CONNECTED",
-      phoneNumber: info?.phoneNumber ?? null,
-      displayName: info?.verifiedName ?? null,
-      qrDataUrl: null,
-      updatedAt: new Date().toISOString(),
-    });
+  // Todavía no conectó el WhatsApp oficial (típico: clínica recién registrada).
+  if (!clinic?.zernioAccountId) {
+    return NextResponse.json({ channel: "none", status: "NOT_CONFIGURED" });
   }
 
-  // Una clínica sin bridge propio (`whatsappSessionKey`) todavía no conectó ningún WhatsApp. NO la
-  // mandamos al bridge global: ese es el número de otra clínica (la demo) y vería su QR. La vía de
-  // autoservicio para conectarse es Zernio, desde Configuración.
-  if (!clinic?.whatsappSessionKey) {
-    return NextResponse.json({ channel: "none", status: "NOT_CONFIGURED", qrDataUrl: null });
-  }
-
-  // Cada clínica con bridge puede tener su propio servicio de Railway (un número por clínica). Si no
-  // tiene URL asignada, cae al bridge global (el de la clínica demo).
-  const bridgeUrl = clinic?.whatsappBridgeUrl || process.env.WHATSAPP_BRIDGE_URL;
-  const internalToken = process.env.INTERNAL_WHATSAPP_TOKEN;
-  if (!bridgeUrl || !internalToken) {
-    return NextResponse.json({ channel: "baileys", status: "NOT_CONFIGURED" }, { status: 503 });
-  }
-
-  try {
-    const response = await fetch(`${bridgeUrl.replace(/\/$/, "")}/status`, {
-      headers: { "x-internal-token": internalToken },
-      cache: "no-store",
-      signal: AbortSignal.timeout(5_000),
-    });
-    if (!response.ok) throw new Error("BRIDGE_UNAVAILABLE");
-    const payload = (await response.json()) as { status?: string; qrDataUrl?: string | null; updatedAt?: string; phoneNumber?: string | null };
-    return NextResponse.json({
-      channel: "baileys",
-      status: payload.status ?? "UNAVAILABLE",
-      // El resumen de la bandeja está disponible para cualquier miembro autenticado, pero el QR
-      // de vinculación sigue reservado a quienes administran la clínica.
-      qrDataUrl: summaryOnly ? null : payload.qrDataUrl ?? null,
-      phoneNumber: payload.status === "CONNECTED" ? payload.phoneNumber ?? null : null,
-      updatedAt: payload.updatedAt ?? null,
-    });
-  } catch {
-    return NextResponse.json({ channel: "baileys", status: "UNAVAILABLE" }, { status: 503 });
-  }
+  const info = await cachedZernioInfo(clinic.zernioAccountId);
+  // Si Zernio no responde no marcamos el canal como caído: los envíos se reintentan solos.
+  const disconnected = info?.status && info.status !== "CONNECTED";
+  return NextResponse.json({
+    channel: "zernio",
+    status: disconnected ? "UNAVAILABLE" : "CONNECTED",
+    phoneNumber: info?.phoneNumber ?? null,
+    displayName: info?.verifiedName ?? null,
+    updatedAt: new Date().toISOString(),
+  });
 }

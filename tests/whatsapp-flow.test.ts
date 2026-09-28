@@ -1,7 +1,9 @@
 import { randomUUID } from "node:crypto";
 import { DateTime } from "luxon";
 import { beforeEach, describe, expect, it } from "vitest";
-import { processIncomingWhatsapp } from "../src/lib/whatsapp/flow";
+import type { Clinic } from "@prisma/client";
+import { processIncomingWhatsappForClinic } from "../src/lib/whatsapp/flow";
+import type { IncomingWhatsappEvent } from "../src/lib/whatsapp/contracts";
 import { resetDatabase, prisma } from "./setup/db";
 
 const TZ = "America/Argentina/Buenos_Aires";
@@ -22,7 +24,6 @@ async function createWhatsappClinic(overrides: Partial<{ openingHours: unknown }
       name: "Clínica WhatsApp de prueba",
       timezone: TZ,
       defaultAppointmentDuration: 30,
-      whatsappSessionKey: `test-${randomUUID()}`,
       openingHours: (overrides.openingHours ?? {
         monday: ["09:00", "18:00"],
         tuesday: ["09:00", "18:00"],
@@ -42,23 +43,24 @@ async function createVet(clinicId: string) {
   return user;
 }
 
-function baseEvent(clinicKey: string, overrides: Partial<{ eventId: string; phone: string; text: string }> = {}) {
-  return {
+function baseEvent(clinic: Clinic, overrides: Partial<{ eventId: string; phone: string; text: string }> = {}): [Clinic, IncomingWhatsappEvent] {
+  return [clinic, {
     eventId: overrides.eventId ?? randomUUID(),
-    clinicKey,
     phone: overrides.phone ?? "5491100000001",
     contactName: "Contacto de prueba",
     text: overrides.text ?? "hola",
     timestamp: new Date().toISOString(),
-  };
+  }];
 }
+
+const processIncomingWhatsapp = ([clinic, event]: [Clinic, IncomingWhatsappEvent]) => processIncomingWhatsappForClinic(clinic, event);
 
 describe("flow de WhatsApp", () => {
   beforeEach(resetDatabase);
 
   it("un evento duplicado (mismo eventId) no se procesa dos veces", async () => {
     const clinic = await createWhatsappClinic();
-    const event = baseEvent(clinic.whatsappSessionKey!, { text: "turno" });
+    const event = baseEvent(clinic, { text: "turno" });
 
     const first = await processIncomingWhatsapp(event);
     expect(first.duplicate).toBeFalsy();
@@ -74,7 +76,7 @@ describe("flow de WhatsApp", () => {
 
   it("una consulta médica deriva la conversación a REQUIRES_HUMAN sin ofrecer diagnóstico", async () => {
     const clinic = await createWhatsappClinic();
-    const event = baseEvent(clinic.whatsappSessionKey!, { text: "mi perro vomita mucho desde ayer" });
+    const event = baseEvent(clinic, { text: "mi perro vomita mucho desde ayer" });
 
     const response = await processIncomingWhatsapp(event);
     expect(response.reply).toMatch(/derivar/i);
@@ -86,7 +88,7 @@ describe("flow de WhatsApp", () => {
   it("una urgencia veterinaria real deriva de inmediato y no da indicación médica", async () => {
     const clinic = await createWhatsappClinic();
     const phone = "5491100000099";
-    const event = baseEvent(clinic.whatsappSessionKey!, { phone, text: "mi perro se comió veneno, ayuda" });
+    const event = baseEvent(clinic, { phone, text: "mi perro se comió veneno, ayuda" });
 
     const response = await processIncomingWhatsapp(event);
     expect(response.reply).toMatch(/urgencia/i);
@@ -106,14 +108,14 @@ describe("flow de WhatsApp", () => {
 
     // Usamos "pasado mañana" (en vez de "mañana") para que el recordatorio de 24hs antes caiga
     // siempre en el futuro sin importar a qué hora del día corre el test.
-    const r1 = await processIncomingWhatsapp(baseEvent(clinic.whatsappSessionKey!, { phone, text: "quiero un turno para pasado mañana" }));
+    const r1 = await processIncomingWhatsapp(baseEvent(clinic, { phone, text: "quiero un turno para pasado mañana" }));
     expect(r1.reply).toMatch(/Toby/);
     expect(r1.reply).toMatch(/motivo/i);
 
-    const r2 = await processIncomingWhatsapp(baseEvent(clinic.whatsappSessionKey!, { phone, text: "vacuna" }));
+    const r2 = await processIncomingWhatsapp(baseEvent(clinic, { phone, text: "vacuna" }));
     expect(r2.reply).toMatch(/horarios libres|Cuál preferís/i);
 
-    const r3 = await processIncomingWhatsapp(baseEvent(clinic.whatsappSessionKey!, { phone, text: "1" }));
+    const r3 = await processIncomingWhatsapp(baseEvent(clinic, { phone, text: "1" }));
     expect(r3.reply).toMatch(/¡Listo!/);
     expect(r3.reply).toMatch(/Toby/);
 
@@ -146,7 +148,7 @@ describe("flow de WhatsApp", () => {
     const client = await prisma.client.create({ data: { clinicId: clinic.id, name: "Cliente Alterno", phone } });
     const pet = await prisma.pet.create({ data: { clinicId: clinic.id, clientId: client.id, name: "Milo", species: "Gato" } });
 
-    const r1 = await processIncomingWhatsapp(baseEvent(clinic.whatsappSessionKey!, { phone, text: "quiero un turno de control para mi gato mañana" }));
+    const r1 = await processIncomingWhatsapp(baseEvent(clinic, { phone, text: "quiero un turno de control para mi gato mañana" }));
     expect(r1.reply).toMatch(/no tengo lugares|no me quedan lugares/i);
     expect(r1.reply).toMatch(/Te puedo ofrecer/i);
 
@@ -154,7 +156,7 @@ describe("flow de WhatsApp", () => {
     const state = conversation.flowState as { offeredSlots?: { date: string; times: string[] }[] };
     expect(state.offeredSlots?.length).toBeGreaterThan(0);
 
-    const r2 = await processIncomingWhatsapp(baseEvent(clinic.whatsappSessionKey!, { phone, text: "1" }));
+    const r2 = await processIncomingWhatsapp(baseEvent(clinic, { phone, text: "1" }));
     expect(r2.reply).toMatch(/¡Listo!/);
 
     const appointment = await prisma.appointment.findFirstOrThrow({ where: { clinicId: clinic.id, petId: pet.id } });
@@ -167,10 +169,10 @@ describe("flow de WhatsApp", () => {
     await createVet(clinic.id);
     const phone = "5491100000004";
 
-    const r1 = await processIncomingWhatsapp(baseEvent(clinic.whatsappSessionKey!, { phone, text: "quiero un turno para mañana" }));
+    const r1 = await processIncomingWhatsapp(baseEvent(clinic, { phone, text: "quiero un turno para mañana" }));
     expect(r1.reply).toMatch(/cómo se llama/i);
 
-    const r2 = await processIncomingWhatsapp(baseEvent(clinic.whatsappSessionKey!, { phone, text: "Rocky" }));
+    const r2 = await processIncomingWhatsapp(baseEvent(clinic, { phone, text: "Rocky" }));
     expect(r2.reply).toMatch(/Rocky/);
 
     const client = await prisma.client.findFirstOrThrow({ where: { clinicId: clinic.id, phone } });
@@ -194,14 +196,14 @@ describe("flow de WhatsApp", () => {
       data: { clinicId: clinic.id, petId: pet.id, veterinarianId: vet.id, reason: "Control", startAt, endAt, status: "CONFIRMED" },
     });
 
-    const r1 = await processIncomingWhatsapp(baseEvent(clinic.whatsappSessionKey!, { phone, text: "quiero cambiar el turno" }));
+    const r1 = await processIncomingWhatsapp(baseEvent(clinic, { phone, text: "quiero cambiar el turno" }));
     expect(r1.reply).toMatch(/Nina/);
     expect(r1.reply).toMatch(/qué día preferís/i);
 
-    const r2 = await processIncomingWhatsapp(baseEvent(clinic.whatsappSessionKey!, { phone, text: "pasado mañana" }));
+    const r2 = await processIncomingWhatsapp(baseEvent(clinic, { phone, text: "pasado mañana" }));
     expect(r2.reply).toMatch(/horarios libres|Cuál preferís/i);
 
-    const r3 = await processIncomingWhatsapp(baseEvent(clinic.whatsappSessionKey!, { phone, text: "1" }));
+    const r3 = await processIncomingWhatsapp(baseEvent(clinic, { phone, text: "1" }));
     expect(r3.reply).toMatch(/¡Listo!/);
     expect(r3.reply).toMatch(/Reprogramamos/i);
 
@@ -229,10 +231,10 @@ describe("flow de WhatsApp", () => {
       data: { clinicId: clinic.id, petId: pet.id, veterinarianId: vet.id, reason: "Consulta", startAt, endAt, status: "PENDING" },
     });
 
-    const r1 = await processIncomingWhatsapp(baseEvent(clinic.whatsappSessionKey!, { phone, text: "quiero reprogramar el turno" }));
+    const r1 = await processIncomingWhatsapp(baseEvent(clinic, { phone, text: "quiero reprogramar el turno" }));
     expect(r1.reply).toMatch(/qué día preferís/i);
 
-    const r2 = await processIncomingWhatsapp(baseEvent(clinic.whatsappSessionKey!, { phone, text: "mejor quiero hablar con una persona" }));
+    const r2 = await processIncomingWhatsapp(baseEvent(clinic, { phone, text: "mejor quiero hablar con una persona" }));
     expect(r2.reply).toMatch(/derivar/i);
 
     const conversation = await prisma.whatsappConversation.findFirstOrThrow({ where: { clinicId: clinic.id, phone } });
@@ -246,7 +248,7 @@ describe("flow de WhatsApp", () => {
     const client = await prisma.client.create({ data: { clinicId: clinic.id, name: "Cliente Control", phone } });
     await prisma.pet.create({ data: { clinicId: clinic.id, clientId: client.id, name: "Coco", species: "Perro" } });
 
-    const response = await processIncomingWhatsapp(baseEvent(clinic.whatsappSessionKey!, { phone, text: "quiero consultar horarios" }));
+    const response = await processIncomingWhatsapp(baseEvent(clinic, { phone, text: "quiero consultar horarios" }));
     expect(response.reply).not.toMatch(/derivar/i);
     expect(response.reply).toMatch(/horarios libres|Cuál preferís|Te puedo ofrecer/i);
 
@@ -258,12 +260,12 @@ describe("flow de WhatsApp", () => {
     const clinic = await createWhatsappClinic();
     const phone = "5491100000005";
 
-    const r1 = await processIncomingWhatsapp(baseEvent(clinic.whatsappSessionKey!, { phone, text: "asdkjqwoieu zxczx" }));
+    const r1 = await processIncomingWhatsapp(baseEvent(clinic, { phone, text: "asdkjqwoieu zxczx" }));
     expect(r1.reply).toMatch(/Hola/);
     let conversation = await prisma.whatsappConversation.findFirstOrThrow({ where: { clinicId: clinic.id, phone } });
     expect(conversation.status).toBe("AUTOMATED");
 
-    const r2 = await processIncomingWhatsapp(baseEvent(clinic.whatsappSessionKey!, { phone, text: "mnbvcxz poiuytrewq" }));
+    const r2 = await processIncomingWhatsapp(baseEvent(clinic, { phone, text: "mnbvcxz poiuytrewq" }));
     expect(r2.reply).toMatch(/derivo|equipo/i);
     conversation = await prisma.whatsappConversation.findFirstOrThrow({ where: { clinicId: clinic.id, phone } });
     expect(conversation.status).toBe("REQUIRES_HUMAN");

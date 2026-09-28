@@ -4,10 +4,10 @@
 
 | Componente | Plataforma | Responsabilidad |
 | --- | --- | --- |
-| Web Next.js | Vercel | Panel, autenticación, endpoints internos y Server Actions |
+| Web Next.js | Vercel | Panel, autenticación, webhook de Zernio y Server Actions |
 | PostgreSQL | Supabase | Datos multiempresa, turnos, historia clínica y mensajería |
-| Bridge Baileys | Railway | Socket persistente con WhatsApp y envío/recepción de mensajes |
-| Sesión Baileys | Railway Volume | Credenciales del dispositivo vinculado |
+| Worker de recordatorios | Railway (`CRM-Vet-Reminders`) | Recordatorios, mensajes programados y barrido de reintentos de la outbox |
+| WhatsApp | Zernio (Meta Cloud API) | Envío y recepción por el número oficial de cada clínica |
 
 ## Vercel
 
@@ -15,50 +15,41 @@ Variables de producción requeridas:
 
 - `DATABASE_URL`: usar el pooler transaccional de Supabase (puerto 6543) con `pgbouncer=true&connection_limit=1` para evitar agotar conexiones en funciones serverless.
 - `SESSION_SECRET`: secreto largo y aleatorio para firmar cookies.
-- `INTERNAL_WHATSAPP_TOKEN`: secreto compartido exclusivamente con el worker.
 - `APP_URL`: URL canónica del CRM.
-- `WHATSAPP_BRIDGE_URL`: dominio público del servicio Railway, sin barra final.
+- `ZERNIO_API_KEY`: API key server-side de Zernio.
+- `ZERNIO_WEBHOOK_SECRET`: secreto con el que Zernio firma los webhooks.
 
 El proyecto está conectado a la rama `main`. Cada push genera un nuevo deployment. Antes de promover cambios, ejecutar las cuatro verificaciones documentadas en el README.
 
+Las migraciones no corren en el build: aplicarlas con `npx prisma migrate deploy`. Si una migración elimina columnas que el código anterior todavía usa, aplicarla recién después de que el deploy nuevo esté activo.
+
 ## Railway
 
-Servicio recomendado: `CRM-Vet-WhatsApp`.
+Servicio: `CRM-Vet-Reminders`, con `railway.reminders.toml` como archivo de configuración (Railpack, `npm run start:reminders`, reinicio ante fallos).
 
 Variables requeridas:
 
-- `APP_URL`: URL canónica de Vercel.
-- `INTERNAL_WHATSAPP_TOKEN`: debe coincidir exactamente con Vercel.
-- `WHATSAPP_CLINIC_KEY`: clave de sesión configurada en la clínica.
-- `WHATSAPP_AUTH_DIR=/app/sessions/crm-vet`.
+- `DATABASE_URL`.
+- `ZERNIO_API_KEY`.
+- `REMINDER_PROVIDER=outbox`.
 - `WHATSAPP_LOG_LEVEL=info`.
-- `NODE_ENV=production`.
 
-Configuración operativa:
+## Conexión del WhatsApp de una clínica
 
-- `railway.toml` establece Railpack, el comando `npm run start:whatsapp` y reinicio ante fallos.
-- Montar un volumen exclusivo en `/app/sessions`.
-- Mantener una sola réplica por número de WhatsApp.
-- Generar un dominio Railway para que Vercel consulte el estado del bridge.
-- No exponer `INTERNAL_WHATSAPP_TOKEN` en logs, URLs o código fuente.
+1. Iniciar sesión como OWNER o ADMIN.
+2. Abrir **Configuración** y tocar **Conectar WhatsApp**.
+3. Completar el Embedded Signup de Meta con la cuenta que administra el negocio.
+4. Al volver al CRM, la tarjeta **Canal de WhatsApp** muestra el número conectado.
 
-## Vinculación inicial
-
-1. Confirmar que Vercel y Railway están en estado saludable.
-2. Iniciar sesión como OWNER o ADMIN.
-3. Abrir **Configuración > Canal de WhatsApp**.
-4. En el teléfono, abrir **WhatsApp > Dispositivos vinculados > Vincular dispositivo**.
-5. Escanear el QR mostrado en el CRM.
-6. Esperar a que el estado cambie a **WhatsApp conectado**.
+El webhook se registra una sola vez para toda la plataforma: `npm run zernio:webhook -- <url pública del CRM>`.
 
 ## Verificación posterior
 
-1. Enviar `turno` desde otro teléfono.
-2. Confirmar que la conversación aparece en Mensajes.
+1. Enviar `turno` desde otro teléfono al número de la clínica.
+2. Confirmar que la conversación aparece en Mensajes y que el bot responde.
 3. Tomar la conversación y enviar una respuesta humana.
-4. Verificar en Railway que no existan reinicios repetidos ni errores HTTP.
-5. Verificar en Vercel que los endpoints internos no registren errores de base de datos.
+4. Verificar en Vercel que `/api/whatsapp/zernio/webhook` no registre errores.
 
 ## Rotación de secretos
 
-Si un token o contraseña aparece en un chat, log o captura, rotarlo en el proveedor correspondiente y actualizar Vercel y Railway antes de reiniciar el worker. Nunca reutilizar el secreto de desarrollo en producción.
+Si un token o contraseña aparece en un chat, log o captura, rotarlo en el proveedor correspondiente y actualizar Vercel y Railway. Nunca reutilizar el secreto de desarrollo en producción.

@@ -13,9 +13,8 @@ export const STALE_OUTBOUND_MS = 12 * 60 * 60 * 1000;
 export type ZernioDispatchResult = { sent: number; failed: number };
 
 /**
- * Canal de salida para las clínicas conectadas a Zernio: reclama los mensajes pendientes de la
- * outbox (los mismos `HUMAN_QUEUED` que en Baileys levanta el bridge) y los envía por la API de
- * Zernio. Se llama justo después de encolar (webhook entrante, respuesta humana) y además en cada
+ * Canal de salida: reclama los mensajes pendientes de la outbox (`HUMAN_QUEUED`) y los envía por la
+ * API de Zernio. Se llama justo después de encolar (webhook entrante, respuesta humana) y además en cada
  * vuelta del worker de recordatorios, que funciona como barrido de reintentos.
  */
 export async function dispatchZernioOutbox(prisma: PrismaLike, clinicId: string, limit = 20): Promise<ZernioDispatchResult> {

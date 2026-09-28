@@ -9,9 +9,9 @@ import { MockWhatsAppProvider, OutboxWhatsAppProvider, type WhatsAppProvider } f
 const INTERVAL_MS = 60_000;
 const logger = pino({ level: process.env.WHATSAPP_LOG_LEVEL || "info" });
 
-// `mock` (default): no envía nada real, solo loguea — útil en desarrollo sin worker de Baileys.
-// `outbox`: encola el recordatorio como WhatsappMessage HUMAN_QUEUED para que lo levante el worker
-// de Baileys ya conectado (producción). Ver REMINDER_PROVIDER en .env.example / README.
+// `mock` (default): no envía nada real, solo loguea — útil en desarrollo.
+// `outbox` (producción): encola el recordatorio como WhatsappMessage HUMAN_QUEUED y más abajo, en la
+// misma vuelta, se envía por Zernio. Ver REMINDER_PROVIDER en .env.example / README.
 const providerName = process.env.REMINDER_PROVIDER === "outbox" ? "outbox" : "mock";
 const provider: WhatsAppProvider = providerName === "outbox" ? new OutboxWhatsAppProvider() : new MockWhatsAppProvider();
 logger.info({ provider: providerName }, "Proveedor de WhatsApp para recordatorios");
@@ -30,8 +30,7 @@ async function runOnce() {
   if (scheduledTotal > 0) logger.info(scheduledResult, "Mensajes programados procesados");
   else logger.debug("Sin mensajes programados vencidos");
 
-  // Clínicas conectadas por Zernio: no tienen un bridge haciendo poll de la outbox, así que este
-  // mismo worker envía lo pendiente (recordatorios recién encolados y reintentos).
+  // Envía lo pendiente de la outbox por Zernio (recordatorios recién encolados y reintentos).
   const zernioResult = await dispatchAllZernioOutboxes(getPrisma());
   if (zernioResult.sent + zernioResult.failed > 0) logger.info(zernioResult, "Salientes enviados por Zernio");
 

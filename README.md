@@ -1,6 +1,6 @@
 # Vet Simple
 
-Base funcional de un CRM veterinario multiempresa con un canal de WhatsApp para el MVP basado en **Baileys**.
+CRM veterinario multiempresa con bot de WhatsApp sobre la **API oficial de Meta** (Cloud API, conectada vía [Zernio](https://docs.zernio.com)).
 
 ## Qué incluye esta etapa
 
@@ -10,8 +10,8 @@ Base funcional de un CRM veterinario multiempresa con un canal de WhatsApp para 
 - Sección completa de "Clientes y mascotas": buscador único (cliente, mascota o teléfono), alta/edición de clientes y mascotas, ficha de mascota de una sola pantalla con historial clínico, registro rápido de atenciones y próximo control con opciones rápidas, presupuestos y recetas descargables en PDF, con accesos directos a la Agenda (nuevo turno / próximo turno).
 - Inicio con datos reales de la clínica de la sesión (turnos de hoy, pendientes de confirmar, próximos controles, controles vencidos, conversaciones que requieren atención).
 - Modelo PostgreSQL/Prisma aislado por `clinicId`.
-- Worker persistente de Baileys con QR y reconexión.
-- Endpoint interno autenticado entre el worker y el CRM.
+- Conexión autoservicio del WhatsApp de cada clínica a la API oficial de Meta (Zernio, modo coexistencia).
+- Webhook firmado (HMAC) para mensajes entrantes y acuses de entrega.
 - Registro idempotente de eventos, conversaciones y mensajes.
 - Flujo por WhatsApp para registrar una mascota y reservar, confirmar o cancelar turnos.
 - Derivación real a `REQUIRES_HUMAN` ante urgencias, consultas médicas, reclamos o pedido de una persona.
@@ -95,7 +95,7 @@ una clínica nunca puede descargar el documento de otra, aunque adivine el id).
 
 ## Inicio rápido
 
-1. Copiar `.env.example` como `.env` y cambiar `DATABASE_URL`, `INTERNAL_WHATSAPP_TOKEN` y `SESSION_SECRET`.
+1. Copiar `.env.example` como `.env` y cambiar `DATABASE_URL` y `SESSION_SECRET` (y `ZERNIO_API_KEY`/`ZERNIO_WEBHOOK_SECRET` para probar WhatsApp).
 2. Crear la base PostgreSQL.
 3. Ejecutar:
 
@@ -105,7 +105,7 @@ npm run db:generate
 npm run db:migrate
 npm run db:seed        # clínica + 4 usuarios de login (sin datos de ejemplo)
 npm run db:seed:demo   # opcional: agrega clientes/mascotas/turnos de ejemplo
-npm run dev:all
+npm run dev
 ```
 
 `db:seed` es mínimo y no destructivo: crea la clínica y los 4 usuarios sólo si no existen (nunca borra nada),
@@ -118,22 +118,16 @@ sin el flag para borrar de verdad — identifica los clientes demo por nombre+te
 toca clientes/mascotas/conversaciones que no matcheen esa lista.
 
 4. Abrir `http://localhost:3000`.
-5. Escanear el QR impreso por el proceso `whatsapp` desde **WhatsApp > Dispositivos vinculados**.
+5. Conectar el WhatsApp desde **Configuración → Conectá el WhatsApp de tu veterinaria** (requiere una URL pública para el
+   webhook de Zernio; en local, un túnel).
 6. Desde otro teléfono, escribir algo natural como `hola` o `quiero un turno para mañana` al número conectado.
-
-Para ejecutar cada proceso por separado:
-
-```bash
-npm run dev
-npm run dev:whatsapp
-```
 
 ## Motor de recordatorios
 
 `worker/reminders.ts` procesa los recordatorios vencidos (turnos próximos a 24hs y controles médicos por vencer) contra `processDueReminders` en `src/lib/services/reminders.ts`. El proveedor de WhatsApp se elige con la variable `REMINDER_PROVIDER` (ver `.env.example`):
 
 - `mock` (default, desarrollo): `MockWhatsAppProvider` no envía nada real, solo genera un id y deja un log sin datos sensibles.
-- `outbox` (producción, con el worker de Baileys ya conectado): `OutboxWhatsAppProvider` encola el mensaje como `WhatsappMessage` `OUTBOUND` en estado `HUMAN_QUEUED` -el mismo estado que usan las respuestas humanas desde `/mensajes`- para que lo levante el mismo poll de salientes de `worker/whatsapp.ts`. No marca la conversación como `HUMAN_ACTIVE` ni le asigna usuario (es un mensaje automático del sistema), solo actualiza `lastMessageAt`. En Railway, setear `REMINDER_PROVIDER=outbox` en el servicio del worker de recordatorios para que el ciclo completo "control → recordatorio → WhatsApp real" quede operativo.
+- `outbox` (producción): `OutboxWhatsAppProvider` encola el mensaje como `WhatsappMessage` `OUTBOUND` en estado `HUMAN_QUEUED` -el mismo estado que usan las respuestas humanas desde `/mensajes`- y en la misma vuelta el worker lo envía por Zernio (`dispatchAllZernioOutboxes`). No marca la conversación como `HUMAN_ACTIVE` ni le asigna usuario (es un mensaje automático del sistema), solo actualiza `lastMessageAt`. En Railway, setear `REMINDER_PROVIDER=outbox` en el servicio del worker de recordatorios para que el ciclo completo "control → recordatorio → WhatsApp real" quede operativo.
 
 ```bash
 npm run reminders:run    # una sola pasada (modo --once, útil para cron externo)
@@ -142,13 +136,13 @@ npm run reminders:watch  # loop persistente, revisa cada 60 segundos
 
 Cada recordatorio se reclama de forma atómica (`status: PENDING` como condición del `updateMany`) para que dos corridas concurrentes no envíen el mismo dos veces, y se revalida justo antes de enviar (cliente con recordatorios habilitados, turno/control todavía vigente). Los envíos fallidos reintentan hasta 3 veces; al tercer fallo quedan `FAILED` definitivos.
 
-### Salientes de WhatsApp (`/api/internal/whatsapp/outbound`)
+### Salientes de WhatsApp (outbox)
 
-El worker de Baileys hace polling cada 3s a este endpoint para vaciar una única cola de salientes (respuestas del bot, respuestas humanas desde `/mensajes` y, si `REMINDER_PROVIDER=outbox`, recordatorios automáticos):
+Hay una única cola de salientes: respuestas del bot, respuestas humanas desde `/mensajes` y, si `REMINDER_PROVIDER=outbox`, recordatorios automáticos. `dispatchZernioOutbox` (`src/lib/services/zernio-outbox.ts`) la vacía:
 
-- **GET** reclama de forma atómica los mensajes `HUMAN_QUEUED` de la clínica (`claimOutboundMessages` en `src/lib/services/whatsapp-outbound.ts`), pasándolos a `SENDING` uno por uno con un `updateMany` condicionado — si dos polls se solapan, cada mensaje queda adjudicado a uno solo, nunca se envía duplicado.
-- **POST** reporta el resultado (`SENT`/`FAILED`) filtrando siempre por `clinicId` además de `id` (aislamiento multiempresa: un `clinicKey` nunca puede tocar mensajes de otra clínica). Un fallo incrementa `attempts` (columna en `WhatsappMessage`) y vuelve a `HUMAN_QUEUED` para reintentar; al tercer fallo queda `FAILED` definitivo — mismo esquema de reintentos que el motor de recordatorios.
-- **POST `/api/internal/whatsapp/delivery`** registra los acuses posteriores de Baileys como `DELIVERED` y `READ`, para que la bandeja no confunda “guardado” con “llegó al celular”.
+- Reclama de forma atómica los mensajes `HUMAN_QUEUED` de la clínica (`claimOutboundMessages` en `src/lib/services/whatsapp-outbound.ts`), pasándolos a `SENDING` uno por uno con un `updateMany` condicionado — si dos despachos se solapan, cada mensaje queda adjudicado a uno solo, nunca se envía duplicado.
+- Registra el resultado (`SENT`/`FAILED`) filtrando siempre por `clinicId` además de `id`. Un fallo incrementa `attempts` y vuelve a `HUMAN_QUEUED` para reintentar; al tercer fallo queda `FAILED` definitivo. Un mensaje que esperó más de 12 h en cola ya no se envía.
+- Se ejecuta al instante tras el webhook entrante o la respuesta humana, y como barrido de reintentos en cada vuelta del worker de recordatorios. Los acuses `DELIVERED`/`READ` llegan por el webhook de Zernio.
 
 El estado legado `QUEUED` no se reclama: identifica respuestas anteriores a la outbox unificada cuya entrega no pudo verificarse y evita reenviarlas de forma masiva después de un despliegue.
 
@@ -166,33 +160,27 @@ El bot entiende lenguaje natural en cualquier punto de la conversación (`src/li
 - Una consulta médica no urgente como `mi perro vomita`: tampoco ofrece diagnóstico; deriva a una persona.
 - `salir` / `menu`: reinicia el flujo. `cancelar` a secas dentro de una reserva en curso pregunta si se quiere cancelar la reserva en armado o un turno ya existente.
 - Dos mensajes seguidos que el bot no entiende: deriva a una persona en vez de repetir el menú.
-- Enviar dos veces el mismo `eventId` al endpoint interno: la segunda respuesta indica `duplicate: true`.
+- Un mismo evento entrante reenviado por el webhook (mismo `eventId`) no se procesa dos veces: la segunda respuesta indica `duplicate: true`.
 
 ## Seguridad operativa
 
-- `.data/` contiene las credenciales de sesión Baileys y está excluido de Git.
-- El worker y el CRM se autentican con `INTERNAL_WHATSAPP_TOKEN`.
+- El webhook de Zernio verifica la firma HMAC-SHA256 (`ZERNIO_WEBHOOK_SECRET`) sobre el cuerpo crudo antes de procesar nada.
+- Cada evento se resuelve a una clínica por la cuenta de WhatsApp (`Clinic.zernioAccountId`) y todas las consultas incluyen `clinicId`.
 - Nunca se registran tokens ni contenido completo de credenciales.
-- Cada evento se resuelve a una clínica mediante `WHATSAPP_CLINIC_KEY` y todas las consultas incluyen `clinicId`.
-- `/api/internal/whatsapp/events` y `/api/internal/whatsapp/outbound` tienen, además del token interno, un rate limit básico en memoria (`src/lib/rate-limit.ts`): 60 requests/minuto por IP+ruta, respondiendo `429` genérico si se excede. **Limitación conocida**: el estado vive en memoria del proceso, así que no es distribuido — con una sola instancia (el caso de hoy) alcanza; si se escala a múltiples réplicas, cada una lleva su propio conteo y habría que migrar a un store compartido.
-
-## Importante sobre Baileys
-
-Baileys automatiza WhatsApp Web; no es la API oficial de Meta. Puede sufrir cierres de sesión o cambios incompatibles y existe riesgo operativo para el número. Por eso este MVP conserva el canal detrás de contratos internos y ejecuta Baileys en un worker persistente. La web puede alojarse en Vercel, pero el worker debe vivir en un servicio con disco persistente (por ejemplo Railway, Render o una VPS). Para una versión productiva estable, la migración recomendada es a Meta WhatsApp Cloud API.
-
-Más detalles en [docs/architecture.md](docs/architecture.md), [docs/whatsapp-baileys.md](docs/whatsapp-baileys.md) y [docs/deployment.md](docs/deployment.md).
 
 ## WhatsApp oficial (Meta Cloud API vía Zernio)
 
-Cada clínica puede conectar su número a la API oficial de Meta desde **Configuración → Pasar a WhatsApp oficial**
-(Embedded Signup de Meta a través de [Zernio](https://docs.zernio.com), en modo coexistencia: la veterinaria sigue
-usando la app de WhatsApp Business). Desde ese momento esa clínica deja de usar Baileys: los mensajes entrantes
-llegan por `POST /api/whatsapp/zernio/webhook` al mismo bot, y la outbox se envía por la API de Zernio (al
-instante y, como barrido de reintentos, desde el worker de recordatorios). Fuera de la ventana de 24 h de Meta
-(recordatorios), el mensaje sale como Direct Send de utilidad, sin plantilla.
+Cada clínica conecta su número a la API oficial de Meta desde **Configuración → Conectá el WhatsApp de tu veterinaria**
+(Embedded Signup de Meta a través de Zernio, en modo coexistencia: la veterinaria sigue usando la app de WhatsApp
+Business). Los mensajes entrantes llegan por `POST /api/whatsapp/zernio/webhook` al bot, y la outbox se envía por la
+API de Zernio. Fuera de la ventana de 24 h de Meta (recordatorios), el mensaje sale como Direct Send de utilidad, sin
+plantilla.
 
 Puesta en marcha: `ZERNIO_API_KEY` y `ZERNIO_WEBHOOK_SECRET` en Vercel, `ZERNIO_API_KEY` + `REMINDER_PROVIDER=outbox`
-en el worker de recordatorios, y una sola vez `npm run zernio:webhook -- <url pública del CRM>`.
+en el worker de recordatorios (Railway, `railway.reminders.toml`), y una sola vez `npm run zernio:webhook -- <url pública del CRM>`.
+
+Más detalles en [docs/architecture.md](docs/architecture.md) y [docs/deployment.md](docs/deployment.md). El canal anterior
+por Baileys (WhatsApp Web no oficial) se eliminó el 28/09/2026.
 
 ## Verificación
 

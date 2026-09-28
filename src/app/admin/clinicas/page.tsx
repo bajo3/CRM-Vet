@@ -14,8 +14,7 @@ export default async function AdminClinicasPage() {
       status: true,
       statusReason: true,
       createdAt: true,
-      whatsappSessionKey: true,
-      whatsappBridgeUrl: true,
+      zernioAccountId: true,
       members: { where: { role: "OWNER" }, take: 1, select: { user: { select: { name: true, email: true } } } },
     },
     orderBy: { createdAt: "desc" },
@@ -30,8 +29,7 @@ export default async function AdminClinicasPage() {
     createdAt: clinic.createdAt.toISOString(),
     ownerName: clinic.members[0]?.user.name ?? null,
     ownerEmail: clinic.members[0]?.user.email ?? null,
-    whatsappSessionKey: clinic.whatsappSessionKey,
-    whatsappBridgeUrl: clinic.whatsappBridgeUrl,
+    whatsappConnected: Boolean(clinic.zernioAccountId),
   }));
 
   const pending = rows.filter((row) => row.status === "PENDING");

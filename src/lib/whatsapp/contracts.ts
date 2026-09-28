@@ -1,15 +1,11 @@
-import { z } from "zod";
-
-export const incomingWhatsappEventSchema = z.object({
-  eventId: z.string().min(1).max(160),
-  clinicKey: z.string().min(1).max(100),
-  phone: z.string().min(6).max(30),
-  contactName: z.string().max(120).optional(),
-  text: z.string().min(1).max(3000),
-  timestamp: z.string().datetime(),
-});
-
-export type IncomingWhatsappEvent = z.infer<typeof incomingWhatsappEventSchema>;
+/** Mensaje entrante de WhatsApp ya normalizado, independiente del canal por el que llegó. */
+export type IncomingWhatsappEvent = {
+  eventId: string;
+  phone: string;
+  contactName?: string;
+  text: string;
+  timestamp: string;
+};
 
 export type WhatsappEventResponse = {
   accepted: boolean;

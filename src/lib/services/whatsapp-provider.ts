@@ -3,9 +3,8 @@ import { normalizePhone } from "../phone";
 
 /**
  * Puerto de envío de WhatsApp. El motor de recordatorios depende únicamente de esta interfaz,
- * por lo que enchufar Baileys (u otro proveedor real) en otra etapa no requiere tocar
- * `reminders.ts`: alcanza con implementar `WhatsAppProvider` y pasar esa instancia a
- * `processDueReminders`.
+ * por lo que cambiar de proveedor no requiere tocar `reminders.ts`: alcanza con implementar
+ * `WhatsAppProvider` y pasar esa instancia a `processDueReminders`.
  *
  * `clinicId` viaja en el llamado (no en el constructor del proveedor) porque `processDueReminders`
  * procesa recordatorios vencidos de todas las clínicas en una misma corrida con una única
@@ -16,7 +15,7 @@ export interface WhatsAppProvider {
     externalMessageId: string;
     /**
      * `true` cuando el propio proveedor ya dejó registrado el `WhatsappMessage` saliente (es el
-     * caso de `OutboxWhatsAppProvider`, que necesita crear esa fila para que el worker la levante).
+     * caso de `OutboxWhatsAppProvider`, que necesita crear esa fila para que la outbox la despache).
      * En ese caso el llamador no debe volver a registrar el mensaje para no duplicarlo.
      */
     messageAlreadyRecorded?: boolean;
@@ -38,10 +37,9 @@ export class MockWhatsAppProvider implements WhatsAppProvider {
 }
 
 /**
- * Proveedor de producción "outbox": no envía nada directamente (no habla con Baileys), sino que
- * encola el mensaje como `WhatsappMessage` OUTBOUND en estado `HUMAN_QUEUED` -el mismo estado que
- * usan las respuestas humanas desde `/mensajes`- para que lo levante el mismo poll de salientes
- * que ya corre en `worker/whatsapp.ts`.
+ * Proveedor de producción "outbox": no envía nada directamente, sino que encola el mensaje como
+ * `WhatsappMessage` OUTBOUND en estado `HUMAN_QUEUED` -el mismo estado que usan las respuestas
+ * humanas desde `/mensajes`- para que lo despache `dispatchZernioOutbox`.
  *
  * A propósito NO toca `status`/`assignedUserId` de la conversación: es un mensaje automático del
  * sistema, no una respuesta humana, así que la conversación no debe pasar a `HUMAN_ACTIVE` ni

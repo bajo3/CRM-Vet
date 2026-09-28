@@ -2,7 +2,6 @@ import { createHmac, randomUUID } from "node:crypto";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { NextRequest } from "next/server";
 import { POST as zernioWebhookPOST } from "../src/app/api/whatsapp/zernio/webhook/route";
-import { GET as outboundGET } from "../src/app/api/internal/whatsapp/outbound/route";
 import { dispatchZernioOutbox } from "../src/lib/services/zernio-outbox";
 import { verifyZernioSignature } from "../src/lib/whatsapp/zernio-client";
 import { handleZernioWebhook, type ZernioWebhookEvent } from "../src/lib/whatsapp/zernio-webhook";
@@ -15,7 +14,7 @@ async function createZernioClinic() {
   const clinic = await createTestClinic({ name: "Clínica Zernio" });
   return prisma.clinic.update({
     where: { id: clinic.id },
-    data: { status: "APPROVED", zernioAccountId: `acc-${randomUUID()}`, whatsappSessionKey: `key-${randomUUID()}` },
+    data: { status: "APPROVED", zernioAccountId: `acc-${randomUUID()}` },
   });
 }
 
@@ -49,7 +48,6 @@ describe("canal de WhatsApp vía Zernio", () => {
   beforeEach(async () => {
     process.env.ZERNIO_API_KEY = "sk_test";
     process.env.ZERNIO_WEBHOOK_SECRET = SECRET;
-    process.env.INTERNAL_WHATSAPP_TOKEN = "internal-test-token";
     await resetDatabase();
   });
 
@@ -208,20 +206,5 @@ describe("canal de WhatsApp vía Zernio", () => {
     expect(outcome).toMatchObject({ handled: true, kind: "echo" });
     expect((await prisma.whatsappConversation.findUniqueOrThrow({ where: { id: conversation.id } })).status).toBe("HUMAN_ACTIVE");
     expect(await prisma.whatsappMessage.findFirst({ where: { conversationId: conversation.id, content: "Te atiendo yo", status: "SENT" } })).not.toBeNull();
-  });
-
-  it("el bridge de Baileys no reclama mensajes de una clínica que ya envía por Zernio", async () => {
-    const clinic = await createZernioClinic();
-    const conversation = await prisma.whatsappConversation.create({ data: { clinicId: clinic.id, phone: PHONE } });
-    await prisma.whatsappMessage.create({
-      data: { clinicId: clinic.id, conversationId: conversation.id, direction: "OUTBOUND", content: "Hola", status: "HUMAN_QUEUED" },
-    });
-    const response = await outboundGET(
-      new NextRequest(`http://localhost/api/internal/whatsapp/outbound?clinicKey=${clinic.whatsappSessionKey}`, {
-        headers: { "x-internal-token": "internal-test-token", "x-forwarded-for": "127.0.0.9" },
-      })
-    );
-    expect(await response.json()).toEqual({ messages: [] });
-    expect(await prisma.whatsappMessage.count({ where: { clinicId: clinic.id, status: "HUMAN_QUEUED" } })).toBe(1);
   });
 });

@@ -8,7 +8,7 @@ import { getPrisma } from "@/lib/prisma";
 import { dispatchZernioOutbox } from "@/lib/services/zernio-outbox";
 import type { ActionResult } from "./types";
 
-/** Con Zernio no hay un bridge haciendo poll: el mensaje recién encolado se envía al terminar la respuesta. */
+/** El mensaje recién encolado se envía por Zernio al terminar la respuesta (el worker reintenta si falla). */
 function dispatchAfterResponse(clinicId: string) {
   after(async () => {
     await dispatchZernioOutbox(getPrisma(), clinicId).catch((error) => {

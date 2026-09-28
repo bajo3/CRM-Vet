@@ -1,21 +1,22 @@
 # Arquitectura del MVP
 
 ```text
-WhatsApp
-   │  conexión persistente
+WhatsApp (Meta Cloud API)
+   │
    ▼
-Worker Baileys ── token interno ──▶ Next.js / API
-                                      │
-                                      ▼
-                                  PostgreSQL
+Zernio ── webhook firmado ──▶ Next.js / API ◀── worker de recordatorios
+   ▲                              │
+   └──────── API de envío ────────┤
+                                  ▼
+                              PostgreSQL
 ```
 
-La aplicación web y la lógica de negocio viven en Next.js. Baileys se ejecuta en un proceso independiente porque mantiene un socket y archivos de sesión; una función serverless no puede garantizar ninguno de los dos.
+La aplicación web y la lógica de negocio viven en Next.js. Zernio es solo transporte: entrega los mensajes entrantes por webhook y envía los salientes. El worker de recordatorios corre aparte (Railway) porque es un loop persistente.
 
 ## Límites
 
-- `worker/whatsapp.ts`: transporte. Recibe el mensaje, normaliza el sobre y envía la respuesta devuelta por el CRM.
-- `src/app/api/internal/whatsapp/events`: autenticación y validación del contrato.
+- `src/app/api/whatsapp/zernio/webhook`: verificación de firma y validación del evento; `src/lib/whatsapp/zernio-webhook.ts` lo resuelve a la clínica por su cuenta de WhatsApp.
+- `src/lib/services/zernio-outbox.ts`: envío de la outbox por la API de Zernio.
 - `src/lib/whatsapp/flow.ts`: lógica conversacional en lenguaje natural (entiende frases libres, saltea preguntas ya respondidas en la misma frase y ofrece alternativas reales cuando no hay lugar). Delega disponibilidad y reservas a `src/lib/services/`; no repite reglas de negocio. La reprogramación (`RESCHEDULE_AWAIT_DATE`/`RESCHEDULE_AWAIT_ALTERNATIVES`/`RESCHEDULE_AWAIT_TIME`) reutiliza las mismas funciones de disponibilidad/alternativas que una reserva nueva (`resolveDateAvailability`/`finalizeBooking` parametrizadas por un `BookingMode`), fijando el veterinario al del turno existente y llamando a `rescheduleAppointment` en vez de `createAppointment`.
 - `src/lib/whatsapp/intent.ts`: clasificación conservadora de intención (reserva, confirmar, reprogramar, cancelar, consultar horarios, urgencia). Cualquier señal médica o sensible se deriva; la urgencia veterinaria real (`isUrgent`) se deriva de inmediato pidiendo acudir a la clínica/guardia, sin dar indicación médica.
 - `src/lib/whatsapp/date-parser.ts`: fechas y horarios en lenguaje natural (es-AR), sin dependencias nuevas (luxon + regex). Funciones puras, testeadas con un reloj inyectable.
@@ -23,7 +24,7 @@ La aplicación web y la lógica de negocio viven en Next.js. Baileys se ejecuta 
 - `worker/reminders.ts`: cron del motor de recordatorios (turnos próximos y controles médicos vencidos). Elige el proveedor de WhatsApp según `REMINDER_PROVIDER` (`mock` por default, `outbox` en producción).
 - `prisma/schema.prisma`: organizaciones, usuarios, clientes, mascotas, turnos, historia clínica, recordatorios, actividad de turnos y mensajería.
 
-Baileys no conoce reglas de turnos ni accede directamente a la base. Esto permite reemplazarlo por otro proveedor sin reescribir el dominio.
+El transporte no conoce reglas de turnos. Esto permite reemplazar el proveedor sin reescribir el dominio.
 
 ## Servicios de dominio (`src/lib/services/`)
 
@@ -33,12 +34,12 @@ Toda función recibe y valida `clinicId` explícitamente; ninguna asume un tenan
 - `appointments.ts`: `createAppointment`, `rescheduleAppointment` y `updateAppointmentStatus`. Cada alta/reprogramación corre en una transacción `Serializable` que revalida disponibilidad, registra `AppointmentActivity` (`CREATED`/`RESCHEDULED`/`STATUS_CHANGED`), cancela los recordatorios `CONTROL_DUE` pendientes de la mascota al agendar un turno, y agenda/regenera el recordatorio de turno (24hs antes, solo si es futuro).
 - `medical-records.ts`: `createMedicalRecord` valida que `nextDueDate` sea posterior a la atención y, si el cliente tiene recordatorios habilitados, agenda avisos de control a 7 y 1 día antes (omitiendo los que ya quedarían en el pasado).
 - `reminders.ts`: plantillas en español (formateadas con la zona horaria de la clínica vía `luxon`) y `processDueReminders`, que reclama cada recordatorio vencido de forma atómica, revalida que siga vigente, envía por el proveedor y registra el resultado (`SENT`/`FAILED` con reintento hasta 3 intentos, o `CANCELLED` si ya no corresponde).
-- `whatsapp-provider.ts`: puerto `WhatsAppProvider` (`sendText({ clinicId, phone, text })`, `clinicId` viaja en el llamado porque `processDueReminders` procesa todas las clínicas en una misma corrida) + `MockWhatsAppProvider` (no envía nada, solo loguea) + `OutboxWhatsAppProvider` (producción: encola el mensaje como `WhatsappMessage` `HUMAN_QUEUED` para que lo levante el worker de Baileys, sin marcar la conversación como atendida por un humano). El envío real por Baileys (u otro canal) se enchufa implementando esta interfaz, sin tocar `reminders.ts`.
-- `whatsapp-outbound.ts`: `claimOutboundMessages` (reclamo atómico mensaje por mensaje, `HUMAN_QUEUED` → `SENDING`, para que dos polls solapados no envíen el mismo dos veces) y `reportOutboundOutcome` (marca `SENT`, o incrementa `attempts` y reintenta hasta 3 veces antes de `FAILED` definitivo), ambas filtrando siempre por `clinicId` además de `id`. Extraídas del route handler de `/api/internal/whatsapp/outbound` para poder testearlas directamente.
+- `whatsapp-provider.ts`: puerto `WhatsAppProvider` (`sendText({ clinicId, phone, text })`, `clinicId` viaja en el llamado porque `processDueReminders` procesa todas las clínicas en una misma corrida) + `MockWhatsAppProvider` (no envía nada, solo loguea) + `OutboxWhatsAppProvider` (producción: encola el mensaje como `WhatsappMessage` `HUMAN_QUEUED` para que lo despache la outbox de Zernio, sin marcar la conversación como atendida por un humano).
+- `whatsapp-outbound.ts`: `claimOutboundMessages` (reclamo atómico mensaje por mensaje, `HUMAN_QUEUED` → `SENDING`, para que dos despachos solapados no envíen el mismo dos veces) y `reportOutboundOutcome` (marca `SENT`, o incrementa `attempts` y reintenta hasta 3 veces antes de `FAILED` definitivo), ambas filtrando siempre por `clinicId` además de `id`.
 
 ## Multiempresa
 
-`WHATSAPP_CLINIC_KEY` corresponde a `Clinic.whatsappSessionKey`. El endpoint primero resuelve esa clínica y luego aplica su `id` en cada lectura y escritura. Las claves únicas de teléfonos, conversaciones, mensajes y eventos incluyen la clínica. Los servicios de dominio replican esta regla: reciben `clinicId` y filtran cada consulta por él, incluso al validar que una mascota o un veterinario pertenezcan a esa clínica.
+Cada evento de Zernio trae la cuenta de WhatsApp, que corresponde a `Clinic.zernioAccountId`. El webhook primero resuelve esa clínica y luego aplica su `id` en cada lectura y escritura. Las claves únicas de teléfonos, conversaciones, mensajes y eventos incluyen la clínica. Los servicios de dominio replican esta regla: reciben `clinicId` y filtran cada consulta por él, incluso al validar que una mascota o un veterinario pertenezcan a esa clínica.
 
 ## Concurrencia
 

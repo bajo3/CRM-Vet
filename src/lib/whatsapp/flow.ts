@@ -368,24 +368,18 @@ function startFreshBooking(ctx: BookingCtx, text: string): Promise<StepResult> {
   return advanceBooking(ctx, initial);
 }
 
-export async function processIncomingWhatsapp(event: IncomingWhatsappEvent): Promise<WhatsappEventResponse> {
-  const clinic = await getPrisma().clinic.findUnique({ where: { whatsappSessionKey: event.clinicKey } });
-  if (!clinic) throw new Error("CLINIC_NOT_CONFIGURED");
-  return processIncomingWhatsappForClinic(clinic, event);
-}
-
 export type IncomingChannelInfo = {
   /** Id de la conversación en Zernio, cuando el mensaje llegó por el webhook de Zernio. */
   zernioConversationId?: string;
 };
 
 /**
- * Procesa un mensaje entrante ya asociado a su clínica, sin importar el canal por el que llegó
- * (bridge de Baileys o webhook de Zernio). La respuesta del bot queda en la outbox (`HUMAN_QUEUED`).
+ * Procesa un mensaje entrante ya asociado a su clínica. La respuesta del bot queda en la outbox
+ * (`HUMAN_QUEUED`) y la despacha `dispatchZernioOutbox`.
  */
 export async function processIncomingWhatsappForClinic(
   clinic: Clinic,
-  event: Omit<IncomingWhatsappEvent, "clinicKey">,
+  event: IncomingWhatsappEvent,
   channel: IncomingChannelInfo = {}
 ): Promise<WhatsappEventResponse> {
   const prisma = getPrisma();

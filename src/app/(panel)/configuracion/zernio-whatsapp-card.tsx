@@ -1,4 +1,4 @@
-import { BadgeCheck, ExternalLink, MessageCircle } from "lucide-react";
+import { ExternalLink, MessageCircle } from "lucide-react";
 
 const RESULT_COPY: Record<string, { tone: string; text: string }> = {
   connected: { tone: "bg-emerald-50 text-emerald-700", text: "¡Listo! Tu WhatsApp quedó conectado. El bot y los recordatorios ya salen desde tu número." },
@@ -16,8 +16,7 @@ const STEPS = [
 // Conexión al WhatsApp oficial (Cloud API de Meta, vía Zernio) en modo coexistencia: la veterinaria
 // sigue usando la app de WhatsApp Business en el teléfono y el CRM envía y recibe por la API. Es la vía
 // de autoservicio: la clínica la completa sola, sin que el equipo de la plataforma intervenga.
-// `primary`: la clínica todavía no tiene ningún WhatsApp, así que esta es la tarjeta principal.
-export function ZernioWhatsappCard({ connected, primary = false, result }: { connected: boolean; primary?: boolean; result?: string }) {
+export function ZernioWhatsappCard({ connected, result }: { connected: boolean; result?: string }) {
   const resultCopy = result ? RESULT_COPY[result] : undefined;
   if (connected && !resultCopy) return null;
 
@@ -28,37 +27,31 @@ export function ZernioWhatsappCard({ connected, primary = false, result }: { con
         <>
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex items-start gap-3">
-              <span
-                className={`grid size-11 shrink-0 place-items-center rounded-2xl text-white shadow-sm ${primary ? "bg-emerald-600 shadow-emerald-200" : "bg-indigo-600 shadow-indigo-200"}`}
-              >
-                {primary ? <MessageCircle size={21} /> : <BadgeCheck size={20} />}
+              <span className="grid size-11 shrink-0 place-items-center rounded-2xl bg-emerald-600 text-white shadow-sm shadow-emerald-200">
+                <MessageCircle size={21} />
               </span>
               <div>
-                <h2 className="font-semibold">{primary ? "Conectá el WhatsApp de tu veterinaria" : "Pasar a WhatsApp oficial"}</h2>
+                <h2 className="font-semibold">Conectá el WhatsApp de tu veterinaria</h2>
                 <p className="mt-1 max-w-xl text-sm leading-5 text-slate-500">
-                  {primary
-                    ? "Con esto el bot responde y reserva turnos solo, y los recordatorios salen desde tu número. Lleva unos 5 minutos."
-                    : "Conectá el número de la veterinaria a la API oficial de Meta. Es más estable, no depende de tener el teléfono encendido y seguís usando la app de WhatsApp Business como siempre."}
+                  Con esto el bot responde y reserva turnos solo, y los recordatorios salen desde tu número. Lleva unos 5 minutos.
                 </p>
               </div>
             </div>
             <a
               href="/api/whatsapp/zernio/connect"
-              className={`inline-flex shrink-0 items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition focus-visible:outline-2 focus-visible:outline-offset-2 ${primary ? "bg-emerald-600 hover:bg-emerald-700 focus-visible:outline-emerald-600" : "bg-indigo-600 hover:bg-indigo-700 focus-visible:outline-indigo-600"}`}
+              className="inline-flex shrink-0 items-center justify-center gap-2 rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-600"
             >
               Conectar WhatsApp <ExternalLink size={15} />
             </a>
           </div>
-          {primary && (
-            <ol className="mt-5 space-y-3 border-t border-slate-100 pt-5 text-sm text-slate-600">
-              {STEPS.map((step, index) => (
-                <li key={step} className="flex gap-3">
-                  <span className="grid size-6 shrink-0 place-items-center rounded-full bg-emerald-100 text-xs font-semibold text-emerald-700">{index + 1}</span>
-                  <span className="pt-0.5">{step}</span>
-                </li>
-              ))}
-            </ol>
-          )}
+          <ol className="mt-5 space-y-3 border-t border-slate-100 pt-5 text-sm text-slate-600">
+            {STEPS.map((step, index) => (
+              <li key={step} className="flex gap-3">
+                <span className="grid size-6 shrink-0 place-items-center rounded-full bg-emerald-100 text-xs font-semibold text-emerald-700">{index + 1}</span>
+                <span className="pt-0.5">{step}</span>
+              </li>
+            ))}
+          </ol>
         </>
       )}
     </section>

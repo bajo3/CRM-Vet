@@ -3,7 +3,7 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Check, Loader2, MessageCircle, X } from "lucide-react";
-import { approveClinic, rejectClinic, updateClinicWhatsappBridge } from "@/lib/actions/platform-admin";
+import { approveClinic, rejectClinic } from "@/lib/actions/platform-admin";
 
 type ClinicRow = {
   id: string;
@@ -14,85 +14,8 @@ type ClinicRow = {
   createdAt: string;
   ownerName: string | null;
   ownerEmail: string | null;
-  whatsappSessionKey: string | null;
-  whatsappBridgeUrl: string | null;
+  whatsappConnected: boolean;
 };
-
-function WhatsappBridgeEditor({ clinic }: { clinic: ClinicRow }) {
-  const router = useRouter();
-  const [isPending, startTransition] = useTransition();
-  const [open, setOpen] = useState(false);
-  const [sessionKey, setSessionKey] = useState(clinic.whatsappSessionKey ?? "");
-  const [bridgeUrl, setBridgeUrl] = useState(clinic.whatsappBridgeUrl ?? "");
-  const [error, setError] = useState<string | null>(null);
-  const [saved, setSaved] = useState(false);
-
-  const hasOwnBridge = !!clinic.whatsappSessionKey && !!clinic.whatsappBridgeUrl;
-
-  const onSave = () => {
-    setError(null);
-    setSaved(false);
-    startTransition(async () => {
-      const result = await updateClinicWhatsappBridge({
-        clinicId: clinic.id,
-        whatsappSessionKey: sessionKey.trim(),
-        whatsappBridgeUrl: bridgeUrl.trim(),
-      });
-      if (!result.ok) { setError(result.message); return; }
-      setSaved(true);
-      router.refresh();
-    });
-  };
-
-  return (
-    <div className="mt-2 border-t border-slate-100 pt-2">
-      <button
-        type="button"
-        onClick={() => setOpen((value) => !value)}
-        className="flex items-center gap-1.5 text-xs font-medium text-slate-500 hover:text-slate-700"
-      >
-        <MessageCircle size={13} />
-        WhatsApp: {hasOwnBridge ? "bridge propio asignado" : "usa el bridge global (demo)"}
-      </button>
-      {open && (
-        <div className="mt-2 space-y-2 rounded-xl bg-slate-50 p-3">
-          <div>
-            <label className="mb-1 block text-xs font-medium text-slate-600">Clave de sesión</label>
-            <input
-              aria-label="Clave de sesión"
-              value={sessionKey}
-              onChange={(event) => setSessionKey(event.target.value)}
-              placeholder="ej: san-martin"
-              className="h-9 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm outline-none focus:border-emerald-400"
-            />
-            <p className="mt-1 text-xs text-slate-400">Tiene que coincidir con WHATSAPP_CLINIC_KEY del servicio de Railway.</p>
-          </div>
-          <div>
-            <label className="mb-1 block text-xs font-medium text-slate-600">URL del bridge</label>
-            <input
-              aria-label="URL del bridge"
-              value={bridgeUrl}
-              onChange={(event) => setBridgeUrl(event.target.value)}
-              placeholder="https://....up.railway.app"
-              className="h-9 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm outline-none focus:border-emerald-400"
-            />
-          </div>
-          {error && <p className="rounded-lg bg-rose-50 px-3 py-1.5 text-xs text-rose-700">{error}</p>}
-          {saved && !error && <p className="rounded-lg bg-emerald-50 px-3 py-1.5 text-xs text-emerald-700">Guardado.</p>}
-          <button
-            type="button"
-            onClick={onSave}
-            disabled={isPending}
-            className="flex h-8 items-center gap-1.5 rounded-lg bg-slate-800 px-3 text-xs font-semibold text-white disabled:opacity-60"
-          >
-            {isPending && <Loader2 size={13} className="animate-spin" />}
-            Guardar
-          </button>
-        </div>
-      )}
-    </div>
-  );
-}
 
 export function PendingClinicRow({ clinic }: { clinic: ClinicRow }) {
   const router = useRouter();
@@ -275,7 +198,12 @@ export function DecidedClinicRow({ clinic }: { clinic: ClinicRow }) {
           </div>
         </div>
       )}
-      {clinic.status === "APPROVED" && <WhatsappBridgeEditor clinic={clinic} />}
+      {clinic.status === "APPROVED" && (
+        <p className="mt-2 flex items-center gap-1.5 border-t border-slate-100 pt-2 text-xs text-slate-500">
+          <MessageCircle size={13} />
+          WhatsApp: {clinic.whatsappConnected ? "conectado (oficial vía Zernio)" : "sin conectar"}
+        </p>
+      )}
     </div>
   );
 }

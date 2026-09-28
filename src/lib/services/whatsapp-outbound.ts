@@ -12,8 +12,8 @@ export type ClaimedOutboundMessage = { id: string; phone: string; content: strin
  * `SENDING`. Tanto el bot como el equipo crean mensajes `HUMAN_QUEUED`; el antiguo estado
  * `QUEUED` se conserva sólo como histórico sin confirmación para no reenviar conversaciones
  * previas al desplegar esta outbox. Reclamar mensaje por mensaje con un `updateMany` condicionado
- * asegura que, si dos llamadas corren en paralelo (por ejemplo el worker Baileys reintentando un
- * poll que tardó más de lo esperado), cada mensaje se le adjudique a una sola de las dos: la
+ * asegura que, si dos llamadas corren en paralelo (por ejemplo el webhook de Zernio y el barrido
+ * del worker de recordatorios), cada mensaje se le adjudique a una sola de las dos: la
  * segunda llamada obtiene `count: 0` para cualquier fila que la primera ya haya reclamado.
  */
 export async function claimOutboundMessages(prisma: PrismaLike, clinicId: string, limit = 20): Promise<ClaimedOutboundMessage[]> {
