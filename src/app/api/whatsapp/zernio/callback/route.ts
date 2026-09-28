@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { Prisma } from "@prisma/client";
 import { getSession, hasRole } from "@/lib/auth/session";
 import { CLINIC_CONFIG_ROLES } from "@/lib/auth/roles";
 import { getPrisma } from "@/lib/prisma";
@@ -47,7 +48,16 @@ export async function GET(request: NextRequest) {
     return NextResponse.redirect(settingsUrl);
   }
 
-  await prisma.clinic.update({ where: { id: clinic.id }, data: { zernioAccountId: accountId } });
+  try {
+    await prisma.clinic.update({ where: { id: clinic.id }, data: { zernioAccountId: accountId } });
+  } catch (error) {
+    // `zernioAccountId` es único: esa cuenta de WhatsApp ya está asociada a otra clínica.
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
+      settingsUrl.searchParams.set("whatsapp", "mismatch");
+      return NextResponse.redirect(settingsUrl);
+    }
+    throw error;
+  }
   settingsUrl.searchParams.set("whatsapp", "connected");
   return NextResponse.redirect(settingsUrl);
 }
