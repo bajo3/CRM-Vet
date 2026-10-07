@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { DateTime } from "luxon";
-import { CalendarDays, ChevronRight, Clock3, MessageCircle, PawPrint, Plus, Search } from "lucide-react";
+import { CalendarDays, ChevronRight, Clock3, MessageCircle, PawPrint, Plus, Search, Wallet } from "lucide-react";
 import { requireSession, hasRole } from "@/lib/auth/session";
 import { AGENDA_MANAGE_ROLES, CLINIC_CONFIG_ROLES } from "@/lib/auth/roles";
 import { getClinicSettings } from "@/lib/queries/clinic";
@@ -51,6 +51,13 @@ export default async function InicioPage({ searchParams }: { searchParams: Promi
           >
             <PawPrint size={17} />
             Nueva mascota
+          </Link>
+          <Link
+            href="/ventas/nueva"
+            className="flex h-11 flex-1 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 text-sm font-medium shadow-sm"
+          >
+            <Wallet size={17} />
+            Cobrar
           </Link>
           <Link
             href={hasRole(session, AGENDA_MANAGE_ROLES) ? "/agenda/nuevo" : "/agenda"}

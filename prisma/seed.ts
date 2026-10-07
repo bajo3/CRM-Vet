@@ -35,6 +35,7 @@ export async function ensureClinicAndUsers() {
         timezone: TIMEZONE,
         defaultAppointmentDuration: 30,
         status: "APPROVED",
+        isDemo: true,
         openingHours: {
           monday: ["09:00", "18:00"],
           tuesday: ["09:00", "18:00"],

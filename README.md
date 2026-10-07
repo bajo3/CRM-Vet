@@ -10,6 +10,8 @@ CRM veterinario multiempresa con bot de WhatsApp sobre la **API oficial de Meta*
 - Sección completa de "Clientes y mascotas": buscador único (cliente, mascota o teléfono), alta/edición de clientes y mascotas, ficha de mascota de una sola pantalla con historial clínico, registro rápido de atenciones y próximo control con opciones rápidas, presupuestos y recetas descargables en PDF, con accesos directos a la Agenda (nuevo turno / próximo turno).
 - Inicio con datos reales de la clínica de la sesión (turnos de hoy, pendientes de confirmar, próximos controles, controles vencidos, conversaciones que requieren atención).
 - Modelo PostgreSQL/Prisma aislado por `clinicId`.
+- Ventas y caja (`/ventas`): cobro de productos y servicios del catálogo o ítems a mano, medios de pago, caja del día con movimientos manuales de efectivo, anulación de ventas y control de stock con aviso de faltante (`src/lib/services/sales.ts`).
+- Cuenta demo blindada (`Clinic.isDemo`, `src/lib/auth/demo.ts`): en la clínica demo no se pueden cambiar contraseñas, gestionar el equipo ni conectar un WhatsApp real.
 - Reserva online pública (`/reservar/<slug>`): cada clínica la activa desde Configuración y comparte el link; los turnos entran `PENDING` con origen `ONLINE` (`src/lib/services/online-booking.ts`).
 - Reportes de gestión (`/reportes`, solo OWNER/ADMIN): turnos, ausentismo, origen de las reservas, atenciones por tipo y clientes inactivos.
 - Libreta de vacunación en PDF por mascota (`/api/documents/vaccination-card/[petId]/pdf`), armada con las atenciones de tipo vacuna.

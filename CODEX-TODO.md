@@ -713,17 +713,26 @@ Supabase respondía "tenant/user not found" (proyecto pausado). Hay que restaura
   - Reportes: `/reportes` (`src/lib/queries/reports.ts`), solo OWNER/ADMIN.
   - Libreta de vacunación en PDF desde la ficha de la mascota.
   - Keepalive: cron diario de Vercel a `/api/cron/keepalive` para que Supabase free no se pause.
+- **07/10 (segunda tanda): ventas, caja, stock y demo blindada.**
+  - Modelos `Product`, `Sale`, `SaleItem`, `CashMovement` (migración `20261007150000_sales_cash_demo`).
+    Precios y total se resuelven siempre en el servidor, en centavos enteros; el stock se descuenta
+    con `updateMany` condicionado dentro de la transacción; una venta no se borra, se anula.
+  - Permisos: cualquiera cobra; anular ventas y editar el catálogo es OWNER/ADMIN; movimientos de
+    efectivo OWNER/ADMIN/RECEPTIONIST.
+  - `Clinic.isDemo`: bloquea `team.ts` (alta, rol, activar, contraseñas) y el connect/callback de
+    Zernio. El resto de la demo sigue siendo editable por cualquiera.
 - **Esqueleto de carga "pegado" (pendiente desde 11/07): no es un bug.** React 19.2 revela el streaming
   con `requestAnimationFrame`; si la ventana no pinta (pestaña de fondo) el contenido espera.
 
 ### Pendientes reales
 
 1. Borrar a mano el servicio `CRM-Vet-WhatsApp` en Railway (ya no tiene comando de arranque).
-2. El botón demo entra como OWNER: puede cambiar la contraseña demo, el equipo o conectar WhatsApp.
-   Falta restringir la cuenta demo y reiniciarla periódicamente.
+2. La demo ya no permite tocar accesos ni WhatsApp, pero sus datos siguen siendo editables por
+   cualquiera: falta un reinicio periódico automático.
 3. Turnos sin máquina de estados (se puede marcar atendido uno futuro o uno cancelado).
 4. El callback de Zernio guarda el `accountId` de la URL sin verificarlo contra Zernio.
-5. Siguientes funciones por valor: ventas/caja + stock, portal del dueño, campañas, AFIP.
+5. Siguientes funciones por valor: compras a proveedores (ingreso de stock), cierre de caja con
+   arqueo, portal del dueño, campañas, AFIP.
 6. Los de la sesión 24/09 que sigan abiertos (activar Zernio en producción, plantillas, cobro).
 
 ## Cómo correr todo

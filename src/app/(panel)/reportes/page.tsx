@@ -4,7 +4,8 @@ import { requireSession, hasRole } from "@/lib/auth/session";
 import { CLINIC_CONFIG_ROLES } from "@/lib/auth/roles";
 import { getClinicSettings } from "@/lib/queries/clinic";
 import { getClinicReport, INACTIVE_AFTER_MONTHS, REPORT_PERIODS, type ReportPeriod } from "@/lib/queries/reports";
-import { medicalRecordTypeLabel } from "@/lib/format";
+import { formatMoney, medicalRecordTypeLabel } from "@/lib/format";
+import { PAYMENT_METHOD_LABELS } from "@/lib/validation/sales";
 
 const PERIOD_LABELS: Record<ReportPeriod, string> = { 30: "Últimos 30 días", 90: "Últimos 90 días", 365: "Último año" };
 
@@ -133,6 +134,23 @@ export default async function ReportesPage({ searchParams }: { searchParams: Pro
               <Bar key={origin.label} label={origin.label} value={origin.value} max={maxOrigin} />
             ))}
           </ul>
+        </section>
+
+        <section className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm lg:p-6">
+          <h2 className="font-semibold">Ingresos por ventas</h2>
+          <p className="mt-1 text-sm text-slate-500">Ventas cobradas en el período, sin las anuladas.</p>
+          <p className="mt-4 text-3xl font-semibold tracking-tight">{formatMoney(report.revenue)}</p>
+          <p className="mt-0.5 text-xs text-slate-500">{report.salesCount === 1 ? "1 venta" : `${report.salesCount} ventas`}</p>
+          {report.revenueByMethod.length > 0 && (
+            <ul className="mt-5 space-y-2 text-sm">
+              {report.revenueByMethod.map((row) => (
+                <li key={row.method} className="flex justify-between gap-3">
+                  <span className="text-slate-600">{PAYMENT_METHOD_LABELS[row.method]}</span>
+                  <span className="font-medium">{formatMoney(row.total)}</span>
+                </li>
+              ))}
+            </ul>
+          )}
         </section>
 
         <section className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm lg:p-6">

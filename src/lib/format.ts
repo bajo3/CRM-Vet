@@ -145,3 +145,8 @@ export function describeAppointmentActivity(action: string, details: unknown, ti
   }
   return action;
 }
+
+/** Importe en pesos argentinos, con separadores es-AR. */
+export function formatMoney(value: number): string {
+  return new Intl.NumberFormat("es-AR", { style: "currency", currency: "ARS", minimumFractionDigits: 2 }).format(value);
+}

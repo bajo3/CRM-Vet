@@ -31,7 +31,7 @@ export async function getClinicReport(clinicId: string, timezone: string, days: 
     },
   };
 
-  const [byStatus, byVet, bySource, recordsByType, newClients, totalClients, inactiveCount, inactiveClients] = await Promise.all([
+  const [byStatus, byVet, bySource, recordsByType, newClients, totalClients, inactiveCount, inactiveClients, salesByMethod] = await Promise.all([
     prisma.appointment.groupBy({ by: ["status"], where: { clinicId, startAt: inRange }, _count: { _all: true } }),
     prisma.appointment.groupBy({ by: ["veterinarianId", "status"], where: { clinicId, startAt: inRange }, _count: { _all: true } }),
     prisma.appointment.groupBy({ by: ["source"], where: { clinicId, createdAt: inRange }, _count: { _all: true } }),
@@ -45,6 +45,7 @@ export async function getClinicReport(clinicId: string, timezone: string, days: 
       orderBy: { name: "asc" },
       take: 10,
     }),
+    prisma.sale.groupBy({ by: ["paymentMethod"], where: { clinicId, status: "COMPLETED", createdAt: inRange }, _sum: { total: true }, _count: { _all: true } }),
   ]);
 
   const vets = await prisma.user.findMany({
@@ -83,6 +84,9 @@ export async function getClinicReport(clinicId: string, timezone: string, days: 
     bookedByWhatsapp: sourceCount("WHATSAPP"),
     bookedByCrm: sourceCount("CRM"),
     bookedOnline: sourceCount("ONLINE"),
+    revenue: salesByMethod.reduce((sum, row) => sum + Math.round(Number(row._sum.total ?? 0) * 100), 0) / 100,
+    salesCount: salesByMethod.reduce((sum, row) => sum + row._count._all, 0),
+    revenueByMethod: salesByMethod.map((row) => ({ method: row.paymentMethod, total: Number(row._sum.total ?? 0) })).sort((a, b) => b.total - a.total),
     recordsByType: recordsByType.map((row) => ({ type: row.type, count: row._count._all })).sort((a, b) => b.count - a.count),
     newClients,
     totalClients,

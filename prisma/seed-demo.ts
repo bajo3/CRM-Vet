@@ -85,8 +85,24 @@ function atClinicTime(daysOffset: number, time: string): Date {
   return DateTime.now().setZone(TIMEZONE).plus({ days: daysOffset }).set({ hour, minute, second: 0, millisecond: 0 }).toJSDate();
 }
 
+/** Catálogo de ejemplo para Ventas y caja. Solo se carga si la clínica todavía no tiene productos. */
+async function ensureDemoCatalog(clinicId: string) {
+  if ((await prisma.product.count({ where: { clinicId } })) > 0) return;
+  await prisma.product.createMany({
+    data: [
+      { clinicId, name: "Consulta clínica", kind: "SERVICE", price: 18000 },
+      { clinicId, name: "Vacuna antirrábica", kind: "PRODUCT", price: 15000, trackStock: true, stock: 12, minStock: 4 },
+      { clinicId, name: "Vacuna séxtuple", kind: "PRODUCT", price: 22000, trackStock: true, stock: 3, minStock: 4 },
+      { clinicId, name: "Antiparasitario comprimido", kind: "PRODUCT", price: 6500, trackStock: true, stock: 30, minStock: 10 },
+      { clinicId, name: "Alimento balanceado 3 kg", kind: "PRODUCT", price: 24500, trackStock: true, stock: 8, minStock: 3 },
+      { clinicId, name: "Baño y corte", kind: "SERVICE", price: 14000 },
+    ],
+  });
+}
+
 async function main() {
   const { clinic, owner, receptionist, vetAna, vetMartin } = await ensureClinicAndUsers();
+  await ensureDemoCatalog(clinic.id);
 
   const alreadyDemoSeeded = await prisma.client.findFirst({ where: { clinicId: clinic.id, phone: CLIENTS_SEED[0].phone } });
   if (alreadyDemoSeeded) {

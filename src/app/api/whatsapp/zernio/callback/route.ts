@@ -31,12 +31,12 @@ export async function GET(request: NextRequest) {
   const prisma = getPrisma();
   const clinic = await prisma.clinic.findUnique({
     where: { id: session.clinicId },
-    select: { id: true, zernioProfileId: true },
+    select: { id: true, zernioProfileId: true, isDemo: true },
   });
 
   // El profile del callback debe pertenecer a la clínica de la sesión actual; si no coincide, no
   // tocamos nada (podría ser un callback viejo, de otra pestaña, o un profileId manipulado).
-  if (!clinic || clinic.zernioProfileId !== profileId) {
+  if (!clinic || clinic.isDemo || clinic.zernioProfileId !== profileId) {
     settingsUrl.searchParams.set("whatsapp", "mismatch");
     return NextResponse.redirect(settingsUrl);
   }

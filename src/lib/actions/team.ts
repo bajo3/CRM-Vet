@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { getPrisma } from "../prisma";
 import { getSession, hasRole } from "../auth/session";
 import { TEAM_MANAGE_ROLES } from "../auth/roles";
+import { DEMO_BLOCKED, isDemoClinic } from "../auth/demo";
 import { hashPassword, verifyPassword } from "../auth/password";
 import {
   addTeamMemberSchema,
@@ -39,6 +40,7 @@ export async function addTeamMember(input: AddTeamMemberInput): Promise<AddTeamM
   const session = await getSession();
   if (!session) return NO_SESSION;
   if (!hasRole(session, TEAM_MANAGE_ROLES)) return NOT_AUTHORIZED;
+  if (await isDemoClinic(session.clinicId)) return DEMO_BLOCKED;
 
   const parsed = addTeamMemberSchema.safeParse(input);
   if (!parsed.success) {
@@ -95,6 +97,7 @@ export async function changeMemberRole(input: ChangeMemberRoleInput): Promise<Ch
   const session = await getSession();
   if (!session) return NO_SESSION;
   if (!hasRole(session, TEAM_MANAGE_ROLES)) return NOT_AUTHORIZED;
+  if (await isDemoClinic(session.clinicId)) return DEMO_BLOCKED;
 
   const parsed = changeMemberRoleSchema.safeParse(input);
   if (!parsed.success) return { ok: false, message: "Revisá los datos ingresados." };
@@ -130,6 +133,7 @@ export async function toggleMemberActive(input: ToggleMemberActiveInput): Promis
   const session = await getSession();
   if (!session) return NO_SESSION;
   if (!hasRole(session, TEAM_MANAGE_ROLES)) return NOT_AUTHORIZED;
+  if (await isDemoClinic(session.clinicId)) return DEMO_BLOCKED;
 
   const parsed = toggleMemberActiveSchema.safeParse(input);
   if (!parsed.success) return { ok: false, message: "Revisá los datos ingresados." };
@@ -165,6 +169,7 @@ export type ChangeOwnPasswordResult = ActionResult;
 export async function changeOwnPassword(input: ChangeOwnPasswordInput): Promise<ChangeOwnPasswordResult> {
   const session = await getSession();
   if (!session) return NO_SESSION;
+  if (await isDemoClinic(session.clinicId)) return DEMO_BLOCKED;
 
   const parsed = changeOwnPasswordSchema.safeParse(input);
   if (!parsed.success) {
@@ -199,6 +204,7 @@ export async function resetMemberPassword(input: ResetMemberPasswordInput): Prom
   const session = await getSession();
   if (!session) return NO_SESSION;
   if (!hasRole(session, TEAM_MANAGE_ROLES)) return NOT_AUTHORIZED;
+  if (await isDemoClinic(session.clinicId)) return DEMO_BLOCKED;
 
   const parsed = resetMemberPasswordSchema.safeParse(input);
   if (!parsed.success) {

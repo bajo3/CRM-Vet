@@ -6,6 +6,10 @@ import { TEST_SCHEMA } from "./test-db-url";
 export const prisma = getPrisma();
 
 const TABLES = [
+  "CashMovement",
+  "SaleItem",
+  "Sale",
+  "Product",
   "AppointmentActivity",
   "ScheduledMessage",
   "Reminder",

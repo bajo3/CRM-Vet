@@ -5,6 +5,7 @@ const RESULT_COPY: Record<string, { tone: string; text: string }> = {
   cancelled: { tone: "bg-amber-50 text-amber-700", text: "Se canceló la conexión antes de terminar. Podés reintentarlo cuando quieras." },
   mismatch: { tone: "bg-rose-50 text-rose-700", text: "La conexión no correspondía a esta clínica; no se guardó nada." },
   error: { tone: "bg-rose-50 text-rose-700", text: "No se pudo completar la conexión. Probá de nuevo en unos minutos." },
+  demo: { tone: "bg-amber-50 text-amber-800", text: "En la cuenta demo no se puede conectar un WhatsApp real. Registrá tu clínica para probarlo con tu número." },
 };
 
 const STEPS = [
