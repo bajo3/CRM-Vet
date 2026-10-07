@@ -1,3 +1,4 @@
+import { headers } from "next/headers";
 import { notFound } from "next/navigation";
 import { Building2 } from "lucide-react";
 import { requireSession } from "@/lib/auth/session";
@@ -8,6 +9,7 @@ import { getReminderRules } from "@/lib/queries/reminder-rules";
 import { ClinicForm } from "./clinic-form";
 import { WhatsappConnectionCard } from "./whatsapp-connection-card";
 import { ZernioWhatsappCard } from "./zernio-whatsapp-card";
+import { OnlineBookingCard } from "./online-booking-card";
 import { TeamPanel } from "./team-panel";
 import { AccountPanel } from "./account-panel";
 import { ReminderRulesForm } from "./reminder-rules-form";
@@ -15,6 +17,8 @@ import { ReminderTemplatesForm } from "./reminder-templates-form";
 
 export default async function ConfiguracionPage({ searchParams }: { searchParams: Promise<{ whatsapp?: string }> }) {
   const session = await requireSession();
+  const requestHeaders = await headers();
+  const appUrl = `${requestHeaders.get("x-forwarded-proto") ?? "https"}://${requestHeaders.get("host")}`;
   const { whatsapp: whatsappResult } = await searchParams;
   const canEdit = CLINIC_CONFIG_ROLES.includes(session.role);
   const canManageTeam = TEAM_MANAGE_ROLES.includes(session.role);
@@ -49,6 +53,7 @@ export default async function ConfiguracionPage({ searchParams }: { searchParams
       {/* Conectada: estado del número. Sin conectar: la conexión oficial es autoservicio. */}
       {canEdit && clinic.zernioAccountId && <WhatsappConnectionCard />}
       {canEdit && <ZernioWhatsappCard connected={!!clinic.zernioAccountId} result={whatsappResult} />}
+      {canEdit && <OnlineBookingCard initialSlug={clinic.bookingSlug} appUrl={appUrl} />}
 
       <div className="grid items-start gap-6 xl:grid-cols-[1.35fr_0.65fr]">
         <ClinicForm

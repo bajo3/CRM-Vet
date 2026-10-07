@@ -25,6 +25,7 @@ enum AppointmentStatus {
 enum AppointmentSource {
   CRM
   WHATSAPP
+  ONLINE
 }
 
 enum ConversationStatus {
@@ -92,6 +93,9 @@ model Clinic {
   /// Cuenta de WhatsApp conectada dentro de ese profile. Null hasta que se completa el Embedded
   /// Signup de Meta y Zernio redirige de vuelta al callback con el accountId.
   zernioAccountId             String?                @unique
+  /// Identificador público de la página de reserva online (`/reservar/<slug>`). Null = la clínica
+  /// todavía no activó la reserva online.
+  bookingSlug                 String?                @unique
   /// Clínicas creadas por el seed/scripts entran ya APPROVED; el registro público (`/registro`)
   /// las crea PENDING hasta que un superadmin las apruebe desde `/admin/clinicas`.
   status                      ClinicStatus           @default(PENDING)

@@ -700,15 +700,40 @@ Supabase respondía "tenant/user not found" (proyecto pausado). Hay que restaura
 4. Plan free de Supabase se pausa solo: para vender, pasar a plan pago o a otra base sin pausa.
 5. Cobro a las clínicas (autoservicio abierto = cada alta que conecta WhatsApp cuesta en Zernio).
 
+## Sesiones 28/09 y 07/10/2026 — fuera Baileys, reserva online, reportes, libreta, keepalive
+
+- **28/09: se eliminó Baileys por decisión del dueño.** WhatsApp es solo la API oficial vía Zernio. Se
+  borraron `worker/whatsapp.ts`, `/api/internal/whatsapp/*`, la tarjeta del QR, el editor de bridge del
+  admin y las columnas `Clinic.whatsappSessionKey`/`whatsappBridgeUrl`. No reintroducirlo. La demo se
+  borró y se re-sembró.
+- **07/10: funciones nuevas** (salieron de comparar con GVET, VetPaw, AgendaPro y Digitail):
+  - Reserva online pública: `/reservar/<slug>` (`Clinic.bookingSlug`, `AppointmentSource.ONLINE`,
+    `src/lib/services/online-booking.ts`). Se activa desde Configuración. Límites: 30 días hacia
+    adelante, 3 turnos activos por teléfono, rate limit por IP.
+  - Reportes: `/reportes` (`src/lib/queries/reports.ts`), solo OWNER/ADMIN.
+  - Libreta de vacunación en PDF desde la ficha de la mascota.
+  - Keepalive: cron diario de Vercel a `/api/cron/keepalive` para que Supabase free no se pause.
+- **Esqueleto de carga "pegado" (pendiente desde 11/07): no es un bug.** React 19.2 revela el streaming
+  con `requestAnimationFrame`; si la ventana no pinta (pestaña de fondo) el contenido espera.
+
+### Pendientes reales
+
+1. Borrar a mano el servicio `CRM-Vet-WhatsApp` en Railway (ya no tiene comando de arranque).
+2. El botón demo entra como OWNER: puede cambiar la contraseña demo, el equipo o conectar WhatsApp.
+   Falta restringir la cuenta demo y reiniciarla periódicamente.
+3. Turnos sin máquina de estados (se puede marcar atendido uno futuro o uno cancelado).
+4. El callback de Zernio guarda el `accountId` de la URL sin verificarlo contra Zernio.
+5. Siguientes funciones por valor: ventas/caja + stock, portal del dueño, campañas, AFIP.
+6. Los de la sesión 24/09 que sigan abiertos (activar Zernio en producción, plantillas, cobro).
+
 ## Cómo correr todo
 
 ```bash
 npm install
 npm run db:generate && npm run db:migrate && npm run db:seed
 npm run dev            # web en http://localhost:3000
-npm run dev:whatsapp   # worker Baileys (QR) — opcional
 npm run reminders:watch  # motor de recordatorios (mock por default)
 npm run lint && npm run typecheck && npm test && npm run build
 ```
 
-Más contexto: `README.md`, `docs/architecture.md`, `docs/whatsapp-baileys.md`.
+Más contexto: `README.md`, `docs/architecture.md`, `docs/deployment.md`.

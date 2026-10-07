@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { CalendarDays, ChevronLeft, Pencil, Phone, PawPrint, Stethoscope, Weight, Receipt, FileText, FolderOpen } from "lucide-react";
+import { CalendarDays, ChevronLeft, Pencil, Phone, PawPrint, Stethoscope, Weight, Receipt, FileText, FolderOpen, Syringe } from "lucide-react";
 import { requireSession, hasRole } from "@/lib/auth/session";
 import { CLIENT_MANAGE_ROLES, AGENDA_MANAGE_ROLES, PRESCRIPTION_ROLES } from "@/lib/auth/roles";
 import { getClinicSettings } from "@/lib/queries/clinic";
@@ -183,6 +183,13 @@ export default async function FichaMascotaPage({
               Nueva receta
             </a>
           )}
+          <a
+            href={`/api/documents/vaccination-card/${pet.id}/pdf`}
+            className="flex h-10 items-center gap-2 rounded-xl border border-slate-200 px-4 text-sm font-medium text-slate-600 hover:bg-slate-50"
+          >
+            <Syringe size={16} />
+            Libreta de vacunación
+          </a>
         </div>
       </div>
 

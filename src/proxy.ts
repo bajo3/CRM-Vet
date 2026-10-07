@@ -5,6 +5,8 @@ import { jwtVerify } from "jose";
 const COOKIE_NAME = "vetcrm_session";
 const LANDING_ROUTE = "/bienvenida";
 const PUBLIC_ROUTES = new Set(["/login", "/registro", LANDING_ROUTE]);
+// Páginas públicas de reserva online de cada clínica (`/reservar/<slug>`).
+const PUBLIC_PREFIXES = ["/reservar/"];
 
 function getSecretKey() {
   const secret = process.env.SESSION_SECRET;
@@ -43,7 +45,7 @@ async function hasValidSession(request: NextRequest): Promise<boolean> {
  */
 export default async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
-  const isPublicRoute = PUBLIC_ROUTES.has(pathname);
+  const isPublicRoute = PUBLIC_ROUTES.has(pathname) || PUBLIC_PREFIXES.some((prefix) => pathname.startsWith(prefix));
   const authenticated = await hasValidSession(request);
 
   if (!isPublicRoute && !authenticated) {

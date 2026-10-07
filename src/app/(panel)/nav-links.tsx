@@ -39,7 +39,7 @@ export function BottomNav({ unreadConversations }: { unreadConversations: number
   const pathname = usePathname();
   return (
     <nav className="fixed inset-x-0 bottom-0 z-20 flex border-t border-slate-200 bg-white/95 backdrop-blur lg:hidden">
-      {NAV_ITEMS.map((item) => {
+      {NAV_ITEMS.filter((item) => !item.desktopOnly).map((item) => {
         const active = isActive(pathname, item.href);
         return (
           <Link

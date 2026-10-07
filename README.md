@@ -10,6 +10,10 @@ CRM veterinario multiempresa con bot de WhatsApp sobre la **API oficial de Meta*
 - Sección completa de "Clientes y mascotas": buscador único (cliente, mascota o teléfono), alta/edición de clientes y mascotas, ficha de mascota de una sola pantalla con historial clínico, registro rápido de atenciones y próximo control con opciones rápidas, presupuestos y recetas descargables en PDF, con accesos directos a la Agenda (nuevo turno / próximo turno).
 - Inicio con datos reales de la clínica de la sesión (turnos de hoy, pendientes de confirmar, próximos controles, controles vencidos, conversaciones que requieren atención).
 - Modelo PostgreSQL/Prisma aislado por `clinicId`.
+- Reserva online pública (`/reservar/<slug>`): cada clínica la activa desde Configuración y comparte el link; los turnos entran `PENDING` con origen `ONLINE` (`src/lib/services/online-booking.ts`).
+- Reportes de gestión (`/reportes`, solo OWNER/ADMIN): turnos, ausentismo, origen de las reservas, atenciones por tipo y clientes inactivos.
+- Libreta de vacunación en PDF por mascota (`/api/documents/vaccination-card/[petId]/pdf`), armada con las atenciones de tipo vacuna.
+- Cron diario de Vercel (`/api/cron/keepalive`, ver `vercel.json`) que consulta la base para que el plan gratuito de Supabase no pause el proyecto por inactividad.
 - Conexión autoservicio del WhatsApp de cada clínica a la API oficial de Meta (Zernio, modo coexistencia).
 - Webhook firmado (HMAC) para mensajes entrantes y acuses de entrega.
 - Registro idempotente de eventos, conversaciones y mensajes.

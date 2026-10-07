@@ -104,7 +104,7 @@ export default async function AppointmentDetailPage({
             <Clock3 size={16} className="mt-0.5 shrink-0 text-slate-400" />
             <div>
               <div className="font-medium">{appointment.createdBy?.name ?? "Agendado por WhatsApp"}</div>
-              <div className="text-xs text-slate-500">{appointment.source === "WHATSAPP" ? "Origen: WhatsApp" : "Origen: CRM"}</div>
+              <div className="text-xs text-slate-500">{appointment.source === "WHATSAPP" ? "Origen: WhatsApp" : appointment.source === "ONLINE" ? "Origen: reserva online" : "Origen: CRM"}</div>
             </div>
           </div>
         </div>
