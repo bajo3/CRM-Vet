@@ -539,3 +539,10 @@ model CashMovement {
 
   @@index([clinicId, createdAt])
 }
+
+/// Una sola fila que el cron diario de keepalive actualiza (ver src/app/api/cron/keepalive). Supabase
+/// free no cuenta un `SELECT 1` como actividad y pausa el proyecto: una escritura real sí cuenta.
+model Heartbeat {
+  id     String   @id
+  beatAt DateTime
+}
