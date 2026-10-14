@@ -1,9 +1,9 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useMemo, useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { CalendarCheck, Loader2, Plus, Trash2 } from "lucide-react";
+import { CalendarCheck, Loader2, Minus, Plus, Search, Trash2 } from "lucide-react";
 import { createSaleAction } from "@/lib/actions/sales";
 import { PAYMENT_METHODS, PAYMENT_METHOD_LABELS } from "@/lib/validation/sales";
 import type { ProductRow } from "@/lib/services/sales";
@@ -12,9 +12,7 @@ import type { PendingUsageLine } from "@/lib/services/pending-charges";
 /** `usageMovementIds`: producto ya usado en una consulta (pendiente de cobro), cantidad fija. */
 type Line = { key: number; productId: string | null; description: string; unitPrice: number; quantity: number; usageMovementIds?: string[] };
 
-const INPUT_CLASS = "h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm outline-none focus:border-emerald-400";
-const LABEL_CLASS = "mb-1.5 block text-sm font-medium text-slate-700";
-
+const FIELD_CLASS = "h-9 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm outline-none focus:border-emerald-500";
 const money = new Intl.NumberFormat("es-AR", { style: "currency", currency: "ARS", minimumFractionDigits: 2 });
 
 export function SaleForm({
@@ -44,7 +42,8 @@ export function SaleForm({
   );
   const [nextKey, setNextKey] = useState(pendingUsages.length + 1);
   const [appointmentIds, setAppointmentIds] = useState(pendingAppointments.map((row) => row.id));
-  const [productId, setProductId] = useState("");
+  const [search, setSearch] = useState("");
+  const [manualOpen, setManualOpen] = useState(false);
   const [manualDescription, setManualDescription] = useState("");
   const [manualPrice, setManualPrice] = useState("");
   const [petId, setPetId] = useState(initialPetId);
@@ -55,28 +54,36 @@ export function SaleForm({
   // El total que se muestra es orientativo: el servidor lo recalcula con los precios del catálogo.
   const total = lines.reduce((sum, line) => sum + Math.round(line.unitPrice * 100) * line.quantity, 0) / 100;
 
+  const visibleProducts = useMemo(() => {
+    const term = search.trim().toLowerCase();
+    return term ? products.filter((product) => product.name.toLowerCase().includes(term)) : products;
+  }, [products, search]);
+
   const addLine = (line: Omit<Line, "key">) => {
     setLines((current) => [...current, { ...line, key: nextKey }]);
     setNextKey((key) => key + 1);
     setError(null);
   };
 
-  const addProduct = () => {
-    const product = products.find((row) => row.id === productId);
-    if (!product) return;
+  const addProduct = (product: ProductRow) => {
+    const inCart = lines.filter((line) => line.productId === product.id && !line.usageMovementIds).reduce((sum, line) => sum + line.quantity, 0);
+    if (product.trackStock && inCart >= product.stock) {
+      setError(`Solo quedan ${product.stock} de ${product.name}.`);
+      return;
+    }
     const existing = lines.find((line) => line.productId === product.id && !line.usageMovementIds);
     if (existing) {
       setLines((current) => current.map((line) => (line.key === existing.key ? { ...line, quantity: line.quantity + 1 } : line)));
     } else {
       addLine({ productId: product.id, description: product.name, unitPrice: product.price, quantity: 1 });
     }
-    setProductId("");
+    setError(null);
   };
 
   const addManual = () => {
-    const price = Number(manualPrice.replace(",", "."));
+    const price = Number(manualPrice.replace(/\./g, "").replace(",", "."));
     if (!manualDescription.trim() || !(price > 0)) {
-      setError("Para un ítem a mano, completá la descripción y un importe mayor a cero.");
+      setError("Para un ítem libre, completá la descripción y un importe mayor a cero.");
       return;
     }
     addLine({ productId: null, description: manualDescription.trim(), unitPrice: price, quantity: 1 });
@@ -84,9 +91,8 @@ export function SaleForm({
     setManualPrice("");
   };
 
-  const setQuantity = (key: number, value: string) => {
-    const quantity = Math.max(1, Math.floor(Number(value)) || 1);
-    setLines((current) => current.map((line) => (line.key === key ? { ...line, quantity } : line)));
+  const changeQuantity = (key: number, delta: number) => {
+    setLines((current) => current.map((line) => (line.key === key ? { ...line, quantity: Math.max(1, line.quantity + delta) } : line)));
   };
 
   const onSubmit = (event: React.FormEvent) => {
@@ -124,160 +130,208 @@ export function SaleForm({
   };
 
   return (
-    <form onSubmit={onSubmit} className="space-y-6" noValidate>
-      {pendingAppointments.length > 0 && (
-        <section className="rounded-2xl border border-amber-200 bg-amber-50/60 p-4">
-          <p className="flex items-center gap-2 text-sm font-semibold text-amber-950">
-            <CalendarCheck size={16} />
-            Turnos atendidos que se cierran con este cobro
-          </p>
-          <ul className="mt-2 space-y-1.5">
-            {pendingAppointments.map((row) => (
-              <li key={row.id}>
-                <label className="flex items-center gap-2 text-sm text-amber-950">
-                  <input
-                    type="checkbox"
-                    checked={appointmentIds.includes(row.id)}
-                    onChange={(event) =>
-                      setAppointmentIds((current) => (event.target.checked ? [...current, row.id] : current.filter((id) => id !== row.id)))
-                    }
-                    className="size-4 accent-emerald-600"
-                  />
-                  {row.label}
-                </label>
-              </li>
-            ))}
-          </ul>
-          <p className="mt-2 text-xs text-amber-900/80">Agregá abajo la consulta u otros servicios con su precio.</p>
-        </section>
-      )}
-
-      <section className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
-        <h2 className="font-semibold">Qué se cobra</h2>
-
-        <div className="mt-4 flex flex-col gap-2 sm:flex-row">
-          <select aria-label="Producto o servicio" value={productId} onChange={(event) => setProductId(event.target.value)} className={INPUT_CLASS}>
-            <option value="">{products.length === 0 ? "Todavía no cargaste productos ni servicios" : "Elegí un producto o servicio"}</option>
-            {products.map((product) => (
-              <option key={product.id} value={product.id} disabled={product.trackStock && product.stock === 0}>
-                {product.name} — {money.format(product.price)}
-                {product.trackStock ? ` (stock: ${product.stock})` : ""}
-              </option>
-            ))}
-          </select>
-          <button type="button" onClick={addProduct} disabled={!productId} className="flex h-11 shrink-0 items-center justify-center gap-1.5 rounded-xl bg-slate-800 px-4 text-sm font-medium text-white disabled:opacity-40">
-            <Plus size={16} />
-            Agregar
-          </button>
-        </div>
-        {products.length === 0 && (
-          <p className="mt-2 text-xs text-slate-500">
-            Podés cargar tu catálogo en{" "}
-            <Link href="/ventas/productos" className="font-medium text-emerald-700 hover:underline">
-              Productos y servicios
-            </Link>
-            , o agregar un ítem a mano acá abajo.
-          </p>
+    <form onSubmit={onSubmit} className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_22rem]" noValidate>
+      {/* Catálogo */}
+      <div className="space-y-4">
+        {pendingAppointments.length > 0 && (
+          <div className="rounded-xl border border-amber-200 bg-amber-50 p-4">
+            <p className="flex items-center gap-2 text-sm font-medium text-amber-950">
+              <CalendarCheck size={15} />
+              Turnos atendidos que se cierran con este cobro
+            </p>
+            <ul className="mt-2 space-y-1.5">
+              {pendingAppointments.map((row) => (
+                <li key={row.id}>
+                  <label className="flex items-center gap-2 text-sm text-amber-950">
+                    <input
+                      type="checkbox"
+                      checked={appointmentIds.includes(row.id)}
+                      onChange={(event) => setAppointmentIds((current) => (event.target.checked ? [...current, row.id] : current.filter((id) => id !== row.id)))}
+                      className="size-4 accent-emerald-600"
+                    />
+                    {row.label}
+                  </label>
+                </li>
+              ))}
+            </ul>
+            <p className="mt-2 text-xs text-amber-900/80">Sumá la consulta u otros servicios con su precio.</p>
+          </div>
         )}
 
-        <div className="mt-3 flex flex-col gap-2 sm:flex-row">
-          <input aria-label="Descripción del ítem a mano" placeholder="Otro ítem (a mano)" value={manualDescription} onChange={(event) => setManualDescription(event.target.value)} className={INPUT_CLASS} />
-          <input aria-label="Importe del ítem a mano" inputMode="decimal" placeholder="Importe" value={manualPrice} onChange={(event) => setManualPrice(event.target.value)} className={`${INPUT_CLASS} sm:w-36`} />
-          <button type="button" onClick={addManual} className="flex h-11 shrink-0 items-center justify-center gap-1.5 rounded-xl border border-slate-200 px-4 text-sm font-medium text-slate-600 hover:bg-slate-50">
-            <Plus size={16} />
-            Agregar
+        <div className="rounded-xl border border-slate-200 bg-white">
+          <div className="flex items-center gap-2 border-b border-slate-100 px-3 py-2.5">
+            <Search size={15} className="shrink-0 text-slate-400" />
+            <input
+              aria-label="Buscar producto o servicio"
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+              placeholder="Buscar producto o servicio"
+              className="h-7 w-full bg-transparent text-sm outline-none placeholder:text-slate-400"
+            />
+          </div>
+          {products.length === 0 ? (
+            <p className="px-4 py-8 text-center text-sm text-slate-500">
+              Todavía no cargaste productos.{" "}
+              <Link href="/ventas/productos" className="font-medium text-emerald-700 hover:underline">
+                Cargar catálogo
+              </Link>
+              , o usá un ítem libre.
+            </p>
+          ) : visibleProducts.length === 0 ? (
+            <p className="px-4 py-8 text-center text-sm text-slate-500">Ningún producto coincide con la búsqueda.</p>
+          ) : (
+            <ul className="grid gap-px bg-slate-100 sm:grid-cols-2">
+              {visibleProducts.map((product) => {
+                const outOfStock = product.trackStock && product.stock === 0;
+                return (
+                  <li key={product.id} className="bg-white">
+                    <button
+                      type="button"
+                      onClick={() => addProduct(product)}
+                      disabled={outOfStock}
+                      className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left transition-colors hover:bg-emerald-50/60 disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      <span className="min-w-0">
+                        <span className="block truncate text-sm font-medium text-slate-800">{product.name}</span>
+                        <span className={`block text-xs ${product.lowStock ? "text-amber-700" : "text-slate-500"}`}>
+                          {product.kind === "SERVICE" ? "Servicio" : product.trackStock ? (outOfStock ? "Sin stock" : `Stock ${product.stock}`) : "Producto"}
+                        </span>
+                      </span>
+                      <span className="shrink-0 text-sm font-semibold tabular-nums">{money.format(product.price)}</span>
+                    </button>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+        </div>
+
+        <div className="rounded-xl border border-slate-200 bg-white">
+          <button type="button" onClick={() => setManualOpen((value) => !value)} className="flex w-full items-center justify-between px-4 py-3 text-sm font-medium text-slate-700">
+            Ítem libre
+            <Plus size={15} className={`text-slate-400 transition-transform ${manualOpen ? "rotate-45" : ""}`} />
           </button>
-        </div>
-
-        {lines.length > 0 && (
-          <ul className="mt-5 divide-y divide-slate-100 border-t border-slate-100">
-            {lines.map((line) => (
-              <li key={line.key} className="flex items-center gap-3 py-3 text-sm">
-                <span className="min-w-0 flex-1">
-                  <span className="block truncate font-medium text-slate-800">{line.description}</span>
-                  <span className="block text-xs text-slate-500">
-                    {money.format(line.unitPrice)} c/u{line.usageMovementIds ? " · usado en consulta" : ""}
-                  </span>
-                </span>
-                <input
-                  readOnly={Boolean(line.usageMovementIds)}
-                  aria-label={`Cantidad de ${line.description}`}
-                  type="number"
-                  min={1}
-                  value={line.quantity}
-                  onChange={(event) => setQuantity(line.key, event.target.value)}
-                  className="h-9 w-16 rounded-lg border border-slate-200 px-2 text-center text-sm outline-none focus:border-emerald-400"
-                />
-                <span className="w-28 shrink-0 text-right font-semibold">{money.format((Math.round(line.unitPrice * 100) * line.quantity) / 100)}</span>
-                <button
-                  type="button"
-                  aria-label={`Quitar ${line.description}`}
-                  onClick={() => setLines((current) => current.filter((row) => row.key !== line.key))}
-                  className="grid size-8 shrink-0 place-items-center rounded-lg text-slate-400 hover:bg-rose-50 hover:text-rose-600"
-                >
-                  <Trash2 size={15} />
-                </button>
-              </li>
-            ))}
-          </ul>
-        )}
-
-        <div className="mt-4 flex items-baseline justify-between border-t border-slate-200 pt-4">
-          <span className="text-sm font-medium text-slate-600">Total</span>
-          <span className="text-2xl font-semibold tracking-tight">{money.format(total)}</span>
-        </div>
-      </section>
-
-      <section className="space-y-4 rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
-        <div>
-          <p className={LABEL_CLASS}>Medio de pago</p>
-          <div role="radiogroup" aria-label="Medio de pago" className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-            {PAYMENT_METHODS.map((method) => (
-              <button
-                key={method}
-                type="button"
-                role="radio"
-                aria-checked={paymentMethod === method}
-                onClick={() => setPaymentMethod(method)}
-                className={`h-10 rounded-xl border text-sm font-medium ${
-                  paymentMethod === method ? "border-emerald-600 bg-emerald-600 text-white" : "border-slate-200 text-slate-700 hover:border-emerald-300"
-                }`}
-              >
-                {PAYMENT_METHOD_LABELS[method]}
+          {manualOpen && (
+            <div className="flex flex-col gap-2 border-t border-slate-100 p-3 sm:flex-row">
+              <input aria-label="Descripción del ítem libre" placeholder="Descripción" value={manualDescription} onChange={(event) => setManualDescription(event.target.value)} className={FIELD_CLASS} />
+              <input aria-label="Importe del ítem libre" inputMode="decimal" placeholder="Importe" value={manualPrice} onChange={(event) => setManualPrice(event.target.value)} className={`${FIELD_CLASS} sm:w-32`} />
+              <button type="button" onClick={addManual} className="h-9 shrink-0 rounded-lg bg-slate-800 px-4 text-sm font-medium text-white">
+                Agregar
               </button>
-            ))}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Resumen */}
+      <aside className="space-y-4 lg:sticky lg:top-6">
+        <div className="rounded-xl border border-slate-200 bg-white">
+          <h2 className="border-b border-slate-100 px-4 py-3 text-sm font-semibold">Resumen</h2>
+          {lines.length === 0 ? (
+            <p className="px-4 py-8 text-center text-sm text-slate-400">Elegí productos o servicios de la izquierda.</p>
+          ) : (
+            <ul className="divide-y divide-slate-100">
+              {lines.map((line) => (
+                <li key={line.key} className="px-4 py-3">
+                  <div className="flex items-start justify-between gap-2">
+                    <span className="min-w-0 text-sm font-medium text-slate-800">
+                      {line.description}
+                      {line.usageMovementIds && <span className="ml-1.5 text-xs font-normal text-slate-500">usado en consulta</span>}
+                    </span>
+                    <button
+                      type="button"
+                      aria-label={`Quitar ${line.description}`}
+                      onClick={() => setLines((current) => current.filter((row) => row.key !== line.key))}
+                      className="shrink-0 text-slate-300 hover:text-rose-600"
+                    >
+                      <Trash2 size={14} />
+                    </button>
+                  </div>
+                  <div className="mt-1.5 flex items-center justify-between">
+                    {line.usageMovementIds ? (
+                      <span className="text-xs text-slate-500 tabular-nums">
+                        {line.quantity} × {money.format(line.unitPrice)}
+                      </span>
+                    ) : (
+                      <span className="flex items-center gap-1">
+                        <button type="button" aria-label={`Menos ${line.description}`} onClick={() => changeQuantity(line.key, -1)} className="grid size-6 place-items-center rounded-md border border-slate-200 text-slate-500 hover:bg-slate-50">
+                          <Minus size={12} />
+                        </button>
+                        <span aria-label={`Cantidad de ${line.description}`} className="w-7 text-center text-sm tabular-nums">
+                          {line.quantity}
+                        </span>
+                        <button type="button" aria-label={`Más ${line.description}`} onClick={() => changeQuantity(line.key, 1)} className="grid size-6 place-items-center rounded-md border border-slate-200 text-slate-500 hover:bg-slate-50">
+                          <Plus size={12} />
+                        </button>
+                        <span className="ml-1 text-xs text-slate-500 tabular-nums">× {money.format(line.unitPrice)}</span>
+                      </span>
+                    )}
+                    <span className="text-sm font-semibold tabular-nums">{money.format((Math.round(line.unitPrice * 100) * line.quantity) / 100)}</span>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
+
+          <div className="space-y-3 border-t border-slate-100 px-4 py-3">
+            <div>
+              <label htmlFor="venta-mascota" className="mb-1 block text-xs font-medium text-slate-500">
+                Mascota
+              </label>
+              <select id="venta-mascota" value={petId} onChange={(event) => setPetId(event.target.value)} className={FIELD_CLASS}>
+                <option value="">Venta de mostrador</option>
+                {pets.map((pet) => (
+                  <option key={pet.id} value={pet.id}>
+                    {pet.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <p className="mb-1 text-xs font-medium text-slate-500">Medio de pago</p>
+              <div role="radiogroup" aria-label="Medio de pago" className="flex flex-wrap gap-1.5">
+                {PAYMENT_METHODS.map((method) => (
+                  <button
+                    key={method}
+                    type="button"
+                    role="radio"
+                    aria-checked={paymentMethod === method}
+                    onClick={() => setPaymentMethod(method)}
+                    className={`h-8 rounded-lg border px-2.5 text-xs font-medium ${
+                      paymentMethod === method ? "border-emerald-600 bg-emerald-600 text-white" : "border-slate-200 text-slate-600 hover:border-slate-300 hover:bg-slate-50"
+                    }`}
+                  >
+                    {PAYMENT_METHOD_LABELS[method]}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div>
+              <label htmlFor="venta-notas" className="mb-1 block text-xs font-medium text-slate-500">
+                Nota (opcional)
+              </label>
+              <input id="venta-notas" value={notes} onChange={(event) => setNotes(event.target.value)} maxLength={500} className={FIELD_CLASS} />
+            </div>
+          </div>
+
+          <div className="flex items-baseline justify-between border-t border-slate-100 px-4 py-3">
+            <span className="text-sm text-slate-500">Total</span>
+            <span className="text-2xl font-semibold tabular-nums tracking-tight">{money.format(total)}</span>
           </div>
         </div>
 
-        <div>
-          <label htmlFor="venta-mascota" className={LABEL_CLASS}>Mascota (opcional)</label>
-          <select id="venta-mascota" value={petId} onChange={(event) => setPetId(event.target.value)} className={INPUT_CLASS}>
-            <option value="">Venta de mostrador, sin mascota</option>
-            {pets.map((pet) => (
-              <option key={pet.id} value={pet.id}>
-                {pet.label}
-              </option>
-            ))}
-          </select>
+        {error && <p className="rounded-lg bg-rose-50 px-3 py-2 text-sm text-rose-700">{error}</p>}
+
+        <div className="flex gap-2">
+          <Link href="/ventas" className="flex h-10 items-center rounded-lg border border-slate-200 bg-white px-4 text-sm font-medium text-slate-600 hover:bg-slate-50">
+            Cancelar
+          </Link>
+          <button type="submit" disabled={isPending} className="flex h-10 flex-1 items-center justify-center gap-2 rounded-lg bg-emerald-600 text-sm font-semibold text-white disabled:opacity-60">
+            {isPending && <Loader2 size={15} className="animate-spin" />}
+            Cobrar {money.format(total)}
+          </button>
         </div>
-
-        <div>
-          <label htmlFor="venta-notas" className={LABEL_CLASS}>Notas (opcional)</label>
-          <input id="venta-notas" value={notes} onChange={(event) => setNotes(event.target.value)} maxLength={500} className={INPUT_CLASS} />
-        </div>
-      </section>
-
-      {error && <p className="rounded-xl bg-rose-50 px-4 py-2.5 text-sm text-rose-700">{error}</p>}
-
-      <div className="flex justify-end gap-2">
-        <Link href="/ventas" className="flex h-11 items-center rounded-xl border border-slate-200 bg-white px-5 text-sm font-medium text-slate-600 hover:bg-slate-50">
-          Cancelar
-        </Link>
-        <button type="submit" disabled={isPending} className="flex h-11 items-center gap-2 rounded-xl bg-emerald-600 px-6 text-sm font-medium text-white shadow-sm shadow-emerald-200 disabled:opacity-60">
-          {isPending && <Loader2 size={16} className="animate-spin" />}
-          Cobrar {money.format(total)}
-        </button>
-      </div>
+      </aside>
     </form>
   );
 }

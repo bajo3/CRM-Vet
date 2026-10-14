@@ -18,12 +18,12 @@ export default async function NuevaVentaPage({ searchParams }: { searchParams: P
   const pending = initialPetId ? (await listPendingCharges(session.clinicId, initialPetId))[0] : undefined;
 
   return (
-    <section className="mx-auto max-w-3xl px-4 py-5 sm:px-7 lg:py-8">
-      <Link href="/ventas" className="mb-4 inline-flex items-center gap-1 text-sm font-medium text-slate-500 hover:text-slate-700">
+    <section className="mx-auto max-w-6xl px-4 py-5 sm:px-7 lg:px-10 lg:py-8">
+      <Link href="/ventas" className="mb-3 inline-flex items-center gap-1 text-sm text-slate-500 hover:text-slate-700">
         <ChevronLeft size={16} />
-        Ventas y caja
+        Caja
       </Link>
-      <h1 className="mb-6 text-2xl font-semibold tracking-tight">Nueva venta</h1>
+      <h1 className="mb-5 text-xl font-semibold tracking-tight">Nueva venta</h1>
       <SaleForm
         products={products}
         pets={pets.map((pet) => ({ id: pet.id, label: `${pet.name} · ${pet.client.name}` }))}

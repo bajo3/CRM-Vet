@@ -246,7 +246,18 @@ export async function getProductStock(clinicId: string, productId: string) {
   const warningLimit = now + EXPIRY_WARNING_DAYS * 86_400_000;
   return {
     product: { ...product, price: Number(product.price), cost: product.cost === null ? null : Number(product.cost) },
-    lots: lots.map((lot) => ({
+    // Varios ingresos del mismo lote y vencimiento se muestran como una sola fila.
+    lots: [
+      ...lots
+        .reduce((groups, lot) => {
+          const key = `${lot.lotNumber ?? ""}|${lot.expiresAt?.toISOString() ?? ""}`;
+          const current = groups.get(key);
+          if (current) current.quantity += lot.quantity;
+          else groups.set(key, { id: lot.id, lotNumber: lot.lotNumber, expiresAt: lot.expiresAt, quantity: lot.quantity });
+          return groups;
+        }, new Map<string, { id: string; lotNumber: string | null; expiresAt: Date | null; quantity: number }>())
+        .values(),
+    ].map((lot) => ({
       ...lot,
       expiry: !lot.expiresAt ? ("none" as const) : lot.expiresAt.getTime() < now ? ("expired" as const) : lot.expiresAt.getTime() <= warningLimit ? ("soon" as const) : ("ok" as const),
     })),

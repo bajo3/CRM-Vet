@@ -35,7 +35,7 @@ export function VoidSaleButton({ saleId }: { saleId: string }) {
   }
   return (
     <span className="flex items-center gap-2 text-xs">
-      <button type="button" onClick={onVoid} disabled={isPending} className="flex items-center gap-1 rounded-lg bg-rose-600 px-2.5 py-1.5 font-semibold text-white disabled:opacity-60">
+      <button type="button" onClick={onVoid} disabled={isPending} className="flex items-center gap-1 rounded-md bg-rose-600 px-2 py-1 font-medium text-white disabled:opacity-60">
         {isPending && <Loader2 size={12} className="animate-spin" />}
         Confirmar anulación
       </button>

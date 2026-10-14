@@ -2,13 +2,14 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Loader2 } from "lucide-react";
+import { Loader2, Plus } from "lucide-react";
 import { createCashMovementAction } from "@/lib/actions/sales";
 
-const INPUT_CLASS = "h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm outline-none focus:border-emerald-400";
+const FIELD_CLASS = "h-9 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm outline-none focus:border-emerald-500";
 
 export function CashMovementForm() {
   const router = useRouter();
+  const [open, setOpen] = useState(false);
   const [type, setType] = useState<"IN" | "OUT">("OUT");
   const [amount, setAmount] = useState("");
   const [description, setDescription] = useState("");
@@ -19,20 +20,30 @@ export function CashMovementForm() {
     event.preventDefault();
     setError(null);
     startTransition(async () => {
-      const result = await createCashMovementAction({ type, amount: Number(amount.replace(",", ".")), description });
+      const result = await createCashMovementAction({ type, amount: Number(amount.replace(/\./g, "").replace(",", ".")), description });
       if (!result.ok) {
         setError(result.message);
         return;
       }
       setAmount("");
       setDescription("");
+      setOpen(false);
       router.refresh();
     });
   };
 
+  if (!open) {
+    return (
+      <button type="button" onClick={() => setOpen(true)} className="flex h-8 items-center gap-1.5 rounded-lg border border-slate-200 px-3 text-xs font-medium text-slate-600 hover:bg-slate-50">
+        <Plus size={13} />
+        Registrar movimiento
+      </button>
+    );
+  }
+
   return (
-    <form onSubmit={onSubmit} className="mt-4 space-y-2 rounded-2xl bg-slate-50 p-3" noValidate>
-      <div role="radiogroup" aria-label="Tipo de movimiento" className="grid grid-cols-2 gap-1 rounded-xl bg-white p-1">
+    <form onSubmit={onSubmit} className="space-y-2 rounded-lg border border-slate-200 bg-slate-50/70 p-3" noValidate>
+      <div role="radiogroup" aria-label="Tipo de movimiento" className="grid grid-cols-2 gap-1 rounded-lg bg-slate-200/60 p-0.5">
         {(["OUT", "IN"] as const).map((value) => (
           <button
             key={value}
@@ -40,19 +51,24 @@ export function CashMovementForm() {
             role="radio"
             aria-checked={type === value}
             onClick={() => setType(value)}
-            className={`h-8 rounded-lg text-xs font-semibold ${type === value ? (value === "IN" ? "bg-emerald-600 text-white" : "bg-rose-600 text-white") : "text-slate-600"}`}
+            className={`h-7 rounded-md text-xs font-medium ${type === value ? "bg-white text-slate-900 shadow-sm" : "text-slate-500"}`}
           >
             {value === "IN" ? "Ingreso" : "Egreso"}
           </button>
         ))}
       </div>
-      <input aria-label="Importe" inputMode="decimal" placeholder="Importe" value={amount} onChange={(event) => setAmount(event.target.value)} className={INPUT_CLASS} />
-      <input aria-label="Descripción" placeholder="Ej: pago a proveedor" value={description} onChange={(event) => setDescription(event.target.value)} className={INPUT_CLASS} />
+      <input aria-label="Importe" inputMode="decimal" placeholder="Importe" value={amount} onChange={(event) => setAmount(event.target.value)} className={FIELD_CLASS} />
+      <input aria-label="Descripción" placeholder="Ej: pago a proveedor" value={description} onChange={(event) => setDescription(event.target.value)} className={FIELD_CLASS} />
       {error && <p className="text-xs text-rose-600">{error}</p>}
-      <button type="submit" disabled={isPending} className="flex h-9 w-full items-center justify-center gap-2 rounded-xl bg-slate-800 text-xs font-semibold text-white disabled:opacity-60">
-        {isPending && <Loader2 size={13} className="animate-spin" />}
-        Registrar movimiento
-      </button>
+      <div className="flex justify-end gap-2">
+        <button type="button" onClick={() => setOpen(false)} disabled={isPending} className="h-8 rounded-lg px-3 text-xs font-medium text-slate-500 hover:text-slate-700">
+          Cancelar
+        </button>
+        <button type="submit" disabled={isPending} className="flex h-8 items-center gap-1.5 rounded-lg bg-slate-800 px-3 text-xs font-medium text-white disabled:opacity-60">
+          {isPending && <Loader2 size={12} className="animate-spin" />}
+          Registrar
+        </button>
+      </div>
     </form>
   );
 }
