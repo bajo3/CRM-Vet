@@ -157,6 +157,19 @@ export default async function AppointmentDetailPage({
             </div>
           ) : null
         )}
+        {appointment.status === "ATTENDED" && (
+          <div className="mt-5 flex flex-wrap items-center gap-3 border-t border-slate-100 pt-5 text-sm">
+            {appointment.chargedSaleId ? (
+              <span className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-medium text-emerald-700">Cobrado</span>
+            ) : appointment.chargeWaivedAt ? (
+              <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-600">Marcado como «no se cobra»</span>
+            ) : (
+              <Link href={`/ventas/nueva?petId=${appointment.pet.id}`} className="flex h-10 items-center rounded-xl bg-emerald-600 px-4 text-sm font-medium text-white shadow-sm">
+                Cobrar este turno
+              </Link>
+            )}
+          </div>
+        )}
       </div>
 
       <section className="rounded-2xl border border-slate-200 bg-white shadow-sm">

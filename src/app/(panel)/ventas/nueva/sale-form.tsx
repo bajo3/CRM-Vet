@@ -3,23 +3,47 @@
 import { useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Loader2, Plus, Trash2 } from "lucide-react";
+import { CalendarCheck, Loader2, Plus, Trash2 } from "lucide-react";
 import { createSaleAction } from "@/lib/actions/sales";
 import { PAYMENT_METHODS, PAYMENT_METHOD_LABELS } from "@/lib/validation/sales";
 import type { ProductRow } from "@/lib/services/sales";
+import type { PendingUsageLine } from "@/lib/services/pending-charges";
 
-type Line = { key: number; productId: string | null; description: string; unitPrice: number; quantity: number };
+/** `usageMovementIds`: producto ya usado en una consulta (pendiente de cobro), cantidad fija. */
+type Line = { key: number; productId: string | null; description: string; unitPrice: number; quantity: number; usageMovementIds?: string[] };
 
 const INPUT_CLASS = "h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm outline-none focus:border-emerald-400";
 const LABEL_CLASS = "mb-1.5 block text-sm font-medium text-slate-700";
 
 const money = new Intl.NumberFormat("es-AR", { style: "currency", currency: "ARS", minimumFractionDigits: 2 });
 
-export function SaleForm({ products, pets, initialPetId }: { products: ProductRow[]; pets: { id: string; label: string }[]; initialPetId: string }) {
+export function SaleForm({
+  products,
+  pets,
+  initialPetId,
+  pendingUsages,
+  pendingAppointments,
+}: {
+  products: ProductRow[];
+  pets: { id: string; label: string }[];
+  initialPetId: string;
+  pendingUsages: PendingUsageLine[];
+  pendingAppointments: { id: string; label: string }[];
+}) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
-  const [lines, setLines] = useState<Line[]>([]);
-  const [nextKey, setNextKey] = useState(1);
+  const [lines, setLines] = useState<Line[]>(() =>
+    pendingUsages.map((usage, index) => ({
+      key: index + 1,
+      productId: usage.productId,
+      description: usage.productName,
+      unitPrice: usage.unitPrice,
+      quantity: usage.quantity,
+      usageMovementIds: usage.movementIds,
+    }))
+  );
+  const [nextKey, setNextKey] = useState(pendingUsages.length + 1);
+  const [appointmentIds, setAppointmentIds] = useState(pendingAppointments.map((row) => row.id));
   const [productId, setProductId] = useState("");
   const [manualDescription, setManualDescription] = useState("");
   const [manualPrice, setManualPrice] = useState("");
@@ -40,7 +64,7 @@ export function SaleForm({ products, pets, initialPetId }: { products: ProductRo
   const addProduct = () => {
     const product = products.find((row) => row.id === productId);
     if (!product) return;
-    const existing = lines.find((line) => line.productId === product.id);
+    const existing = lines.find((line) => line.productId === product.id && !line.usageMovementIds);
     if (existing) {
       setLines((current) => current.map((line) => (line.key === existing.key ? { ...line, quantity: line.quantity + 1 } : line)));
     } else {
@@ -71,6 +95,10 @@ export function SaleForm({ products, pets, initialPetId }: { products: ProductRo
       setError("Agregá al menos un ítem.");
       return;
     }
+    if (paymentMethod === "ACCOUNT" && !petId) {
+      setError("Para vender a cuenta corriente elegí la mascota, así queda en la cuenta de su dueño/a.");
+      return;
+    }
     setError(null);
     startTransition(async () => {
       const result = await createSaleAction({
@@ -78,8 +106,13 @@ export function SaleForm({ products, pets, initialPetId }: { products: ProductRo
         paymentMethod,
         notes,
         items: lines.map((line) =>
-          line.productId ? { productId: line.productId, quantity: line.quantity } : { description: line.description, unitPrice: line.unitPrice, quantity: line.quantity }
+          line.usageMovementIds
+            ? { usageMovementIds: line.usageMovementIds }
+            : line.productId
+              ? { productId: line.productId, quantity: line.quantity }
+              : { description: line.description, unitPrice: line.unitPrice, quantity: line.quantity }
         ),
+        appointmentIds,
       });
       if (!result.ok) {
         setError(result.message);
@@ -92,6 +125,33 @@ export function SaleForm({ products, pets, initialPetId }: { products: ProductRo
 
   return (
     <form onSubmit={onSubmit} className="space-y-6" noValidate>
+      {pendingAppointments.length > 0 && (
+        <section className="rounded-2xl border border-amber-200 bg-amber-50/60 p-4">
+          <p className="flex items-center gap-2 text-sm font-semibold text-amber-950">
+            <CalendarCheck size={16} />
+            Turnos atendidos que se cierran con este cobro
+          </p>
+          <ul className="mt-2 space-y-1.5">
+            {pendingAppointments.map((row) => (
+              <li key={row.id}>
+                <label className="flex items-center gap-2 text-sm text-amber-950">
+                  <input
+                    type="checkbox"
+                    checked={appointmentIds.includes(row.id)}
+                    onChange={(event) =>
+                      setAppointmentIds((current) => (event.target.checked ? [...current, row.id] : current.filter((id) => id !== row.id)))
+                    }
+                    className="size-4 accent-emerald-600"
+                  />
+                  {row.label}
+                </label>
+              </li>
+            ))}
+          </ul>
+          <p className="mt-2 text-xs text-amber-900/80">Agregá abajo la consulta u otros servicios con su precio.</p>
+        </section>
+      )}
+
       <section className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
         <h2 className="font-semibold">Qué se cobra</h2>
 
@@ -135,9 +195,12 @@ export function SaleForm({ products, pets, initialPetId }: { products: ProductRo
               <li key={line.key} className="flex items-center gap-3 py-3 text-sm">
                 <span className="min-w-0 flex-1">
                   <span className="block truncate font-medium text-slate-800">{line.description}</span>
-                  <span className="block text-xs text-slate-500">{money.format(line.unitPrice)} c/u</span>
+                  <span className="block text-xs text-slate-500">
+                    {money.format(line.unitPrice)} c/u{line.usageMovementIds ? " · usado en consulta" : ""}
+                  </span>
                 </span>
                 <input
+                  readOnly={Boolean(line.usageMovementIds)}
                   aria-label={`Cantidad de ${line.description}`}
                   type="number"
                   min={1}

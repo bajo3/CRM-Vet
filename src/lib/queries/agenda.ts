@@ -90,6 +90,8 @@ export async function getAppointmentDetail(clinicId: string, appointmentId: stri
         endAt: true,
         status: true,
         source: true,
+        chargedSaleId: true,
+        chargeWaivedAt: true,
         veterinarianId: true,
         pet: { select: { id: true, name: true, client: { select: { name: true, phone: true } } } },
         veterinarian: { select: { name: true } },

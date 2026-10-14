@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { CalendarClock, Pencil, Phone, Plus, Search, UsersRound } from "lucide-react";
+import { CalendarClock, Pencil, Phone, Plus, Search, UsersRound, Wallet } from "lucide-react";
 import { requireSession, hasRole } from "@/lib/auth/session";
 import { CLIENT_MANAGE_ROLES } from "@/lib/auth/roles";
 import { searchClients } from "@/lib/queries/clients";
@@ -8,6 +8,8 @@ import { getClinicSettings } from "@/lib/queries/clinic";
 import { SpeciesIcon } from "@/lib/pet-species-icon";
 import { daysUntil, daysUntilLabel } from "@/lib/format";
 import { formatPhone } from "@/lib/phone";
+import { formatMoney } from "@/lib/format";
+import { getBalances } from "@/lib/services/client-accounts";
 
 export default async function ClientesPage({ searchParams }: { searchParams: Promise<{ q?: string; ok?: string }> }) {
   const session = await requireSession();
@@ -19,6 +21,7 @@ export default async function ClientesPage({ searchParams }: { searchParams: Pro
   ]);
   const timezone = clinic?.timezone ?? "America/Argentina/Buenos_Aires";
   const canManage = hasRole(session, CLIENT_MANAGE_ROLES);
+  const balances = await getBalances(session.clinicId, clients.map((client) => client.id));
 
   return (
     <section className="px-4 py-5 sm:px-7 lg:px-10 lg:py-8">
@@ -80,6 +83,15 @@ export default async function ClientesPage({ searchParams }: { searchParams: Pro
                     </div>
                   )}
                 </div>
+                <Link
+                  href={`/clientes/${client.id}/cuenta`}
+                  className={`relative z-10 order-3 flex h-8 w-fit items-center gap-1.5 rounded-lg border px-3 text-xs font-medium ${
+                    (balances.get(client.id) ?? 0) > 0 ? "border-rose-200 bg-rose-50 text-rose-700 hover:bg-rose-100" : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
+                  }`}
+                >
+                  <Wallet size={13} />
+                  {(balances.get(client.id) ?? 0) > 0 ? `Debe ${formatMoney(balances.get(client.id)!)}` : "Cuenta"}
+                </Link>
                 {canManage && (
                   <Link
                     href={`/clientes/${client.id}/editar`}

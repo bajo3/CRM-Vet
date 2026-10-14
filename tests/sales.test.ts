@@ -9,8 +9,8 @@ const today = () => DateTime.now().setZone(TZ).toISODate()!;
 async function setup() {
   const clinic = await createTestClinic();
   const user = await createTestVet(clinic.id);
-  const food = await createProduct(clinic.id, { name: "Alimento 3 kg", kind: "PRODUCT", price: 12500.5, trackStock: true, stock: 5, minStock: 2 });
-  const consult = await createProduct(clinic.id, { name: "Consulta", kind: "SERVICE", price: 18000, trackStock: true, stock: 9, minStock: 9 });
+  const food = await createProduct(clinic.id, { name: "Alimento 3 kg", kind: "PRODUCT", price: 12500.5, trackStock: true, initialStock: 5, minStock: 2 });
+  const consult = await createProduct(clinic.id, { name: "Consulta", kind: "SERVICE", price: 18000, trackStock: true, initialStock: 9, minStock: 9 });
   return { clinic, user, food, consult };
 }
 

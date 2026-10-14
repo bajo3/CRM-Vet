@@ -1,5 +1,6 @@
 import { MedicalRecordType, Prisma } from "@prisma/client";
 import { getPrisma } from "../prisma";
+import { recordUsage, type UsageInput } from "./stock";
 
 const CONTROL_REMINDER_OFFSETS = [
   { days: 7, suffix: "7d" },
@@ -17,6 +18,8 @@ export type CreateMedicalRecordInput = {
   weight?: Prisma.Decimal | number | string | null;
   treatment?: string | null;
   nextDueDate?: Date | null;
+  /** Productos aplicados (vacuna, medicación): se descuentan del stock y quedan pendientes de cobro. */
+  usedProducts?: UsageInput[];
 };
 
 /**
@@ -49,6 +52,10 @@ export async function createMedicalRecord(input: CreateMedicalRecordInput) {
         nextDueDate: input.nextDueDate ?? null,
       },
     });
+
+    if (input.usedProducts?.length) {
+      await recordUsage(tx, { clinicId: input.clinicId, userId: input.userId, petId: pet.id, medicalRecordId: record.id, items: input.usedProducts });
+    }
 
     if (input.nextDueDate && pet.client.remindersEnabled) {
       for (const offset of CONTROL_REMINDER_OFFSETS) {

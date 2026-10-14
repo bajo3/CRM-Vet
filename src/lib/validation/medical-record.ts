@@ -42,6 +42,15 @@ export const medicalRecordFormSchema = z
       .union([z.string().trim().date({ error: "Ingresá una fecha válida." }), z.literal("")])
       .optional()
       .transform((value) => (value ? value : undefined)),
+    usedProducts: z
+      .array(
+        z.object({
+          productId: z.string().min(1),
+          quantity: z.coerce.number().int({ error: "La cantidad debe ser un número entero." }).min(1, { error: "La cantidad mínima es 1." }).max(999),
+        })
+      )
+      .max(20)
+      .default([]),
   })
   .refine((data) => data.nextControlOption !== "custom" || !!data.nextControlDate, {
     error: "Elegí la fecha del próximo control.",

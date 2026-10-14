@@ -6,6 +6,7 @@ import { CLIENT_MANAGE_ROLES, AGENDA_MANAGE_ROLES, PRESCRIPTION_ROLES } from "@/
 import { getClinicSettings } from "@/lib/queries/clinic";
 import { getPetDetail } from "@/lib/queries/pet";
 import { getReminderRules } from "@/lib/queries/reminder-rules";
+import { listProducts } from "@/lib/services/sales";
 import { ageFromBirthDate, formatDate, formatDateShort, formatTime, medicalRecordTypeLabel } from "@/lib/format";
 import { SpeciesIcon } from "@/lib/pet-species-icon";
 import { RegisterVisitPanel } from "./register-visit-panel";
@@ -28,10 +29,11 @@ export default async function FichaMascotaPage({
   const { petId } = await params;
   const { ok, abrir } = await searchParams;
 
-  const [clinic, detail, reminderRules] = await Promise.all([
+  const [clinic, detail, reminderRules, products] = await Promise.all([
     getClinicSettings(session.clinicId),
     getPetDetail(session.clinicId, petId),
     getReminderRules(session.clinicId),
+    listProducts(session.clinicId, true),
   ]);
   const timezone = clinic?.timezone ?? "America/Argentina/Buenos_Aires";
   if (!detail) notFound();
@@ -202,7 +204,11 @@ export default async function FichaMascotaPage({
       </div>
 
       <div className="mb-6">
-        <RegisterVisitPanel petId={pet.id} reminderRules={reminderRules} />
+        <RegisterVisitPanel
+          petId={pet.id}
+          reminderRules={reminderRules}
+          products={products.filter((product) => product.kind === "PRODUCT").map((product) => ({ id: product.id, name: product.name, trackStock: product.trackStock, stock: product.stock }))}
+        />
       </div>
 
       <div className="mb-6 grid gap-4 sm:grid-cols-2 [&:has([data-document-open=true])]:grid-cols-1">

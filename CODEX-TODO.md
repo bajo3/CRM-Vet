@@ -724,6 +724,16 @@ Supabase respondía "tenant/user not found" (proyecto pausado). Hay que restaura
 - **Esqueleto de carga "pegado" (pendiente desde 11/07): no es un bug.** React 19.2 revela el streaming
   con `requestAnimationFrame`; si la ventana no pinta (pestaña de fondo) el contenido espera.
 
+- **14/10: stock completo, pendientes de cobro y cuenta corriente.**
+  - Modelos `StockMovement` (historial con signo), `StockLot` (lotes con vencimiento), `ClientPayment`;
+    `Product.cost`, `SaleItem.stockDeducted`, `Appointment.chargedSaleId/chargeWaivedAt`,
+    `PaymentMethod.ACCOUNT`. Migración `20261014150000_stock_charges_accounts` (crea el movimiento
+    "Stock inicial" para lo existente y da por resueltos los turnos atendidos anteriores).
+  - El stock ya no se edita desde el formulario del producto: solo con ingreso de mercadería o ajuste.
+  - Un producto usado en consulta descuenta stock al registrar la atención; al cobrarlo después la venta
+    no lo vuelve a descontar (`stockDeducted=false`) y anularla no lo devuelve.
+  - Keepalive: ahora escribe en `Heartbeat` (un `SELECT 1` no evitó la pausa del 14/10).
+
 ### Pendientes reales
 
 1. Borrar a mano el servicio `CRM-Vet-WhatsApp` en Railway (ya no tiene comando de arranque).

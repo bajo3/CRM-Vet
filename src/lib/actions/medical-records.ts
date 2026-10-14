@@ -5,6 +5,7 @@ import { DateTime } from "luxon";
 import { getPrisma } from "../prisma";
 import { getSession } from "../auth/session";
 import { createMedicalRecord } from "../services/medical-records";
+import { StockError } from "../services/stock";
 import { medicalRecordFormSchema, NEXT_CONTROL_OPTIONS, type MedicalRecordFormInput } from "../validation/medical-record";
 import type { ActionResult, ActionFailure } from "./types";
 
@@ -61,15 +62,26 @@ export async function registerMedicalRecord(petId: string, input: MedicalRecordF
       weight: parsed.data.weight ?? null,
       treatment: parsed.data.treatment ?? null,
       nextDueDate,
+      usedProducts: parsed.data.usedProducts,
     });
     const remindersScheduled = await prisma.reminder.count({ where: { medicalRecordId: record.id, status: "PENDING" } });
     revalidatePath(`/clientes/mascotas/${petId}`);
     revalidatePath("/");
     revalidatePath("/recordatorios");
+    revalidatePath("/ventas");
     return { ok: true, id: record.id, remindersScheduled };
   } catch (error) {
     if (error instanceof Error && error.message === "INVALID_NEXT_DUE_DATE") {
       return { ok: false, message: "La fecha del próximo control debe ser posterior a hoy.", fieldErrors: { nextControlDate: "Elegí una fecha futura." } };
+    }
+    if (error instanceof StockError) {
+      return {
+        ok: false,
+        message:
+          error.code === "INSUFFICIENT_STOCK"
+            ? `No hay stock suficiente de ${error.detail ?? "un producto"}. No se guardó la atención.`
+            : "Uno de los productos aplicados ya no está disponible. Actualizá la página.",
+      };
     }
     if (error instanceof Error && error.message === "PET_NOT_FOUND") {
       return { ok: false, message: "No encontramos esa mascota." };

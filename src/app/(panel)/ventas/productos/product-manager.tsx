@@ -1,8 +1,9 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Loader2, Pencil, Plus } from "lucide-react";
+import { ChevronRight, Loader2, Pencil, Plus } from "lucide-react";
 import { saveProductAction, setProductActiveAction } from "@/lib/actions/sales";
 import type { ProductRow } from "@/lib/services/sales";
 
@@ -10,17 +11,20 @@ const INPUT_CLASS = "h-10 w-full rounded-xl border border-slate-200 bg-white px-
 const LABEL_CLASS = "mb-1 block text-xs font-medium text-slate-600";
 const money = new Intl.NumberFormat("es-AR", { style: "currency", currency: "ARS", minimumFractionDigits: 2 });
 
-type Draft = { id: string | null; name: string; kind: "PRODUCT" | "SERVICE"; price: string; trackStock: boolean; stock: string; minStock: string };
+type Draft = { id: string | null; name: string; kind: "PRODUCT" | "SERVICE"; price: string; cost: string; trackStock: boolean; initialStock: string; minStock: string };
 
-const EMPTY: Draft = { id: null, name: "", kind: "PRODUCT", price: "", trackStock: false, stock: "0", minStock: "0" };
+const EMPTY: Draft = { id: null, name: "", kind: "PRODUCT", price: "", cost: "", trackStock: false, initialStock: "0", minStock: "0" };
 
-function ProductForm({ draft, onDone }: { draft: Draft; onDone: () => void }) {
+const toNumber = (value: string) => Number(value.replace(",", "."));
+
+export function ProductForm({ draft, onDone }: { draft: Draft; onDone: () => void }) {
   const router = useRouter();
   const [form, setForm] = useState(draft);
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
   const set = <K extends keyof Draft>(key: K, value: Draft[K]) => setForm((current) => ({ ...current, [key]: value }));
   const tracksStock = form.kind === "PRODUCT" && form.trackStock;
+  const isNew = !form.id;
 
   const onSubmit = (event: React.FormEvent) => {
     event.preventDefault();
@@ -29,9 +33,10 @@ function ProductForm({ draft, onDone }: { draft: Draft; onDone: () => void }) {
       const result = await saveProductAction(form.id, {
         name: form.name,
         kind: form.kind,
-        price: Number(form.price.replace(",", ".")),
+        price: toNumber(form.price),
+        cost: form.cost.trim() ? toNumber(form.cost) : null,
         trackStock: tracksStock,
-        stock: tracksStock ? Number(form.stock) : 0,
+        initialStock: tracksStock && isNew ? Number(form.initialStock) : 0,
         minStock: tracksStock ? Number(form.minStock) : 0,
       });
       if (!result.ok) {
@@ -45,7 +50,7 @@ function ProductForm({ draft, onDone }: { draft: Draft; onDone: () => void }) {
 
   return (
     <form onSubmit={onSubmit} className="space-y-3 rounded-2xl bg-slate-50 p-4" noValidate>
-      <div className="grid gap-3 sm:grid-cols-[1fr_10rem_9rem]">
+      <div className="grid gap-3 sm:grid-cols-[1fr_9rem_9rem_9rem]">
         <div>
           <label htmlFor="producto-nombre" className={LABEL_CLASS}>Nombre</label>
           <input id="producto-nombre" value={form.name} onChange={(event) => set("name", event.target.value)} placeholder="Ej: Vacuna antirrábica" className={INPUT_CLASS} />
@@ -58,8 +63,12 @@ function ProductForm({ draft, onDone }: { draft: Draft; onDone: () => void }) {
           </select>
         </div>
         <div>
-          <label htmlFor="producto-precio" className={LABEL_CLASS}>Precio</label>
+          <label htmlFor="producto-precio" className={LABEL_CLASS}>Precio de venta</label>
           <input id="producto-precio" inputMode="decimal" value={form.price} onChange={(event) => set("price", event.target.value)} placeholder="0,00" className={INPUT_CLASS} />
+        </div>
+        <div>
+          <label htmlFor="producto-costo" className={LABEL_CLASS}>Costo (opcional)</label>
+          <input id="producto-costo" inputMode="decimal" value={form.cost} onChange={(event) => set("cost", event.target.value)} placeholder="0,00" className={INPUT_CLASS} />
         </div>
       </div>
 
@@ -71,10 +80,14 @@ function ProductForm({ draft, onDone }: { draft: Draft; onDone: () => void }) {
           </label>
           {form.trackStock && (
             <>
-              <div>
-                <label htmlFor="producto-stock" className={LABEL_CLASS}>Stock actual</label>
-                <input id="producto-stock" type="number" min={0} value={form.stock} onChange={(event) => set("stock", event.target.value)} className={INPUT_CLASS} />
-              </div>
+              {isNew ? (
+                <div>
+                  <label htmlFor="producto-stock" className={LABEL_CLASS}>Stock inicial</label>
+                  <input id="producto-stock" type="number" min={0} value={form.initialStock} onChange={(event) => set("initialStock", event.target.value)} className={INPUT_CLASS} />
+                </div>
+              ) : (
+                <p className="text-xs leading-5 text-slate-500">El stock se cambia desde la ficha del producto (ingreso o ajuste).</p>
+              )}
               <div>
                 <label htmlFor="producto-minimo" className={LABEL_CLASS}>Avisar con</label>
                 <input id="producto-minimo" type="number" min={0} value={form.minStock} onChange={(event) => set("minStock", event.target.value)} className={INPUT_CLASS} />
@@ -96,6 +109,19 @@ function ProductForm({ draft, onDone }: { draft: Draft; onDone: () => void }) {
       </div>
     </form>
   );
+}
+
+export function draftFromProduct(product: ProductRow): Draft {
+  return {
+    id: product.id,
+    name: product.name,
+    kind: product.kind,
+    price: String(product.price),
+    cost: product.cost === null ? "" : String(product.cost),
+    trackStock: product.trackStock,
+    initialStock: "0",
+    minStock: String(product.minStock),
+  };
 }
 
 export function ProductManager({ products, canEdit }: { products: ProductRow[]; canEdit: boolean }) {
@@ -131,30 +157,22 @@ export function ProductManager({ products, canEdit }: { products: ProductRow[]; 
         ))}
       {error && <p className="rounded-xl bg-rose-50 px-4 py-2.5 text-sm text-rose-700">{error}</p>}
 
-      <section className="rounded-3xl border border-slate-200 bg-white shadow-sm">
+      <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
         {products.length === 0 ? (
           <p className="p-10 text-center text-sm text-slate-400">Todavía no hay productos ni servicios cargados.</p>
         ) : (
           <ul className="divide-y divide-slate-100">
             {products.map((product) => (
-              <li key={product.id} className="p-4 sm:p-5">
+              <li key={product.id} className="px-4 py-3 sm:px-5">
                 {editing === product.id ? (
-                  <ProductForm
-                    draft={{
-                      id: product.id,
-                      name: product.name,
-                      kind: product.kind,
-                      price: String(product.price),
-                      trackStock: product.trackStock,
-                      stock: String(product.stock),
-                      minStock: String(product.minStock),
-                    }}
-                    onDone={() => setEditing(null)}
-                  />
+                  <ProductForm draft={draftFromProduct(product)} onDone={() => setEditing(null)} />
                 ) : (
                   <div className="flex flex-wrap items-center justify-between gap-3">
-                    <div className="min-w-0">
-                      <p className={`truncate font-medium ${product.active ? "" : "text-slate-400 line-through"}`}>{product.name}</p>
+                    <Link href={`/ventas/productos/${product.id}`} className="group min-w-0 flex-1">
+                      <p className={`flex items-center gap-1 truncate font-medium group-hover:text-emerald-700 ${product.active ? "" : "text-slate-400 line-through"}`}>
+                        {product.name}
+                        <ChevronRight size={15} className="shrink-0 text-slate-300 group-hover:text-emerald-600" />
+                      </p>
                       <p className="mt-1 flex flex-wrap items-center gap-2 text-xs text-slate-500">
                         <span className="rounded-full bg-slate-100 px-2 py-0.5 font-medium text-slate-600">{product.kind === "SERVICE" ? "Servicio" : "Producto"}</span>
                         {product.trackStock && (
@@ -162,11 +180,12 @@ export function ProductManager({ products, canEdit }: { products: ProductRow[]; 
                             {product.lowStock ? `Stock bajo: ${product.stock}` : `Stock: ${product.stock}`}
                           </span>
                         )}
+                        {product.margin !== null && <span className="tabular-nums">Margen {Math.round(product.margin * 100)}%</span>}
                         {!product.active && <span className="rounded-full bg-slate-200 px-2 py-0.5 font-medium text-slate-600">Dado de baja</span>}
                       </p>
-                    </div>
+                    </Link>
                     <div className="flex shrink-0 items-center gap-3">
-                      <span className="text-sm font-semibold">{money.format(product.price)}</span>
+                      <span className="text-sm font-semibold tabular-nums">{money.format(product.price)}</span>
                       {canEdit && (
                         <>
                           <button

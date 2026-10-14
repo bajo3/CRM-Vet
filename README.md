@@ -11,6 +11,10 @@ CRM veterinario multiempresa con bot de WhatsApp sobre la **API oficial de Meta*
 - Inicio con datos reales de la clínica de la sesión (turnos de hoy, pendientes de confirmar, próximos controles, controles vencidos, conversaciones que requieren atención).
 - Modelo PostgreSQL/Prisma aislado por `clinicId`.
 - Ventas y caja (`/ventas`): cobro de productos y servicios del catálogo o ítems a mano, medios de pago, caja del día con movimientos manuales de efectivo, anulación de ventas y control de stock con aviso de faltante (`src/lib/services/sales.ts`).
+- Stock completo (`src/lib/services/stock.ts`): ingreso de mercadería con proveedor, costo, lote y vencimiento; ajustes con motivo; historial de movimientos por producto; las salidas consumen primero el lote que vence antes; aviso de lotes vencidos o por vencer (30 días) y margen por producto.
+- Productos aplicados en la atención (vacuna, medicación): se descuentan del stock al registrar la visita y quedan como pendientes de cobro.
+- Pendientes de cobro en Caja (`src/lib/services/pending-charges.ts`): turnos atendidos y productos usados sin cobrar de los últimos 30 días, con "Cobrar" (precarga la venta) o "No se cobra".
+- Cuenta corriente del cliente (`/clientes/[id]/cuenta`, `src/lib/services/client-accounts.ts`): ventas "A cuenta", pagos parciales y saldo; la caja suma los cobros en efectivo.
 - Cuenta demo blindada (`Clinic.isDemo`, `src/lib/auth/demo.ts`): en la clínica demo no se pueden cambiar contraseñas, gestionar el equipo ni conectar un WhatsApp real.
 - Reserva online pública (`/reservar/<slug>`): cada clínica la activa desde Configuración y comparte el link; los turnos entran `PENDING` con origen `ONLINE` (`src/lib/services/online-booking.ts`).
 - Reportes de gestión (`/reportes`, solo OWNER/ADMIN): turnos, ausentismo, origen de las reservas, atenciones por tipo y clientes inactivos.

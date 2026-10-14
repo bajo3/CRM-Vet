@@ -1,15 +1,19 @@
 import Link from "next/link";
 import { DateTime } from "luxon";
-import { AlertTriangle, ChevronLeft, ChevronRight, Package, Plus, Wallet } from "lucide-react";
+import { AlertTriangle, ChevronLeft, ChevronRight, Package, Plus, UserRound, Wallet } from "lucide-react";
 import { requireSession, hasRole } from "@/lib/auth/session";
 import { CLIENT_MANAGE_ROLES, CLINIC_CONFIG_ROLES } from "@/lib/auth/roles";
 import { getClinicSettings } from "@/lib/queries/clinic";
 import { getCashDay, listProducts } from "@/lib/services/sales";
+import { listExpiringLots } from "@/lib/services/stock";
+import { listPendingCharges, PENDING_CHARGE_DAYS } from "@/lib/services/pending-charges";
+import { listDebtors } from "@/lib/services/client-accounts";
 import { shiftDate, todayISO } from "@/lib/services/agenda-schedule";
-import { capitalize, formatMoney, formatTime } from "@/lib/format";
+import { capitalize, formatDateShort, formatMoney, formatTime } from "@/lib/format";
 import { PAYMENT_METHOD_LABELS } from "@/lib/validation/sales";
 import { CashMovementForm } from "./cash-movement-form";
 import { VoidSaleButton } from "./void-sale-button";
+import { WaiveChargeButton } from "./waive-charge-button";
 
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
 
@@ -22,17 +26,24 @@ export default async function VentasPage({ searchParams }: { searchParams: Promi
   const date = fecha && ISO_DATE.test(fecha) && fecha <= today ? fecha : today;
   const isToday = date === today;
 
-  const [cash, products] = await Promise.all([getCashDay(session.clinicId, timezone, date), listProducts(session.clinicId, true)]);
+  const [cash, products, expiringLots, pendingCharges, debtors] = await Promise.all([
+    getCashDay(session.clinicId, timezone, date),
+    listProducts(session.clinicId, true),
+    listExpiringLots(session.clinicId),
+    listPendingCharges(session.clinicId),
+    listDebtors(session.clinicId),
+  ]);
   const lowStock = products.filter((product) => product.lowStock);
+  const debtTotal = debtors.reduce((sum, debtor) => sum + Math.round(debtor.balance * 100), 0) / 100;
   const canVoid = hasRole(session, CLINIC_CONFIG_ROLES);
   const canMoveCash = hasRole(session, CLIENT_MANAGE_ROLES);
   const dateLabel = capitalize(DateTime.fromISO(date, { zone: timezone }).setLocale("es").toFormat("cccc d 'de' LLLL"));
 
   const stats = [
     { label: "Ventas del día", value: formatMoney(cash.salesTotal), hint: cash.salesCount === 1 ? "1 venta" : `${cash.salesCount} ventas` },
-    { label: "Efectivo en caja", value: formatMoney(cash.cashInDrawer), hint: "Ventas en efectivo + ingresos − egresos" },
-    { label: "Ingresos manuales", value: formatMoney(cash.cashIn), hint: "Cambio inicial, aportes" },
-    { label: "Egresos", value: formatMoney(cash.cashOut), hint: "Pagos y retiros" },
+    { label: "Efectivo en caja", value: formatMoney(cash.cashInDrawer), hint: "Efectivo de ventas y cobros, + ingresos − egresos" },
+    { label: "Cobros de cuentas", value: formatMoney(cash.paymentsTotal), hint: cash.payments.length === 1 ? "1 pago a cuenta" : `${cash.payments.length} pagos a cuenta` },
+    { label: "Movimientos manuales", value: formatMoney(cash.cashIn - cash.cashOut), hint: `Ingresos ${formatMoney(cash.cashIn)} · Egresos ${formatMoney(cash.cashOut)}` },
   ];
 
   return (
@@ -91,6 +102,61 @@ export default async function VentasPage({ searchParams }: { searchParams: Promi
         </Link>
       )}
 
+      {expiringLots.length > 0 && (
+        <div
+          className={`mb-5 flex items-start gap-3 rounded-2xl border px-4 py-3 text-sm ${
+            expiringLots.some((lot) => lot.expired) ? "border-rose-200 bg-rose-50 text-rose-900" : "border-amber-200 bg-amber-50 text-amber-900"
+          }`}
+        >
+          <AlertTriangle size={17} className="mt-0.5 shrink-0" />
+          <span>
+            <span className="font-semibold">Vencimientos:</span>{" "}
+            {expiringLots.map((lot, index) => (
+              <span key={lot.id}>
+                {index > 0 && ", "}
+                <Link href={`/ventas/productos/${lot.product.id}`} className="underline-offset-2 hover:underline">
+                  {lot.product.name}
+                  {lot.lotNumber ? ` (lote ${lot.lotNumber})` : ""} {lot.expired ? "vencido" : `vence ${formatDateShort(lot.expiresAt!, timezone)}`} · {lot.quantity} u.
+                </Link>
+              </span>
+            ))}
+          </span>
+        </div>
+      )}
+
+      {pendingCharges.length > 0 && (
+        <section className="mb-6 overflow-hidden rounded-2xl border border-amber-200 bg-white shadow-sm">
+          <div className="border-b border-amber-100 bg-amber-50/60 px-5 py-4">
+            <h2 className="font-semibold text-amber-950">Pendientes de cobro</h2>
+            <p className="mt-0.5 text-sm text-amber-900/80">Turnos atendidos y productos usados en consulta sin cobrar (últimos {PENDING_CHARGE_DAYS} días).</p>
+          </div>
+          <ul className="divide-y divide-slate-100">
+            {pendingCharges.map((charge) => (
+              <li key={charge.petId} className="flex flex-wrap items-center justify-between gap-3 px-5 py-3.5">
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-medium text-slate-800">
+                    {charge.petName} <span className="font-normal text-slate-500">· {charge.clientName}</span>
+                  </p>
+                  <p className="mt-0.5 text-xs text-slate-500">
+                    {[
+                      ...charge.appointments.map((row) => `Turno ${formatDateShort(row.startAt, timezone)} (${row.reason})`),
+                      ...charge.usages.map((line) => (line.quantity > 1 ? `${line.quantity} × ${line.productName}` : line.productName)),
+                    ].join(" · ")}
+                  </p>
+                </div>
+                <div className="flex shrink-0 items-center gap-3">
+                  {charge.usagesTotal > 0 && <span className="text-sm font-semibold tabular-nums">{formatMoney(charge.usagesTotal)}</span>}
+                  {canMoveCash && <WaiveChargeButton petId={charge.petId} />}
+                  <Link href={`/ventas/nueva?petId=${charge.petId}`} className="flex h-9 items-center rounded-xl bg-emerald-600 px-3.5 text-xs font-semibold text-white">
+                    Cobrar
+                  </Link>
+                </div>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+
       <div className="grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4">
         {stats.map((stat) => (
           <div key={stat.label} className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
@@ -133,13 +199,53 @@ export default async function VentasPage({ searchParams }: { searchParams: Promi
                       ) : (
                         canVoid && <VoidSaleButton saleId={sale.id} />
                       )}
-                      <span className={`text-sm font-semibold ${voided ? "text-slate-400 line-through" : ""}`}>{formatMoney(sale.total)}</span>
+                      <span className={`text-sm font-semibold tabular-nums ${voided ? "text-slate-400 line-through" : ""}`}>{formatMoney(sale.total)}</span>
                     </div>
                   </li>
                 );
               })}
             </ol>
           )}
+        </section>
+
+        <div className="space-y-6">
+        <section className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
+          <div className="flex items-center justify-between gap-3">
+            <h2 className="font-semibold">Cuentas corrientes</h2>
+            {debtors.length > 0 && <span className="text-sm font-semibold tabular-nums text-rose-700">{formatMoney(debtTotal)}</span>}
+          </div>
+          <p className="mt-1 text-sm text-slate-500">{debtors.length === 0 ? "Ningún cliente debe plata." : "Lo que deben los clientes por ventas a cuenta."}</p>
+          {cash.payments.length > 0 && (
+            <ul className="mt-4 divide-y divide-slate-100 border-t border-slate-100">
+              {cash.payments.map((payment) => (
+                <li key={payment.id} className="flex items-start justify-between gap-3 py-2.5 text-sm">
+                  <Link href={`/clientes/${payment.client.id}/cuenta`} className="min-w-0 hover:text-emerald-700">
+                    <span className="block truncate font-medium">Pago de {payment.client.name}</span>
+                    <span className="block text-xs text-slate-500">
+                      {formatTime(payment.createdAt, timezone)} · {PAYMENT_METHOD_LABELS[payment.paymentMethod]} · {payment.user.name}
+                    </span>
+                  </Link>
+                  <span className="shrink-0 font-semibold tabular-nums text-emerald-700">+ {formatMoney(payment.amount)}</span>
+                </li>
+              ))}
+            </ul>
+          )}
+          {debtors.length > 0 && (
+            <ul className="mt-3 divide-y divide-slate-100 border-t border-slate-100">
+              {debtors.slice(0, 6).map((debtor) => (
+                <li key={debtor.id}>
+                  <Link href={`/clientes/${debtor.id}/cuenta`} className="flex items-center justify-between gap-3 py-2.5 text-sm hover:text-emerald-700">
+                    <span className="flex min-w-0 items-center gap-2 truncate">
+                      <UserRound size={14} className="shrink-0 text-slate-400" />
+                      {debtor.name}
+                    </span>
+                    <span className="shrink-0 font-medium tabular-nums">{formatMoney(debtor.balance)}</span>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          )}
+          {debtors.length > 6 && <p className="mt-2 text-xs text-slate-400">Y {debtors.length - 6} clientes más.</p>}
         </section>
 
         <section className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
@@ -166,6 +272,7 @@ export default async function VentasPage({ searchParams }: { searchParams: Promi
             </ul>
           )}
         </section>
+        </div>
       </div>
     </section>
   );

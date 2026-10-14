@@ -4,7 +4,7 @@ import { useEffect, useState, useTransition } from "react";
 import { useForm, Controller, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useRouter } from "next/navigation";
-import { CheckCircle2, Loader2, Sparkles } from "lucide-react";
+import { CheckCircle2, Loader2, Plus, Sparkles, X } from "lucide-react";
 import type { MedicalRecordType } from "@prisma/client";
 import {
   medicalRecordFormSchema,
@@ -27,19 +27,24 @@ const DEFAULT_VALUES: MedicalRecordFormValues = {
 
 type ReminderRules = Partial<Record<MedicalRecordType, { months: number; enabled: boolean }>>;
 
+/** Producto del catálogo que se puede marcar como aplicado en la atención. */
+export type UsableProduct = { id: string; name: string; trackStock: boolean; stock: number };
+
 function dateInNMonths(months: number): string {
   const date = new Date();
   date.setMonth(date.getMonth() + months);
   return date.toISOString().slice(0, 10);
 }
 
-export function MedicalRecordForm({ petId, reminderRules }: { petId: string; reminderRules: ReminderRules }) {
+export function MedicalRecordForm({ petId, reminderRules, products }: { petId: string; reminderRules: ReminderRules; products: UsableProduct[] }) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [formError, setFormError] = useState<string | null>(null);
   const [success, setSuccess] = useState<{ remindersScheduled: number } | null>(null);
   const [suggested, setSuggested] = useState<{ months: number } | null>(null);
   const [controlTouched, setControlTouched] = useState(false);
+  const [usedProducts, setUsedProducts] = useState<{ productId: string; quantity: number }[]>([]);
+  const [productToAdd, setProductToAdd] = useState("");
 
   const {
     register,
@@ -81,7 +86,7 @@ export function MedicalRecordForm({ petId, reminderRules }: { petId: string; rem
     setFormError(null);
     setSuccess(null);
     startTransition(async () => {
-      const result = await registerMedicalRecord(petId, data);
+      const result = await registerMedicalRecord(petId, { ...data, usedProducts });
       if (!result.ok) {
         setFormError(result.message);
         if (result.fieldErrors) {
@@ -92,6 +97,7 @@ export function MedicalRecordForm({ petId, reminderRules }: { petId: string; rem
         return;
       }
       reset(DEFAULT_VALUES);
+      setUsedProducts([]);
       setControlTouched(false);
       setSuggested(null);
       setSuccess({ remindersScheduled: result.remindersScheduled });
@@ -172,6 +178,76 @@ export function MedicalRecordForm({ petId, reminderRules }: { petId: string; rem
           {...register("treatment")}
         />
       </div>
+
+      {products.length > 0 && (
+        <div>
+          <span className="mb-1.5 block text-sm font-medium text-slate-700">
+            Productos aplicados <span className="font-normal text-slate-400">(opcional)</span>
+          </span>
+          <p className="mb-2 text-xs text-slate-500">Se descuentan del stock y quedan pendientes de cobro en Ventas y caja.</p>
+          {usedProducts.length > 0 && (
+            <ul className="mb-2 space-y-1.5">
+              {usedProducts.map((item) => {
+                const product = products.find((row) => row.id === item.productId);
+                return (
+                  <li key={item.productId} className="flex items-center gap-2 rounded-xl bg-slate-50 px-3 py-2 text-sm">
+                    <span className="min-w-0 flex-1 truncate">{product?.name}</span>
+                    <input
+                      type="number"
+                      min={1}
+                      aria-label={`Cantidad de ${product?.name ?? "producto"}`}
+                      value={item.quantity}
+                      onChange={(event) => {
+                        const quantity = Math.max(1, Math.floor(Number(event.target.value)) || 1);
+                        setUsedProducts((current) => current.map((row) => (row.productId === item.productId ? { ...row, quantity } : row)));
+                      }}
+                      className="h-8 w-16 rounded-lg border border-slate-200 bg-white px-2 text-center text-sm outline-none focus:border-emerald-400"
+                    />
+                    <button
+                      type="button"
+                      aria-label={`Quitar ${product?.name ?? "producto"}`}
+                      onClick={() => setUsedProducts((current) => current.filter((row) => row.productId !== item.productId))}
+                      className="grid size-8 place-items-center rounded-lg text-slate-400 hover:bg-rose-50 hover:text-rose-600"
+                    >
+                      <X size={15} />
+                    </button>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+          <div className="flex gap-2">
+            <select
+              aria-label="Producto aplicado"
+              value={productToAdd}
+              onChange={(event) => setProductToAdd(event.target.value)}
+              className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3.5 text-sm outline-none focus:border-emerald-400"
+            >
+              <option value="">Elegí un producto</option>
+              {products
+                .filter((product) => !usedProducts.some((row) => row.productId === product.id))
+                .map((product) => (
+                  <option key={product.id} value={product.id} disabled={product.trackStock && product.stock === 0}>
+                    {product.name}
+                    {product.trackStock ? ` (stock: ${product.stock})` : ""}
+                  </option>
+                ))}
+            </select>
+            <button
+              type="button"
+              disabled={!productToAdd}
+              onClick={() => {
+                setUsedProducts((current) => [...current, { productId: productToAdd, quantity: 1 }]);
+                setProductToAdd("");
+              }}
+              className="flex h-11 shrink-0 items-center gap-1.5 rounded-xl border border-slate-200 px-4 text-sm font-medium text-slate-600 hover:bg-slate-50 disabled:opacity-40"
+            >
+              <Plus size={16} />
+              Agregar
+            </button>
+          </div>
+        </div>
+      )}
 
       <div>
         <span className="mb-1.5 block text-sm font-medium text-slate-700">Próximo control</span>
