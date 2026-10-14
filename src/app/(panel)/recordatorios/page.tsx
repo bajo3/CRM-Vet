@@ -4,6 +4,7 @@ import { requireSession } from "@/lib/auth/session";
 import { listClinicReminders, type ClinicReminder } from "@/lib/queries/reminders";
 import { getClinicSettings } from "@/lib/queries/clinic";
 import { formatDateTime, reminderStatusBadge, reminderTypeLabel } from "@/lib/format";
+import { formatPhone } from "@/lib/phone";
 
 function ReminderRow({ reminder, timezone, showStatus }: { reminder: ClinicReminder; timezone: string; showStatus: boolean }) {
   const badge = reminderStatusBadge(reminder.status);
@@ -32,7 +33,7 @@ function ReminderRow({ reminder, timezone, showStatus }: { reminder: ClinicRemin
               ? `Enviado el ${formatDateTime(reminder.sentAt, timezone)}`
               : `${reminder.status === "PENDING" ? "Se envía el" : "Estaba programado para el"} ${formatDateTime(reminder.scheduledAt, timezone)}`}
             {" · WhatsApp a "}
-            {reminder.clientPhone}
+            {formatPhone(reminder.clientPhone)}
           </p>
           {reminder.status === "FAILED" && reminder.errorMessage && (
             <p className="mt-1 text-xs text-rose-600">No se pudo enviar: {reminder.errorMessage}</p>

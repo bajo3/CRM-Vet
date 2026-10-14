@@ -102,7 +102,7 @@ export function RescheduleForm({ appointmentId, veterinarianId, defaultDate }: {
                     key={slot}
                     type="button"
                     onClick={() => field.onChange(slot)}
-                    className={`rounded-lg border px-3 py-1.5 font-mono text-xs font-medium transition-colors ${
+                    className={`rounded-lg border px-3 py-1.5 text-xs tabular-nums font-medium transition-colors ${
                       field.value === slot ? "border-emerald-500 bg-emerald-600 text-white" : "border-slate-200 text-slate-600 hover:bg-slate-50"
                     }`}
                   >

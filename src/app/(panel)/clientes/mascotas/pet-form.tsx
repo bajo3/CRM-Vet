@@ -8,6 +8,7 @@ import { ImageIcon, Loader2, Trash2, Upload } from "lucide-react";
 import { petFormSchema, type PetFormInput, type PetFormValues } from "@/lib/validation/pet";
 import { createPet, updatePet } from "@/lib/actions/pets";
 import { resizeImageToDataUrl } from "@/lib/image-resize";
+import { formatPhone } from "@/lib/phone";
 
 const PHOTO_MAX_SIDE = 480;
 
@@ -124,7 +125,7 @@ export function PetForm({ mode, petId, clients, defaultValues }: PetFormProps) {
           <option value="">Elegí un cliente</option>
           {clients.map((client) => (
             <option key={client.id} value={client.id}>
-              {client.name} · {client.phone}
+              {client.name} · {formatPhone(client.phone)}
             </option>
           ))}
         </select>

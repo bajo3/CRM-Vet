@@ -43,7 +43,7 @@ function AppointmentCard({
       } ${isMoving ? "animate-pulse" : ""} ${draggable ? "cursor-grab active:cursor-grabbing" : ""}`}
     >
       <div className="flex items-center justify-between gap-1">
-        <span className="font-mono font-semibold">{formatTime(appointment.startAt, timezone)}</span>
+        <span className="font-semibold tabular-nums">{formatTime(appointment.startAt, timezone)}</span>
         <span className="flex items-center gap-1">
           {draggable && <GripVertical size={11} className="opacity-50" />}
           <span className="rounded-full bg-white/70 px-1.5 py-0.5 text-[10px] font-medium">{badge.label}</span>
@@ -158,7 +158,7 @@ export function DayView({
         <div className="grid min-w-[560px]" style={{ gridTemplateColumns: `76px repeat(${vets.length}, minmax(200px, 1fr))` }}>
           <div className="sticky left-0 z-10 border-b border-r border-slate-100 bg-slate-50 p-3 text-xs font-medium text-slate-500">Hora</div>
           {vets.map((vet) => (
-            <div key={vet.id} className="truncate border-b border-slate-100 p-3 text-sm font-semibold">
+            <div key={vet.id} className="truncate border-b border-l border-slate-100 p-3 text-sm font-semibold">
               {vet.name}
             </div>
           ))}
@@ -169,7 +169,7 @@ export function DayView({
               <Fragment key={slot}>
                 <div
                   ref={(el) => { slotRefs.current[slot] = el; }}
-                  className={`sticky left-0 z-10 border-b border-r border-slate-100 bg-white p-3 font-mono text-xs ${past ? "text-slate-300" : "text-slate-500"}`}
+                  className={`sticky left-0 z-10 border-b border-r border-slate-100 bg-white p-3 text-xs tabular-nums ${past ? "text-slate-300" : "text-slate-500"}`}
                 >
                   {slot}
                 </div>
@@ -179,7 +179,7 @@ export function DayView({
                   return (
                     <div
                       key={`${vet.id}-${slot}`}
-                      className={`border-b border-slate-100 p-1.5 ${past && !appointment ? "opacity-40" : ""} ${
+                      className={`border-b border-l border-slate-100 p-1.5 ${past && !appointment ? "opacity-40" : ""} ${
                         canDropHere ? "rounded-xl outline-dashed outline-1 outline-transparent transition-colors hover:outline-emerald-300 hover:bg-emerald-50/40" : ""
                       }`}
                       onDragOver={(event) => {
@@ -209,7 +209,7 @@ export function DayView({
                         <Link
                           href={`/agenda/nuevo?date=${date}&time=${slot}&vetId=${vet.id}`}
                           aria-label={`Nuevo turno a las ${slot} con ${vet.name}`}
-                          className="flex h-[74px] items-center justify-center rounded-xl border border-dashed border-slate-200 text-slate-300 transition-colors hover:border-emerald-300 hover:text-emerald-500"
+                          className="flex h-[74px] items-center justify-center rounded-xl text-transparent transition-colors hover:bg-emerald-50/70 hover:text-emerald-600 focus-visible:text-emerald-600"
                         >
                           <PlusCircle size={18} />
                         </Link>

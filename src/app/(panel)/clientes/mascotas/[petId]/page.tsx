@@ -11,6 +11,7 @@ import { SpeciesIcon } from "@/lib/pet-species-icon";
 import { RegisterVisitPanel } from "./register-visit-panel";
 import { QuotePanel } from "./quote-panel";
 import { PrescriptionPanel } from "./prescription-panel";
+import { formatPhone } from "@/lib/phone";
 
 function formatCurrency(value: number): string {
   return new Intl.NumberFormat("es-AR", { style: "currency", currency: "ARS", minimumFractionDigits: 2 }).format(value);
@@ -103,7 +104,7 @@ export default async function FichaMascotaPage({
             </Link>
             <div className="flex items-center gap-1.5 text-slate-500">
               <Phone size={13} />
-              {pet.client.phone}
+              {formatPhone(pet.client.phone)}
             </div>
           </div>
         </div>

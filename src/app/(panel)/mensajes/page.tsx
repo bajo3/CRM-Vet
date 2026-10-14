@@ -11,6 +11,7 @@ import { ConversationReadMarker } from "./conversation-read-marker";
 import { MessageDeliveryPoller } from "./message-delivery-poller";
 import { MessageViewport } from "./message-viewport";
 import { WhatsappChannelStatus } from "./whatsapp-channel-status";
+import { formatPhone } from "@/lib/phone";
 
 const STATUS_META: Record<ConversationStatus, { label: string; className: string }> = {
   AUTOMATED: { label: "Automática", className: "bg-violet-50 text-violet-700" },
@@ -66,21 +67,21 @@ export default async function MensajesPage({ searchParams }: { searchParams: Pro
     <div className="grid h-[calc(100dvh-7.5625rem)] min-h-0 overflow-hidden bg-white lg:h-screen lg:grid-cols-[380px_1fr]">
       <aside className={`${mobileHasSelection ? "hidden lg:flex" : "flex"} h-full min-h-0 flex-col border-r border-slate-200 bg-white`}>
         <header className="border-b border-slate-100 p-4 sm:p-5">
-          <div className="flex items-center justify-between"><div><p className="text-xs font-semibold uppercase tracking-[0.16em] text-emerald-600">Centro de atención</p><h1 className="mt-1 text-2xl font-semibold tracking-tight">Mensajes</h1></div><span className="grid size-11 place-items-center rounded-2xl bg-emerald-50 text-emerald-600"><MessageCircle size={21} /></span></div>
+          <h1 className="text-2xl font-semibold tracking-tight">Mensajes</h1>
           <div className="mt-3 flex flex-wrap gap-2">
             <Link href="/mensajes/programados" className="flex h-9 w-fit items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 text-xs font-medium text-slate-600 hover:bg-slate-50">
               <CalendarClock size={14} className="text-emerald-600" />
-              Programar mensaje
+              Programar
             </Link>
             <Link href="/recordatorios" className="flex h-9 w-fit items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 text-xs font-medium text-slate-600 hover:bg-slate-50">
               <BellRing size={14} className="text-emerald-600" />
-              Recordatorios automáticos
+              Recordatorios
             </Link>
           </div>
-          <nav className="mt-4 flex gap-2 overflow-x-auto pb-1" aria-label="Filtrar conversaciones">
+          <nav className="mt-4 flex flex-wrap gap-1.5" aria-label="Filtrar conversaciones">
             {FILTERS.map(([value, label]) => {
               const active = validStatus === value || (!validStatus && !value);
-              return <Link key={value} href={`/mensajes${value ? `?status=${value}` : ""}`} className={`shrink-0 rounded-full px-3 py-1.5 text-xs font-medium transition ${active ? "bg-slate-900 text-white" : "bg-slate-100 text-slate-600 hover:bg-slate-200"}`}>{label}</Link>;
+              return <Link key={value} href={`/mensajes${value ? `?status=${value}` : ""}`} className={`rounded-full px-2.5 py-1 text-xs font-medium transition ${active ? "bg-slate-900 text-white" : "bg-slate-100 text-slate-600 hover:bg-slate-200"}`}>{label}</Link>;
             })}
           </nav>
         </header>
@@ -95,7 +96,7 @@ export default async function MensajesPage({ searchParams }: { searchParams: Pro
             return (
               <Link key={conversation.id} href={`/mensajes?conversation=${conversation.id}${validStatus ? `&status=${validStatus}` : ""}`} className={`group grid grid-cols-[44px_1fr_auto] gap-3 border-b border-slate-100 p-4 transition hover:bg-slate-50 ${selected?.id === conversation.id ? "bg-emerald-50/70 lg:border-l-2 lg:border-l-emerald-500" : ""}`}>
                 <span className="grid size-11 place-items-center rounded-full bg-slate-100 text-xs font-semibold text-slate-600">{initials}</span>
-                <div className="min-w-0"><div className="flex items-center gap-2"><p className="truncate text-sm font-semibold">{conversation.contactName || conversation.client?.name || conversation.phone}</p>{conversation.pet && <span className="flex shrink-0 items-center gap-1 text-[11px] text-slate-400"><PawPrint size={11} />{conversation.pet.name}</span>}</div><p className="mt-1 truncate text-xs text-slate-500">{lastMessage?.direction === "OUTBOUND" ? "Vos: " : ""}{lastMessage?.content ?? "Sin mensajes"}</p><span className={`mt-2 inline-flex rounded-full px-2 py-0.5 text-[10px] font-semibold ${meta.className}`}>{meta.label}</span></div>
+                <div className="min-w-0"><div className="flex items-center gap-2"><p className="truncate text-sm font-semibold">{conversation.contactName || conversation.client?.name || formatPhone(conversation.phone)}</p>{conversation.pet && <span className="flex shrink-0 items-center gap-1 text-[11px] text-slate-400"><PawPrint size={11} />{conversation.pet.name}</span>}</div><p className="mt-1 truncate text-xs text-slate-500">{lastMessage?.direction === "OUTBOUND" ? "Vos: " : ""}{lastMessage?.content ?? "Sin mensajes"}</p><span className={`mt-2 inline-flex rounded-full px-2 py-0.5 text-[10px] font-semibold ${meta.className}`}>{meta.label}</span></div>
                 <div className="flex flex-col items-end justify-between"><span className="text-[10px] text-slate-400">{DateTime.fromJSDate(conversation.lastMessageAt).setZone(timezone).toFormat("HH:mm")}</span>{conversation.unreadCount > 0 ? <span className="grid min-w-5 place-items-center rounded-full bg-emerald-600 px-1.5 text-[10px] font-semibold text-white">{conversation.unreadCount}</span> : <ChevronRight size={15} className="text-slate-300 transition group-hover:translate-x-0.5" />}</div>
               </Link>
             );
@@ -108,7 +109,7 @@ export default async function MensajesPage({ searchParams }: { searchParams: Pro
           <>
             <ConversationReadMarker conversationId={selected.id} unreadCount={selected.unreadCount} />
             <header className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 bg-white p-3 sm:p-4">
-              <div className="flex min-w-0 items-center gap-3"><Link href="/mensajes" aria-label="Volver a conversaciones" className="grid size-9 shrink-0 place-items-center rounded-xl text-slate-500 hover:bg-slate-100 lg:hidden"><ArrowLeft size={18} /></Link><div className="min-w-0"><h2 className="truncate font-semibold">{selected.contactName || selected.client?.name || selected.phone}</h2><div className="mt-0.5 flex flex-wrap items-center gap-2 text-xs text-slate-500"><span>{selected.phone}</span><span>·</span><span className={STATUS_META[selected.status].className.split(" ").at(-1)}>{STATUS_META[selected.status].label}</span>{selected.assignedUser && <><span>·</span><span>Atiende {selected.assignedUser.name}</span></>}</div></div></div>
+              <div className="flex min-w-0 items-center gap-3"><Link href="/mensajes" aria-label="Volver a conversaciones" className="grid size-9 shrink-0 place-items-center rounded-xl text-slate-500 hover:bg-slate-100 lg:hidden"><ArrowLeft size={18} /></Link><div className="min-w-0"><h2 className="truncate font-semibold">{selected.contactName || selected.client?.name || formatPhone(selected.phone)}</h2><div className="mt-0.5 flex flex-wrap items-center gap-2 text-xs text-slate-500"><span>{formatPhone(selected.phone)}</span><span>·</span><span className={STATUS_META[selected.status].className.split(" ").at(-1)}>{STATUS_META[selected.status].label}</span>{selected.assignedUser && <><span>·</span><span>Atiende {selected.assignedUser.name}</span></>}</div></div></div>
               <div className="flex items-center gap-2">
                 <WhatsappChannelStatus />
                 {selected.status === "REQUIRES_HUMAN" && <form action={openConversation.bind(null, selected.id)}><button className="flex h-9 items-center gap-1.5 rounded-xl bg-emerald-600 px-3 text-xs font-semibold text-white hover:bg-emerald-700"><UserRound size={14} />Tomar</button></form>}

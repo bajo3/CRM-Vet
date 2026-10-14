@@ -91,11 +91,11 @@ export default async function VentasPage({ searchParams }: { searchParams: Promi
         </Link>
       )}
 
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4">
         {stats.map((stat) => (
           <div key={stat.label} className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
             <p className="text-sm font-medium text-slate-600">{stat.label}</p>
-            <p className="mt-2 text-2xl font-semibold tracking-tight">{stat.value}</p>
+            <p className="mt-2 text-xl font-semibold tabular-nums tracking-tight sm:text-2xl">{stat.value}</p>
             <p className="mt-1 text-xs text-slate-500">{stat.hint}</p>
           </div>
         ))}

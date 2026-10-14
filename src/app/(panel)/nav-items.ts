@@ -1,16 +1,16 @@
 import { BarChart3, BellRing, CalendarDays, FolderOpen, MessageCircle, PawPrint, Settings, UsersRound, Wallet, type LucideIcon } from "lucide-react";
 
-/** `desktopOnly`: no entra en la barra inferior del celular, que ya está completa. */
-export type NavItem = { href: string; label: string; icon: LucideIcon; desktopOnly?: boolean };
+/** `mobile`: va fijo en la barra inferior del celular; el resto queda dentro de "Más". */
+export type NavItem = { href: string; label: string; shortLabel?: string; icon: LucideIcon; mobile?: boolean };
 
 export const NAV_ITEMS: NavItem[] = [
-  { href: "/", label: "Inicio", icon: PawPrint },
-  { href: "/agenda", label: "Agenda", icon: CalendarDays },
-  { href: "/clientes", label: "Clientes y mascotas", icon: UsersRound },
+  { href: "/", label: "Inicio", icon: PawPrint, mobile: true },
+  { href: "/agenda", label: "Agenda", icon: CalendarDays, mobile: true },
+  { href: "/clientes", label: "Clientes y mascotas", shortLabel: "Clientes", icon: UsersRound, mobile: true },
+  { href: "/mensajes", label: "Mensajes", icon: MessageCircle, mobile: true },
+  { href: "/ventas", label: "Ventas y caja", icon: Wallet },
   { href: "/recordatorios", label: "Recordatorios", icon: BellRing },
   { href: "/documentos", label: "Documentos", icon: FolderOpen },
-  { href: "/mensajes", label: "Mensajes", icon: MessageCircle },
-  { href: "/ventas", label: "Ventas y caja", icon: Wallet, desktopOnly: true },
-  { href: "/reportes", label: "Reportes", icon: BarChart3, desktopOnly: true },
+  { href: "/reportes", label: "Reportes", icon: BarChart3 },
   { href: "/configuracion", label: "Configuración", icon: Settings },
 ];

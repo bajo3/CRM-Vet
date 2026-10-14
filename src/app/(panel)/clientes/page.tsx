@@ -7,6 +7,7 @@ import { getNextScheduledMessageByClient } from "@/lib/queries/scheduled-message
 import { getClinicSettings } from "@/lib/queries/clinic";
 import { SpeciesIcon } from "@/lib/pet-species-icon";
 import { daysUntil, daysUntilLabel } from "@/lib/format";
+import { formatPhone } from "@/lib/phone";
 
 export default async function ClientesPage({ searchParams }: { searchParams: Promise<{ q?: string; ok?: string }> }) {
   const session = await requireSession();
@@ -62,15 +63,15 @@ export default async function ClientesPage({ searchParams }: { searchParams: Pro
           )}
         </div>
       ) : (
-        <div className="space-y-3">
+        <div className="divide-y divide-slate-100 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
           {clients.map((client) => (
-            <article key={client.id} className="relative rounded-2xl border border-slate-200 bg-white p-4 shadow-sm transition-colors hover:border-emerald-200 hover:bg-emerald-50/30 sm:p-5">
-              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                <div className="min-w-0">
+            <article key={client.id} className="relative flex flex-col gap-3 px-4 py-3.5 transition-colors hover:bg-slate-50/80 sm:flex-row sm:items-center sm:gap-5 sm:px-5">
+              <div className="contents">
+                <div className="min-w-0 sm:w-60 sm:shrink-0">
                   <div className="font-medium">{client.name}</div>
-                  <div className="mt-0.5 flex items-center gap-1.5 text-sm text-slate-500">
+                  <div className="mt-0.5 flex items-center gap-1.5 text-sm tabular-nums text-slate-500">
                     <Phone size={13} />
-                    {client.phone}
+                    {formatPhone(client.phone)}
                   </div>
                   {nextScheduledByClient.has(client.id) && (
                     <div className="mt-1.5 flex items-center gap-1.5 text-xs font-medium text-emerald-700">
@@ -82,14 +83,14 @@ export default async function ClientesPage({ searchParams }: { searchParams: Pro
                 {canManage && (
                   <Link
                     href={`/clientes/${client.id}/editar`}
-                    className="relative z-10 flex h-9 w-fit items-center gap-1.5 rounded-lg border border-slate-200 px-3 text-xs font-medium text-slate-600 hover:bg-slate-50"
+                    className="relative z-10 hidden h-8 w-fit items-center gap-1.5 sm:flex rounded-lg border border-slate-200 bg-white px-3 text-xs font-medium text-slate-600 hover:bg-slate-50 order-3"
                   >
                     <Pencil size={13} />
                     Editar
                   </Link>
                 )}
               </div>
-              <div className="relative z-10 mt-3 flex flex-wrap gap-2">
+              <div className="relative z-10 order-2 flex flex-1 flex-wrap gap-2">
                 {client.pets.length === 0 ? (
                   <span className="text-xs text-slate-400">Sin mascotas registradas</span>
                 ) : (
@@ -97,7 +98,7 @@ export default async function ClientesPage({ searchParams }: { searchParams: Pro
                     <Link
                       key={pet.id}
                       href={`/clientes/mascotas/${pet.id}`}
-                      className="flex items-center gap-1.5 rounded-full bg-emerald-50 px-3 py-1.5 text-xs font-medium text-emerald-800 hover:bg-emerald-100"
+                      className="flex items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-medium text-emerald-800 hover:bg-emerald-100"
                     >
                       <SpeciesIcon species={pet.species} />
                       {pet.name} · {pet.species}
@@ -107,14 +108,14 @@ export default async function ClientesPage({ searchParams }: { searchParams: Pro
                 {canManage && (
                   <Link
                     href={`/clientes/mascotas/nueva?clientId=${client.id}`}
-                    className="rounded-full border border-dashed border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-500 hover:bg-slate-50"
+                    className="rounded-full border border-dashed border-slate-300 px-2.5 py-1 text-xs font-medium text-slate-500 hover:bg-white"
                   >
                     + Mascota
                   </Link>
                 )}
               </div>
               {canManage && (
-                <Link href={`/clientes/${client.id}/editar`} className="absolute inset-0 z-0 rounded-2xl" aria-label={`Ver ${client.name}`} />
+                <Link href={`/clientes/${client.id}/editar`} className="absolute inset-0 z-0" aria-label={`Ver ${client.name}`} />
               )}
             </article>
           ))}

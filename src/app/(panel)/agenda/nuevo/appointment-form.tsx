@@ -7,6 +7,7 @@ import { useRouter } from "next/navigation";
 import { Loader2, PawPrint, Search, X } from "lucide-react";
 import { appointmentFormSchema, REASON_CHIPS, type AppointmentFormInput, type AppointmentFormValues } from "@/lib/validation/appointment";
 import { createAppointmentAction, getAvailableSlotsAction } from "@/lib/actions/appointments";
+import { formatPhone } from "@/lib/phone";
 
 type PetOption = { id: string; name: string; species: string; clientName: string; clientPhone: string };
 type VetOption = { id: string; name: string };
@@ -117,7 +118,7 @@ export function AppointmentForm({
               <div className="min-w-0">
                 <div className="truncate text-sm font-medium text-emerald-900">{selectedPet.name}</div>
                 <div className="truncate text-xs text-emerald-700">
-                  {selectedPet.clientName} · {selectedPet.clientPhone}
+                  {selectedPet.clientName} · {formatPhone(selectedPet.clientPhone)}
                 </div>
               </div>
             </div>
@@ -280,7 +281,7 @@ export function AppointmentForm({
                     key={slot}
                     type="button"
                     onClick={() => field.onChange(slot)}
-                    className={`rounded-lg border px-3 py-1.5 font-mono text-xs font-medium transition-colors ${
+                    className={`rounded-lg border px-3 py-1.5 text-xs tabular-nums font-medium transition-colors ${
                       field.value === slot ? "border-emerald-500 bg-emerald-600 text-white" : "border-slate-200 text-slate-600 hover:bg-slate-50"
                     }`}
                   >

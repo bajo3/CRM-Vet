@@ -8,6 +8,7 @@ import { getClinicSettings } from "@/lib/queries/clinic";
 import { getAppointmentDetail } from "@/lib/queries/agenda";
 import { appointmentStatusBadge, describeAppointmentActivity, formatDateTime } from "@/lib/format";
 import { updateAppointmentStatusFormAction } from "@/lib/actions/appointments";
+import { formatPhone } from "@/lib/phone";
 
 type SearchParams = { ok?: string; confirm?: string };
 
@@ -89,7 +90,7 @@ export default async function AppointmentDetailPage({
               <div className="font-medium">{appointment.pet.client.name}</div>
               <div className="flex items-center gap-1 text-xs text-slate-500">
                 <Phone size={11} />
-                {appointment.pet.client.phone}
+                {formatPhone(appointment.pet.client.phone)}
               </div>
             </div>
           </div>

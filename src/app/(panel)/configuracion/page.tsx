@@ -55,7 +55,7 @@ export default async function ConfiguracionPage({ searchParams }: { searchParams
       {canEdit && <ZernioWhatsappCard connected={!!clinic.zernioAccountId} result={whatsappResult} />}
       {canEdit && <OnlineBookingCard initialSlug={clinic.bookingSlug} appUrl={appUrl} />}
 
-      <div className="grid items-start gap-6 xl:grid-cols-[1.35fr_0.65fr]">
+      <div className="grid items-start gap-6 2xl:grid-cols-[1.35fr_0.65fr]">
         <ClinicForm
           clinic={{
             name: clinic.name,
@@ -68,7 +68,7 @@ export default async function ConfiguracionPage({ searchParams }: { searchParams
           editable={canEdit}
         />
 
-        <div className="space-y-6">
+        <div className="grid items-start gap-6 lg:grid-cols-2 2xl:grid-cols-1">
           <TeamPanel members={members} canManage={canManageTeam} currentUserId={session.userId} />
           <AccountPanel licenseNumber={currentUser?.licenseNumber ?? ""} />
         </div>

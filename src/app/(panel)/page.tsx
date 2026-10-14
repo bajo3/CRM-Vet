@@ -7,6 +7,7 @@ import { getClinicSettings } from "@/lib/queries/clinic";
 import { getDashboardData } from "@/lib/queries/dashboard";
 import { appointmentStatusBadge, capitalize, formatTime } from "@/lib/format";
 import { SetupChecklist } from "./setup-checklist";
+import { formatPhone } from "@/lib/phone";
 
 function greeting(hour: number) {
   if (hour < 12) return "Buen día";
@@ -44,24 +45,24 @@ export default async function InicioPage({ searchParams }: { searchParams: Promi
             {greeting(now.hour)}, {firstName}
           </h1>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           <Link
             href="/clientes/mascotas/nueva"
-            className="flex h-11 flex-1 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 text-sm font-medium shadow-sm"
+            className="flex h-11 flex-1 items-center justify-center gap-2 whitespace-nowrap rounded-xl border border-slate-200 bg-white px-4 text-sm font-medium shadow-sm sm:flex-none"
           >
             <PawPrint size={17} />
             Nueva mascota
           </Link>
           <Link
             href="/ventas/nueva"
-            className="flex h-11 flex-1 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 text-sm font-medium shadow-sm"
+            className="flex h-11 flex-1 items-center justify-center gap-2 whitespace-nowrap rounded-xl border border-slate-200 bg-white px-4 text-sm font-medium shadow-sm sm:flex-none"
           >
             <Wallet size={17} />
             Cobrar
           </Link>
           <Link
             href={hasRole(session, AGENDA_MANAGE_ROLES) ? "/agenda/nuevo" : "/agenda"}
-            className="flex h-11 flex-1 items-center justify-center gap-2 rounded-xl bg-emerald-600 px-4 text-sm font-medium text-white shadow-sm shadow-emerald-200"
+            className="flex h-11 flex-1 items-center justify-center gap-2 whitespace-nowrap rounded-xl bg-emerald-600 px-4 text-sm font-medium text-white shadow-sm shadow-emerald-200 sm:flex-none"
           >
             <Plus size={17} />
             {hasRole(session, AGENDA_MANAGE_ROLES) ? "Nuevo turno" : "Ver agenda"}
@@ -76,15 +77,17 @@ export default async function InicioPage({ searchParams }: { searchParams: Promi
         <input name="q" className="w-full bg-transparent text-sm outline-none placeholder:text-slate-400" placeholder="Buscar cliente, mascota o teléfono" aria-label="Buscar cliente, mascota o teléfono" />
       </form>
 
-      <div className="mb-7 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="mb-7 grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4">
         {stats.map((item) => (
-          <article key={item.label} className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-            <div className={`mb-5 grid size-10 place-items-center rounded-xl ${item.tone}`}>
-              <item.icon size={20} />
+          <article key={item.label} className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+            <div className="flex items-center justify-between gap-3">
+              <span className="text-sm font-medium text-slate-600">{item.label}</span>
+              <span className={`grid size-8 shrink-0 place-items-center rounded-lg ${item.tone}`}>
+                <item.icon size={16} />
+              </span>
             </div>
-            <div className="text-3xl font-semibold">{item.value}</div>
-            <div className="mt-1 text-sm font-medium">{item.label}</div>
-            <div className="mt-1 text-xs text-slate-500">{item.hint}</div>
+            <div className="mt-2 text-3xl font-semibold tabular-nums tracking-tight">{item.value}</div>
+            <div className="mt-0.5 text-xs text-slate-500">{item.hint}</div>
           </article>
         ))}
       </div>
@@ -112,7 +115,7 @@ export default async function InicioPage({ searchParams }: { searchParams: Promi
                     href={`/agenda/${appointment.id}`}
                     className="grid grid-cols-[54px_1fr_auto] items-center gap-3 p-4 hover:bg-slate-50 sm:grid-cols-[70px_1fr_120px_auto]"
                   >
-                    <span className="font-mono text-sm font-medium">{formatTime(appointment.startAt, timezone)}</span>
+                    <span className="text-sm font-medium tabular-nums">{formatTime(appointment.startAt, timezone)}</span>
                     <div className="min-w-0">
                       <div className="truncate font-medium">{appointment.pet.name}</div>
                       <div className="truncate text-xs text-slate-500">
@@ -135,7 +138,7 @@ export default async function InicioPage({ searchParams }: { searchParams: Promi
               <p className="mt-1 text-xs text-slate-500">Derivados desde WhatsApp</p>
             </div>
             {requiresHumanConversations.length > 0 && (
-              <span className="rounded-full bg-rose-100 px-2.5 py-1 text-xs font-medium text-rose-700">{requiresHumanConversations.length} nuevos</span>
+              <span className="rounded-full bg-rose-100 px-2.5 py-1 text-xs font-medium text-rose-700">{requiresHumanConversations.length === 1 ? "1 pendiente" : `${requiresHumanConversations.length} pendientes`}</span>
             )}
           </div>
           {requiresHumanConversations.length === 0 ? (
@@ -156,7 +159,7 @@ export default async function InicioPage({ searchParams }: { searchParams: Promi
                     </span>
                     <div className="min-w-0 flex-1">
                       <div className="flex justify-between gap-2">
-                        <span className="truncate text-sm font-medium">{conversation.contactName ?? conversation.phone}</span>
+                        <span className="truncate text-sm font-medium">{conversation.contactName ?? formatPhone(conversation.phone)}</span>
                         <span className="text-xs text-slate-400">{formatTime(conversation.lastMessageAt, timezone)}</span>
                       </div>
                       <p className="truncate text-xs text-slate-500">Esperando respuesta del equipo</p>

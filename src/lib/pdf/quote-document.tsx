@@ -1,3 +1,4 @@
+import { formatPhone } from "../phone";
 import { Document, Page, View, Text, StyleSheet } from "@react-pdf/renderer";
 import { DateTime } from "luxon";
 import type { QuoteWithDocumentData } from "../services/quotes";
@@ -112,7 +113,7 @@ export function QuoteDocument({ quote, timezone }: { quote: QuoteWithDocumentDat
     <Document title={`Presupuesto - ${quote.pet.name}`}>
       <Page size="A4" style={sharedStyles.page}>
         <View style={sharedStyles.spine} fixed />
-        <DocumentHeader clinicName={quote.clinic.name} clinicPhone={quote.clinic.phone} logoUrl={quote.clinic.logoUrl} docLabel="PRESUPUESTO" dateLabel={issuedAt} documentId={quote.id.slice(-8).toUpperCase()} />
+        <DocumentHeader clinicName={quote.clinic.name} clinicPhone={quote.clinic.phone ? formatPhone(quote.clinic.phone) : null} logoUrl={quote.clinic.logoUrl} docLabel="PRESUPUESTO" dateLabel={issuedAt} documentId={quote.id.slice(-8).toUpperCase()} />
 
         <View style={sharedStyles.body}>
           <View style={[sharedStyles.section, sharedStyles.row]}>
@@ -124,7 +125,7 @@ export function QuoteDocument({ quote, timezone }: { quote: QuoteWithDocumentDat
             <View style={sharedStyles.infoCard}>
               <Text style={sharedStyles.sectionTitle}>Tutor/a</Text>
               <Text style={sharedStyles.infoName}>{quote.pet.client.name}</Text>
-              <Text style={sharedStyles.infoLine}>{quote.pet.client.phone}</Text>
+              <Text style={sharedStyles.infoLine}>{formatPhone(quote.pet.client.phone)}</Text>
             </View>
           </View>
 

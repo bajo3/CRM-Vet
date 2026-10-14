@@ -1,3 +1,4 @@
+import { formatPhone } from "../phone";
 import { Document, Page, View, Text, StyleSheet } from "@react-pdf/renderer";
 import { DateTime } from "luxon";
 import type { VaccinationCard } from "../queries/vaccination-card";
@@ -52,7 +53,7 @@ export function VaccinationCardDocument({ card }: { card: VaccinationCard }) {
     <Document title={`Libreta de vacunación - ${card.name}`}>
       <Page size="A4" style={sharedStyles.page}>
         <View style={sharedStyles.spine} fixed />
-        <DocumentHeader clinicName={card.clinic.name} clinicPhone={card.clinic.phone} logoUrl={card.clinic.logoUrl} docLabel="VACUNACIÓN" dateLabel={issuedAt} documentId={card.id.slice(-8).toUpperCase()} />
+        <DocumentHeader clinicName={card.clinic.name} clinicPhone={card.clinic.phone ? formatPhone(card.clinic.phone) : null} logoUrl={card.clinic.logoUrl} docLabel="VACUNACIÓN" dateLabel={issuedAt} documentId={card.id.slice(-8).toUpperCase()} />
 
         <View style={sharedStyles.body}>
           <View style={[sharedStyles.section, sharedStyles.row]}>
@@ -65,7 +66,7 @@ export function VaccinationCardDocument({ card }: { card: VaccinationCard }) {
             <View style={sharedStyles.infoCard}>
               <Text style={sharedStyles.sectionTitle}>Tutor/a</Text>
               <Text style={sharedStyles.infoName}>{card.client.name}</Text>
-              <Text style={sharedStyles.infoLine}>{card.client.phone}</Text>
+              <Text style={sharedStyles.infoLine}>{formatPhone(card.client.phone)}</Text>
             </View>
           </View>
 

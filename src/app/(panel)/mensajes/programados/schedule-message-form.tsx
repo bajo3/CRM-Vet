@@ -11,6 +11,7 @@ import {
   type CreateScheduledMessageInput,
   type CreateScheduledMessageValues,
 } from "@/lib/validation/scheduled-messages";
+import { formatPhone } from "@/lib/phone";
 
 type ClientOption = { id: string; name: string; phone: string; remindersEnabled: boolean };
 
@@ -89,7 +90,7 @@ export function ScheduleMessageForm({ clients }: { clients: ClientOption[] }) {
           <div className="flex flex-wrap items-center gap-3">
             <div className="flex min-w-0 flex-1 items-center gap-2 rounded-xl bg-emerald-50 px-3 py-2">
               <span className="truncate text-sm font-medium text-emerald-900">{selected.name}</span>
-              <span className="truncate text-xs text-emerald-700">{selected.phone}</span>
+              <span className="truncate text-xs text-emerald-700">{formatPhone(selected.phone)}</span>
               <button type="button" onClick={clearClient} className="ml-auto shrink-0 text-emerald-700 hover:text-emerald-900">
                 <X size={15} />
               </button>
@@ -120,7 +121,7 @@ export function ScheduleMessageForm({ clients }: { clients: ClientOption[] }) {
                       className="flex w-full items-center justify-between gap-2 border-b border-slate-100 px-3.5 py-2.5 text-left text-sm last:border-b-0 hover:bg-slate-50"
                     >
                       <span className="font-medium">{client.name}</span>
-                      <span className="truncate text-xs text-slate-500">{client.phone}</span>
+                      <span className="truncate text-xs text-slate-500">{formatPhone(client.phone)}</span>
                     </button>
                   ))
                 )}

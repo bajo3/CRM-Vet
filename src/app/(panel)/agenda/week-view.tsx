@@ -61,7 +61,7 @@ export function WeekView({
                         href={`/agenda/${appointment.id}`}
                         className={`block rounded-lg px-2 py-1.5 text-[11px] transition-opacity hover:opacity-90 ${badge.className} ${past ? "opacity-60" : ""}`}
                       >
-                        <div className="flex items-center justify-between gap-1 font-mono font-semibold">
+                        <div className="flex items-center justify-between gap-1 font-semibold tabular-nums">
                           <span>{formatTime(appointment.startAt, timezone)}</span>
                           {showVet && <span className="truncate text-[10px] font-normal">{shortVetName(appointment.veterinarian.name)}</span>}
                         </div>

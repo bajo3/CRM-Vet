@@ -6,6 +6,7 @@ import { getClinicSettings } from "@/lib/queries/clinic";
 import { getClinicReport, INACTIVE_AFTER_MONTHS, REPORT_PERIODS, type ReportPeriod } from "@/lib/queries/reports";
 import { formatMoney, medicalRecordTypeLabel } from "@/lib/format";
 import { PAYMENT_METHOD_LABELS } from "@/lib/validation/sales";
+import { formatPhone } from "@/lib/phone";
 
 const PERIOD_LABELS: Record<ReportPeriod, string> = { 30: "Últimos 30 días", 90: "Últimos 90 días", 365: "Último año" };
 
@@ -98,14 +99,16 @@ export default async function ReportesPage({ searchParams }: { searchParams: Pro
         </nav>
       </header>
 
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4">
         {stats.map((stat) => (
-          <div key={stat.label} className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
-            <span className={`grid size-10 place-items-center rounded-xl ${stat.tone}`}>
-              <stat.icon size={19} />
-            </span>
-            <p className="mt-4 text-3xl font-semibold tracking-tight">{stat.value}</p>
-            <p className="mt-1 text-sm font-medium text-slate-700">{stat.label}</p>
+          <div key={stat.label} className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+            <div className="flex items-center justify-between gap-3">
+              <span className="text-sm font-medium text-slate-600">{stat.label}</span>
+              <span className={`grid size-8 shrink-0 place-items-center rounded-lg ${stat.tone}`}>
+                <stat.icon size={16} />
+              </span>
+            </div>
+            <p className="mt-2 text-3xl font-semibold tabular-nums tracking-tight">{stat.value}</p>
             <p className="mt-0.5 text-xs text-slate-500">{stat.hint}</p>
           </div>
         ))}
@@ -182,7 +185,7 @@ export default async function ReportesPage({ searchParams }: { searchParams: Pro
                         <span className="block truncate font-medium">{client.name}</span>
                         <span className="block truncate text-xs text-slate-500">{client.pets.join(", ")}</span>
                       </span>
-                      <span className="shrink-0 text-xs text-slate-500">{client.phone}</span>
+                      <span className="shrink-0 text-xs text-slate-500">{formatPhone(client.phone)}</span>
                     </Link>
                   </li>
                 ))}

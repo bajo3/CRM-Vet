@@ -1,3 +1,4 @@
+import { formatPhone } from "../phone";
 import { Document, Page, View, Text, StyleSheet } from "@react-pdf/renderer";
 import { DateTime } from "luxon";
 import type { PrescriptionWithDocumentData } from "../services/prescriptions";
@@ -84,7 +85,7 @@ export function PrescriptionDocument({ prescription, timezone }: { prescription:
     <Document title={`Receta - ${prescription.pet.name}`}>
       <Page size="A4" style={sharedStyles.page}>
         <View style={sharedStyles.spine} fixed />
-        <DocumentHeader clinicName={prescription.clinic.name} clinicPhone={prescription.clinic.phone} logoUrl={prescription.clinic.logoUrl} docLabel="RECETA" dateLabel={issuedAt} documentId={prescription.id.slice(-8).toUpperCase()} />
+        <DocumentHeader clinicName={prescription.clinic.name} clinicPhone={prescription.clinic.phone ? formatPhone(prescription.clinic.phone) : null} logoUrl={prescription.clinic.logoUrl} docLabel="RECETA" dateLabel={issuedAt} documentId={prescription.id.slice(-8).toUpperCase()} />
 
         <View style={sharedStyles.body}>
           <View style={[sharedStyles.section, sharedStyles.row]}>
@@ -96,7 +97,7 @@ export function PrescriptionDocument({ prescription, timezone }: { prescription:
             <View style={sharedStyles.infoCard}>
               <Text style={sharedStyles.sectionTitle}>Tutor/a</Text>
               <Text style={sharedStyles.infoName}>{prescription.pet.client.name}</Text>
-              <Text style={sharedStyles.infoLine}>{prescription.pet.client.phone}</Text>
+              <Text style={sharedStyles.infoLine}>{formatPhone(prescription.pet.client.phone)}</Text>
             </View>
           </View>
 
