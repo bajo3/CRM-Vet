@@ -58,7 +58,7 @@ export function PendingClinicRow({ clinic }: { clinic: ClinicRow }) {
             type="button"
             onClick={onApprove}
             disabled={isPending}
-            className="flex h-9 items-center gap-1.5 rounded-xl bg-emerald-600 px-3 text-xs font-semibold text-white disabled:opacity-60"
+            className="flex h-9 items-center gap-1.5 rounded-xl bg-brand-600 px-3 text-xs font-semibold text-white disabled:opacity-60"
           >
             {isPending ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />}
             Aprobar
@@ -82,7 +82,7 @@ export function PendingClinicRow({ clinic }: { clinic: ClinicRow }) {
               aria-label="Motivo del rechazo"
               value={reason}
               onChange={(event) => setReason(event.target.value)}
-              className="h-9 min-w-0 flex-1 rounded-lg border border-slate-200 bg-white px-3 text-sm outline-none focus:border-emerald-400"
+              className="h-9 min-w-0 flex-1 rounded-lg border border-slate-200 bg-white px-3 text-sm outline-none focus:border-brand-400"
               placeholder="Ej: no pudimos verificar los datos de la clínica"
             />
             <button
@@ -142,7 +142,7 @@ export function DecidedClinicRow({ clinic }: { clinic: ClinicRow }) {
           {error && <p className="mt-1 text-xs text-rose-600">{error}</p>}
         </div>
         <div className="flex shrink-0 items-center gap-2">
-          <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${clinic.status === "APPROVED" ? "bg-emerald-50 text-emerald-700" : "bg-rose-50 text-rose-700"}`}>
+          <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${clinic.status === "APPROVED" ? "bg-brand-50 text-brand-700" : "bg-rose-50 text-rose-700"}`}>
             {clinic.status === "APPROVED" ? "Activa" : "Suspendida"}
           </span>
           {clinic.status === "APPROVED" && !showSuspend && (
@@ -177,7 +177,7 @@ export function DecidedClinicRow({ clinic }: { clinic: ClinicRow }) {
               value={reason}
               onChange={(event) => setReason(event.target.value)}
               placeholder="Motivo (opcional, se le muestra al intentar entrar)"
-              className="h-9 min-w-0 flex-1 rounded-lg border border-slate-200 bg-white px-3 text-sm outline-none focus:border-emerald-400"
+              className="h-9 min-w-0 flex-1 rounded-lg border border-slate-200 bg-white px-3 text-sm outline-none focus:border-brand-400"
             />
             <button
               type="button"

@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { Loader2, PackagePlus, SlidersHorizontal } from "lucide-react";
 import { adjustStockAction, registerPurchaseAction } from "@/lib/actions/sales";
 
-const INPUT_CLASS = "h-9 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm outline-none focus:border-emerald-500";
+const INPUT_CLASS = "h-9 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm outline-none focus:border-brand-500";
 const LABEL_CLASS = "mb-1 block text-xs font-medium text-slate-500";
 const toNumber = (value: string) => Number(value.replace(",", "."));
 
@@ -66,7 +66,7 @@ function PurchaseForm({ productId, onDone }: { productId: string; onDone: () => 
         <button type="button" onClick={onDone} disabled={isPending} className="h-8 rounded-lg px-3 text-xs font-medium text-slate-500 hover:text-slate-700">
           Cancelar
         </button>
-        <button type="submit" disabled={isPending} className="flex h-8 items-center gap-1.5 rounded-lg bg-emerald-600 px-3.5 text-xs font-semibold text-white disabled:opacity-60">
+        <button type="submit" disabled={isPending} className="flex h-8 items-center gap-1.5 rounded-lg bg-brand-600 px-3.5 text-xs font-semibold text-white disabled:opacity-60">
           {isPending && <Loader2 size={13} className="animate-spin" />}
           Registrar ingreso
         </button>
@@ -152,7 +152,7 @@ export function StockForms({
       {open === null && (
         <div className="flex flex-wrap gap-2">
           {canPurchase && (
-            <button type="button" onClick={() => setOpen("purchase")} className="flex h-9 items-center gap-2 rounded-lg bg-emerald-600 px-3.5 text-sm font-semibold text-white hover:bg-emerald-700">
+            <button type="button" onClick={() => setOpen("purchase")} className="flex h-9 items-center gap-2 rounded-lg bg-brand-600 px-3.5 text-sm font-semibold text-white hover:bg-brand-700">
               <PackagePlus size={16} />
               Ingresar mercadería
             </button>

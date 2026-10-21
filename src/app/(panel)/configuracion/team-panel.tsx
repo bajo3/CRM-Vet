@@ -71,7 +71,7 @@ export function TeamPanel({ members, canManage, currentUserId }: TeamPanelProps)
       </div>
 
       <div className="flex gap-2 bg-slate-50 px-5 py-4 text-xs leading-5 text-slate-500">
-        <ShieldCheck size={16} className="mt-0.5 shrink-0 text-emerald-600" />
+        <ShieldCheck size={16} className="mt-0.5 shrink-0 text-brand-600" />
         <span>Los permisos se aplican en el servidor según el rol de cada integrante. Solo el Dueño/a puede agregar, cambiar roles o activar/desactivar integrantes.</span>
       </div>
     </section>
@@ -115,23 +115,23 @@ function AddMemberForm({ onDone }: { onDone: () => void }) {
       <div className="grid gap-3 sm:grid-cols-2">
         <div>
           <label className="mb-1 block text-xs font-medium text-slate-600">Nombre y apellido</label>
-          <input className="h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm outline-none focus:border-emerald-400" placeholder="Julia Pérez" {...register("name")} />
+          <input className="h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm outline-none focus:border-brand-400" placeholder="Julia Pérez" {...register("name")} />
           {errors.name && <p className="mt-1 text-xs text-rose-600">{errors.name.message}</p>}
         </div>
         <div>
           <label className="mb-1 block text-xs font-medium text-slate-600">Correo</label>
-          <input type="email" className="h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm outline-none focus:border-emerald-400" placeholder="julia@clinica.com" {...register("email")} />
+          <input type="email" className="h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm outline-none focus:border-brand-400" placeholder="julia@clinica.com" {...register("email")} />
           {errors.email && <p className="mt-1 text-xs text-rose-600">{errors.email.message}</p>}
         </div>
         <div>
           <label className="mb-1 block text-xs font-medium text-slate-600">Contraseña temporal</label>
-          <input type="text" className="h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm outline-none focus:border-emerald-400" placeholder="Mínimo 8 caracteres" {...register("password")} />
+          <input type="text" className="h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm outline-none focus:border-brand-400" placeholder="Mínimo 8 caracteres" {...register("password")} />
           {errors.password && <p className="mt-1 text-xs text-rose-600">{errors.password.message}</p>}
           <p className="mt-1 text-[11px] text-slate-400">Si el correo ya tiene una cuenta, se ignora y solo se agrega a esta clínica.</p>
         </div>
         <div>
           <label className="mb-1 block text-xs font-medium text-slate-600">Rol</label>
-          <select className="h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm outline-none focus:border-emerald-400" {...register("role")}>
+          <select className="h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm outline-none focus:border-brand-400" {...register("role")}>
             {ROLE_OPTIONS.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
           </select>
         </div>
@@ -140,7 +140,7 @@ function AddMemberForm({ onDone }: { onDone: () => void }) {
       <button
         type="submit"
         disabled={isPending}
-        className="flex h-10 items-center justify-center gap-2 rounded-xl bg-emerald-600 px-4 text-sm font-medium text-white shadow-sm shadow-emerald-200 disabled:opacity-60"
+        className="flex h-10 items-center justify-center gap-2 rounded-xl bg-brand-600 px-4 text-sm font-medium text-white shadow-sm shadow-brand-200 disabled:opacity-60"
       >
         {isPending && <Loader2 size={16} className="animate-spin" />}
         Agregar integrante
@@ -217,8 +217,8 @@ function MemberRow({ member, canManage, isSelf, onChanged }: { member: Member; c
           ) : (
             <span className="block text-xs font-medium text-slate-600">{roleLabel(member.role)}</span>
           )}
-          <span className={`mt-1 inline-flex items-center gap-1 text-[11px] ${member.active ? "text-emerald-600" : "text-slate-400"}`}>
-            <span className={`size-1.5 rounded-full ${member.active ? "bg-emerald-500" : "bg-slate-300"}`} />
+          <span className={`mt-1 inline-flex items-center gap-1 text-[11px] ${member.active ? "text-brand-600" : "text-slate-400"}`}>
+            <span className={`size-1.5 rounded-full ${member.active ? "bg-brand-500" : "bg-slate-300"}`} />
             {member.active ? "Activo" : "Inactivo"}
           </span>
         </div>
@@ -239,7 +239,7 @@ function MemberRow({ member, canManage, isSelf, onChanged }: { member: Member; c
               disabled={isPending}
               title={member.active ? "Desactivar integrante" : "Activar integrante"}
               className={`flex size-8 items-center justify-center rounded-lg border text-slate-500 hover:bg-slate-50 disabled:opacity-60 ${
-                member.active ? "border-slate-200" : "border-emerald-200 text-emerald-600 hover:bg-emerald-50"
+                member.active ? "border-slate-200" : "border-brand-200 text-brand-600 hover:bg-brand-50"
               }`}
             >
               {isPending ? <Loader2 size={14} className="animate-spin" /> : member.active ? <UserX size={14} /> : <UserCheck size={14} />}
@@ -268,13 +268,13 @@ function MemberRow({ member, canManage, isSelf, onChanged }: { member: Member; c
               value={resetPassword}
               onChange={(event) => setResetPassword(event.target.value)}
               placeholder="Mínimo 8 caracteres"
-              className="h-9 min-w-0 flex-1 rounded-lg border border-slate-200 bg-white px-3 text-sm outline-none focus:border-emerald-400"
+              className="h-9 min-w-0 flex-1 rounded-lg border border-slate-200 bg-white px-3 text-sm outline-none focus:border-brand-400"
             />
             <button
               type="button"
               onClick={onResetPassword}
               disabled={isPending || resetPassword.length < 8}
-              className="flex h-9 shrink-0 items-center gap-1.5 rounded-lg bg-emerald-600 px-3 text-xs font-semibold text-white disabled:opacity-50"
+              className="flex h-9 shrink-0 items-center gap-1.5 rounded-lg bg-brand-600 px-3 text-xs font-semibold text-white disabled:opacity-50"
             >
               {isPending && <Loader2 size={13} className="animate-spin" />}
               Guardar
@@ -284,7 +284,7 @@ function MemberRow({ member, canManage, isSelf, onChanged }: { member: Member; c
         </div>
       )}
       {resetDone && (
-        <p className="rounded-lg bg-emerald-50 px-3 py-1.5 text-xs text-emerald-700">Contraseña actualizada. Pasásela al integrante por un canal seguro.</p>
+        <p className="rounded-lg bg-brand-50 px-3 py-1.5 text-xs text-brand-700">Contraseña actualizada. Pasásela al integrante por un canal seguro.</p>
       )}
       {error && <p className="rounded-lg bg-rose-50 px-3 py-1.5 text-xs text-rose-700">{error}</p>}
     </div>

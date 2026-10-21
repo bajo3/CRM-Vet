@@ -27,11 +27,11 @@ export default async function ClientesPage({ searchParams }: { searchParams: Pro
     <section className="px-4 py-5 sm:px-7 lg:px-10 lg:py-8">
       {ok && <div className="mb-5 rounded-xl bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-800">{ok}</div>}
       <header className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <h1 className="text-2xl font-semibold tracking-tight">Clientes y mascotas</h1>
+        <h1 className="text-2xl font-bold tracking-tight">Clientes y mascotas</h1>
         {canManage && (
           <Link
             href="/clientes/nuevo"
-            className="flex h-11 items-center justify-center gap-2 rounded-xl bg-emerald-600 px-4 text-sm font-medium text-white shadow-sm shadow-emerald-200"
+            className="flex h-11 items-center justify-center gap-2 rounded-xl bg-brand-600 px-4 text-sm font-medium text-white shadow-sm shadow-brand-200"
           >
             <Plus size={17} />
             Nuevo cliente
@@ -60,7 +60,7 @@ export default async function ClientesPage({ searchParams }: { searchParams: Pro
             {q ? "Probá con otro nombre, mascota o teléfono." : canManage ? "Empezá creando el primer cliente." : "Pedile a recepción que cargue el primer cliente."}
           </p>
           {canManage && !q && (
-            <Link href="/clientes/nuevo" className="mt-5 inline-flex h-10 items-center justify-center rounded-xl bg-emerald-600 px-4 text-sm font-medium text-white">
+            <Link href="/clientes/nuevo" className="mt-5 inline-flex h-10 items-center justify-center rounded-xl bg-brand-600 px-4 text-sm font-medium text-white">
               Nuevo cliente
             </Link>
           )}
@@ -77,7 +77,7 @@ export default async function ClientesPage({ searchParams }: { searchParams: Pro
                     {formatPhone(client.phone)}
                   </div>
                   {nextScheduledByClient.has(client.id) && (
-                    <div className="mt-1.5 flex items-center gap-1.5 text-xs font-medium text-emerald-700">
+                    <div className="mt-1.5 flex items-center gap-1.5 text-xs font-medium text-brand-700">
                       <CalendarClock size={13} />
                       Mensaje programado {daysUntilLabel(daysUntil(nextScheduledByClient.get(client.id)!, timezone))}
                     </div>
@@ -110,7 +110,7 @@ export default async function ClientesPage({ searchParams }: { searchParams: Pro
                     <Link
                       key={pet.id}
                       href={`/clientes/mascotas/${pet.id}`}
-                      className="flex items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-medium text-emerald-800 hover:bg-emerald-100"
+                      className="flex items-center gap-1.5 rounded-full bg-brand-50 px-2.5 py-1 text-xs font-medium text-brand-800 hover:bg-brand-100"
                     >
                       <SpeciesIcon species={pet.species} />
                       {pet.name} · {pet.species}

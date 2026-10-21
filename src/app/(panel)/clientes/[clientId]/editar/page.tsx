@@ -14,7 +14,7 @@ export default async function EditarClientePage({ params }: { params: Promise<{ 
 
   return (
     <section className="mx-auto max-w-lg px-4 py-5 sm:px-7 lg:px-10 lg:py-8">
-      <h1 className="mb-1 text-2xl font-semibold tracking-tight">Editar cliente</h1>
+      <h1 className="mb-1 text-2xl font-bold tracking-tight">Editar cliente</h1>
       <p className="mb-6 text-sm text-slate-500">Actualizá los datos de {client.name}.</p>
       <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
         <ClientForm

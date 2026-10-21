@@ -56,12 +56,12 @@ export default async function MensajesProgramadosPage({ searchParams }: { search
             <Link href="/mensajes" aria-label="Volver a conversaciones" className="grid size-8 place-items-center rounded-lg text-slate-500 hover:bg-slate-100">
               <ArrowLeft size={16} />
             </Link>
-            <p className="text-xs font-semibold uppercase tracking-[0.16em] text-emerald-600">Mensajes</p>
+            <p className="text-xs font-semibold uppercase tracking-[0.16em] text-brand-600">Mensajes</p>
           </div>
-          <h1 className="mt-1 text-2xl font-semibold tracking-tight">Mensajes programados</h1>
+          <h1 className="mt-1 text-2xl font-bold tracking-tight">Mensajes programados</h1>
           <p className="mt-1 max-w-2xl text-sm text-slate-500">
             Escribí un mensaje de WhatsApp libre y programalo para el día y horario que quieras. No tiene nada que ver con los{" "}
-            <Link href="/recordatorios" className="font-medium text-emerald-700 hover:underline">
+            <Link href="/recordatorios" className="font-medium text-brand-700 hover:underline">
               recordatorios automáticos
             </Link>
             .
@@ -87,9 +87,9 @@ export default async function MensajesProgramadosPage({ searchParams }: { search
 
           <section className="rounded-2xl border border-slate-200 bg-white shadow-sm">
             <div className="flex items-center gap-2 border-b border-slate-100 p-5">
-              <CalendarClock size={18} className="text-emerald-600" />
+              <CalendarClock size={18} className="text-brand-600" />
               <h2 className="font-semibold">Próximos envíos</h2>
-              {upcoming.length > 0 && <span className="rounded-full bg-emerald-100 px-2.5 py-0.5 text-xs font-medium text-emerald-800">{upcoming.length}</span>}
+              {upcoming.length > 0 && <span className="rounded-full bg-brand-100 px-2.5 py-0.5 text-xs font-medium text-brand-800">{upcoming.length}</span>}
             </div>
             {upcoming.length === 0 ? (
               <div className="flex flex-col items-center gap-3 p-10 text-center">
@@ -107,7 +107,7 @@ export default async function MensajesProgramadosPage({ searchParams }: { search
 
           <section className="rounded-2xl border border-slate-200 bg-white shadow-sm">
             <div className="flex items-center gap-2 border-b border-slate-100 p-5">
-              <History size={18} className="text-emerald-600" />
+              <History size={18} className="text-brand-600" />
               <h2 className="font-semibold">Historial</h2>
             </div>
             {history.length === 0 ? (

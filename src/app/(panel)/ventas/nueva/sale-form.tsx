@@ -12,7 +12,7 @@ import type { PendingUsageLine } from "@/lib/services/pending-charges";
 /** `usageMovementIds`: producto ya usado en una consulta (pendiente de cobro), cantidad fija. */
 type Line = { key: number; productId: string | null; description: string; unitPrice: number; quantity: number; usageMovementIds?: string[] };
 
-const FIELD_CLASS = "h-9 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm outline-none focus:border-emerald-500";
+const FIELD_CLASS = "h-9 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm outline-none focus:border-brand-500";
 const money = new Intl.NumberFormat("es-AR", { style: "currency", currency: "ARS", minimumFractionDigits: 2 });
 
 export function SaleForm({
@@ -147,7 +147,7 @@ export function SaleForm({
                       type="checkbox"
                       checked={appointmentIds.includes(row.id)}
                       onChange={(event) => setAppointmentIds((current) => (event.target.checked ? [...current, row.id] : current.filter((id) => id !== row.id)))}
-                      className="size-4 accent-emerald-600"
+                      className="size-4 accent-brand-600"
                     />
                     {row.label}
                   </label>
@@ -172,7 +172,7 @@ export function SaleForm({
           {products.length === 0 ? (
             <p className="px-4 py-8 text-center text-sm text-slate-500">
               Todavía no cargaste productos.{" "}
-              <Link href="/ventas/productos" className="font-medium text-emerald-700 hover:underline">
+              <Link href="/ventas/productos" className="font-medium text-brand-700 hover:underline">
                 Cargar catálogo
               </Link>
               , o usá un ítem libre.
@@ -189,7 +189,7 @@ export function SaleForm({
                       type="button"
                       onClick={() => addProduct(product)}
                       disabled={outOfStock}
-                      className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left transition-colors hover:bg-emerald-50/60 disabled:cursor-not-allowed disabled:opacity-50"
+                      className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left transition-colors hover:bg-brand-50/60 disabled:cursor-not-allowed disabled:opacity-50"
                     >
                       <span className="min-w-0">
                         <span className="block truncate text-sm font-medium text-slate-800">{product.name}</span>
@@ -298,7 +298,7 @@ export function SaleForm({
                     aria-checked={paymentMethod === method}
                     onClick={() => setPaymentMethod(method)}
                     className={`h-8 rounded-lg border px-2.5 text-xs font-medium ${
-                      paymentMethod === method ? "border-emerald-600 bg-emerald-600 text-white" : "border-slate-200 text-slate-600 hover:border-slate-300 hover:bg-slate-50"
+                      paymentMethod === method ? "border-brand-600 bg-brand-600 text-white" : "border-slate-200 text-slate-600 hover:border-slate-300 hover:bg-slate-50"
                     }`}
                   >
                     {PAYMENT_METHOD_LABELS[method]}
@@ -326,7 +326,7 @@ export function SaleForm({
           <Link href="/ventas" className="flex h-10 items-center rounded-lg border border-slate-200 bg-white px-4 text-sm font-medium text-slate-600 hover:bg-slate-50">
             Cancelar
           </Link>
-          <button type="submit" disabled={isPending} className="flex h-10 flex-1 items-center justify-center gap-2 rounded-lg bg-emerald-600 text-sm font-semibold text-white disabled:opacity-60">
+          <button type="submit" disabled={isPending} className="flex h-10 flex-1 items-center justify-center gap-2 rounded-lg bg-brand-600 text-sm font-semibold text-white disabled:opacity-60">
             {isPending && <Loader2 size={15} className="animate-spin" />}
             Cobrar {money.format(total)}
           </button>

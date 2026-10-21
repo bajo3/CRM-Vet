@@ -24,7 +24,7 @@ export function RegisterVisitPanel({
         className="flex w-full items-center justify-between gap-3 p-5 text-left"
       >
         <span className="flex items-center gap-2 font-semibold">
-          <ClipboardPlus size={18} className="text-emerald-600" />
+          <ClipboardPlus size={18} className="text-brand-600" />
           Registrar atención
         </span>
         <ChevronDown size={18} className={`text-slate-400 transition-transform ${open ? "rotate-180" : ""}`} />

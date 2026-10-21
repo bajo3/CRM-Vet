@@ -90,7 +90,7 @@ export function AccountPanel({ licenseNumber }: { licenseNumber: string }) {
             type="text"
             placeholder="Ej: MP 12345"
             maxLength={40}
-            className="h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm outline-none focus:border-emerald-400"
+            className="h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm outline-none focus:border-brand-400"
             {...registerLicense("licenseNumber")}
           />
           <p className="mt-1 text-xs text-slate-400">Aparece en la firma de las recetas que generes.</p>
@@ -98,7 +98,7 @@ export function AccountPanel({ licenseNumber }: { licenseNumber: string }) {
         </div>
         {licenseError && <p className="rounded-xl bg-rose-50 px-3 py-2 text-sm text-rose-700">{licenseError}</p>}
         {licenseSaved && (
-          <p className="flex items-center gap-2 rounded-xl bg-emerald-50 px-3 py-2 text-sm text-emerald-700">
+          <p className="flex items-center gap-2 rounded-xl bg-brand-50 px-3 py-2 text-sm text-brand-700">
             <CheckCircle2 size={15} />
             Matrícula actualizada.
           </p>
@@ -120,7 +120,7 @@ export function AccountPanel({ licenseNumber }: { licenseNumber: string }) {
             id="account-current-password"
             type="password"
             autoComplete="current-password"
-            className="h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm outline-none focus:border-emerald-400"
+            className="h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm outline-none focus:border-brand-400"
             {...register("currentPassword")}
           />
           {errors.currentPassword && <p className="mt-1 text-xs text-rose-600">{errors.currentPassword.message}</p>}
@@ -132,14 +132,14 @@ export function AccountPanel({ licenseNumber }: { licenseNumber: string }) {
             type="password"
             autoComplete="new-password"
             placeholder="Mínimo 8 caracteres"
-            className="h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm outline-none focus:border-emerald-400"
+            className="h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm outline-none focus:border-brand-400"
             {...register("newPassword")}
           />
           {errors.newPassword && <p className="mt-1 text-xs text-rose-600">{errors.newPassword.message}</p>}
         </div>
         {formError && <p className="rounded-xl bg-rose-50 px-3 py-2 text-sm text-rose-700">{formError}</p>}
         {saved && (
-          <p className="flex items-center gap-2 rounded-xl bg-emerald-50 px-3 py-2 text-sm text-emerald-700">
+          <p className="flex items-center gap-2 rounded-xl bg-brand-50 px-3 py-2 text-sm text-brand-700">
             <CheckCircle2 size={15} />
             Contraseña actualizada.
           </p>
@@ -147,7 +147,7 @@ export function AccountPanel({ licenseNumber }: { licenseNumber: string }) {
         <button
           type="submit"
           disabled={isPending}
-          className="flex h-10 items-center justify-center gap-2 rounded-xl bg-emerald-600 px-4 text-sm font-medium text-white shadow-sm shadow-emerald-200 disabled:opacity-60"
+          className="flex h-10 items-center justify-center gap-2 rounded-xl bg-brand-600 px-4 text-sm font-medium text-white shadow-sm shadow-brand-200 disabled:opacity-60"
         >
           {isPending && <Loader2 size={16} className="animate-spin" />}
           Cambiar contraseña

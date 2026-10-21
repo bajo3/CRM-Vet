@@ -113,7 +113,7 @@ export function MedicalRecordForm({ petId, reminderRules, products }: { petId: s
         </label>
         <input
           id="reason"
-          className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3.5 text-sm outline-none focus:border-emerald-400"
+          className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3.5 text-sm outline-none focus:border-brand-400"
           placeholder="Consulta de rutina"
           {...register("reason")}
         />
@@ -127,7 +127,7 @@ export function MedicalRecordForm({ petId, reminderRules, products }: { petId: s
         <textarea
           id="notes"
           rows={3}
-          className="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm outline-none focus:border-emerald-400"
+          className="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm outline-none focus:border-brand-400"
           placeholder="Detalle de lo observado y lo indicado..."
           {...register("notes")}
         />
@@ -142,7 +142,7 @@ export function MedicalRecordForm({ petId, reminderRules, products }: { petId: s
           <select
             id="type"
             defaultValue={DEFAULT_VALUES.type}
-            className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3.5 text-sm outline-none focus:border-emerald-400"
+            className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3.5 text-sm outline-none focus:border-brand-400"
             {...register("type")}
           >
             {MEDICAL_RECORD_TYPE_OPTIONS.map((option) => (
@@ -160,7 +160,7 @@ export function MedicalRecordForm({ petId, reminderRules, products }: { petId: s
             id="weight"
             type="number"
             step="0.1"
-            className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3.5 text-sm outline-none focus:border-emerald-400"
+            className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3.5 text-sm outline-none focus:border-brand-400"
             {...register("weight")}
           />
           {errors.weight && <p className="mt-1 text-xs text-rose-600">{errors.weight.message}</p>}
@@ -173,7 +173,7 @@ export function MedicalRecordForm({ petId, reminderRules, products }: { petId: s
         </label>
         <input
           id="treatment"
-          className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3.5 text-sm outline-none focus:border-emerald-400"
+          className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3.5 text-sm outline-none focus:border-brand-400"
           placeholder="Antirrábica, antiparasitario..."
           {...register("treatment")}
         />
@@ -201,7 +201,7 @@ export function MedicalRecordForm({ petId, reminderRules, products }: { petId: s
                         const quantity = Math.max(1, Math.floor(Number(event.target.value)) || 1);
                         setUsedProducts((current) => current.map((row) => (row.productId === item.productId ? { ...row, quantity } : row)));
                       }}
-                      className="h-8 w-16 rounded-lg border border-slate-200 bg-white px-2 text-center text-sm outline-none focus:border-emerald-400"
+                      className="h-8 w-16 rounded-lg border border-slate-200 bg-white px-2 text-center text-sm outline-none focus:border-brand-400"
                     />
                     <button
                       type="button"
@@ -221,7 +221,7 @@ export function MedicalRecordForm({ petId, reminderRules, products }: { petId: s
               aria-label="Producto aplicado"
               value={productToAdd}
               onChange={(event) => setProductToAdd(event.target.value)}
-              className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3.5 text-sm outline-none focus:border-emerald-400"
+              className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3.5 text-sm outline-none focus:border-brand-400"
             >
               <option value="">Elegí un producto</option>
               {products
@@ -252,7 +252,7 @@ export function MedicalRecordForm({ petId, reminderRules, products }: { petId: s
       <div>
         <span className="mb-1.5 block text-sm font-medium text-slate-700">Próximo control</span>
         {suggested && (
-          <p className="mb-2 flex items-center gap-1.5 text-xs text-emerald-700">
+          <p className="mb-2 flex items-center gap-1.5 text-xs text-brand-700">
             <Sparkles size={13} />
             Sugerido automáticamente: en {suggested.months} {suggested.months === 1 ? "mes" : "meses"} (según la configuración de la clínica). Podés cambiarlo.
           </p>
@@ -271,7 +271,7 @@ export function MedicalRecordForm({ petId, reminderRules, products }: { petId: s
                     field.onChange(option.value);
                   }}
                   className={`rounded-full border px-3 py-1.5 text-xs font-medium transition-colors ${
-                    field.value === option.value ? "border-emerald-500 bg-emerald-50 text-emerald-800" : "border-slate-200 text-slate-600 hover:bg-slate-50"
+                    field.value === option.value ? "border-brand-500 bg-brand-50 text-brand-800" : "border-slate-200 text-slate-600 hover:bg-slate-50"
                   }`}
                 >
                   {option.label}
@@ -284,7 +284,7 @@ export function MedicalRecordForm({ petId, reminderRules, products }: { petId: s
           <div className="mt-3">
             <input
               type="date"
-              className="h-11 w-full max-w-xs rounded-xl border border-slate-200 bg-white px-3.5 text-sm outline-none focus:border-emerald-400"
+              className="h-11 w-full max-w-xs rounded-xl border border-slate-200 bg-white px-3.5 text-sm outline-none focus:border-brand-400"
               {...register("nextControlDate", { onChange: markTouched })}
             />
             {errors.nextControlDate && <p className="mt-1 text-xs text-rose-600">{errors.nextControlDate.message}</p>}
@@ -294,7 +294,7 @@ export function MedicalRecordForm({ petId, reminderRules, products }: { petId: s
 
       {formError && <p className="rounded-xl bg-rose-50 px-3 py-2 text-sm text-rose-700">{formError}</p>}
       {success && (
-        <p className="flex items-center gap-2 rounded-xl bg-emerald-50 px-3 py-2 text-sm text-emerald-800">
+        <p className="flex items-center gap-2 rounded-xl bg-brand-50 px-3 py-2 text-sm text-brand-800">
           <CheckCircle2 size={16} className="shrink-0" />
           {success.remindersScheduled > 0
             ? "Atención registrada. El cliente va a recibir el recordatorio del control por WhatsApp automáticamente."
@@ -305,7 +305,7 @@ export function MedicalRecordForm({ petId, reminderRules, products }: { petId: s
       <button
         type="submit"
         disabled={isPending}
-        className="flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-emerald-600 text-sm font-medium text-white shadow-sm shadow-emerald-200 disabled:opacity-60 sm:w-auto sm:px-6"
+        className="flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-brand-600 text-sm font-medium text-white shadow-sm shadow-brand-200 disabled:opacity-60 sm:w-auto sm:px-6"
       >
         {isPending && <Loader2 size={16} className="animate-spin" />}
         Guardar atención

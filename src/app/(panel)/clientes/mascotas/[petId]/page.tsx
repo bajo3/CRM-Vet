@@ -79,14 +79,14 @@ export default async function FichaMascotaPage({
               // eslint-disable-next-line @next/next/no-img-element
               <img src={pet.photoUrl} alt={pet.name} className="size-16 rounded-2xl object-cover" />
             ) : (
-              <span className="grid size-16 place-items-center rounded-2xl bg-emerald-100 text-2xl font-semibold text-emerald-800">
+              <span className="grid size-16 place-items-center rounded-2xl bg-brand-100 text-2xl font-semibold text-brand-800">
                 {pet.name.charAt(0).toUpperCase()}
               </span>
             )}
             <div>
-              <h1 className="flex items-center gap-2 text-xl font-semibold">
+              <h1 className="flex items-center gap-2 text-xl font-bold tracking-tight">
                 {pet.name}
-                <span className="grid size-6 place-items-center rounded-full bg-emerald-100 text-emerald-700">
+                <span className="grid size-6 place-items-center rounded-full bg-brand-100 text-brand-700">
                   <SpeciesIcon species={pet.species} size={13} />
                 </span>
               </h1>
@@ -101,7 +101,7 @@ export default async function FichaMascotaPage({
             </div>
           </div>
           <div className="flex flex-col gap-1 rounded-xl bg-slate-50 px-4 py-3 text-sm sm:items-end">
-            <Link href={`/clientes?q=${encodeURIComponent(pet.client.phone)}`} className="font-medium text-emerald-700 hover:underline">
+            <Link href={`/clientes?q=${encodeURIComponent(pet.client.phone)}`} className="font-medium text-brand-700 hover:underline">
               {pet.client.name}
             </Link>
             <div className="flex items-center gap-1.5 text-slate-500">
@@ -116,7 +116,7 @@ export default async function FichaMascotaPage({
             <div className="text-xs font-medium uppercase tracking-wide text-slate-400">Próximo turno</div>
             <div className="mt-1 text-sm text-slate-700">
               {nextAppointment ? (
-                <Link href={`/agenda/${nextAppointment.id}`} className="font-medium text-emerald-700 hover:underline">
+                <Link href={`/agenda/${nextAppointment.id}`} className="font-medium text-brand-700 hover:underline">
                   {formatDateShort(nextAppointment.startAt, timezone)} · {formatTime(nextAppointment.startAt, timezone)}
                 </Link>
               ) : (
@@ -224,7 +224,7 @@ export default async function FichaMascotaPage({
 
       <section className="rounded-2xl border border-slate-200 bg-white shadow-sm">
         <div className="flex items-center gap-2 border-b border-slate-100 p-5">
-          <Stethoscope size={18} className="text-emerald-600" />
+          <Stethoscope size={18} className="text-brand-600" />
           <h2 className="font-semibold">Historial</h2>
         </div>
         {medicalRecords.length === 0 ? (
@@ -256,7 +256,7 @@ export default async function FichaMascotaPage({
 
       <section className="mt-6 rounded-2xl border border-slate-200 bg-white shadow-sm">
         <div className="flex items-center gap-2 border-b border-slate-100 p-5">
-          <FolderOpen size={18} className="text-emerald-600" />
+          <FolderOpen size={18} className="text-brand-600" />
           <h2 className="font-semibold">Presupuestos y recetas</h2>
         </div>
         {documents.length === 0 ? (
@@ -272,7 +272,7 @@ export default async function FichaMascotaPage({
                   <div className="flex flex-wrap items-center gap-2">
                     <span
                       className={`rounded-full px-2.5 py-1 text-xs font-medium ${
-                        doc.kind === "quote" ? "bg-emerald-100 text-emerald-800" : "bg-blue-100 text-blue-800"
+                        doc.kind === "quote" ? "bg-brand-100 text-brand-800" : "bg-blue-100 text-blue-800"
                       }`}
                     >
                       {doc.kind === "quote" ? "Presupuesto" : "Receta"}

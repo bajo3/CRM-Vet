@@ -20,7 +20,7 @@ type ReminderTemplatesFormProps = {
 };
 
 const textareaClass =
-  "w-full resize-none rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm outline-none transition focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 disabled:bg-slate-50";
+  "w-full resize-none rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm outline-none transition focus:border-brand-500 focus:ring-4 focus:ring-brand-500/10 disabled:bg-slate-50";
 
 function TemplateEditor({
   kind,
@@ -87,14 +87,14 @@ function TemplateEditor({
         <ul className="grid gap-x-4 gap-y-1 sm:grid-cols-2">
           {placeholders.map((placeholder) => (
             <li key={placeholder.key}>
-              <code className="rounded bg-white px-1 py-0.5 font-mono text-emerald-700">{`{${placeholder.key}}`}</code> {placeholder.label}
+              <code className="rounded bg-white px-1 py-0.5 font-mono text-brand-700">{`{${placeholder.key}}`}</code> {placeholder.label}
             </li>
           ))}
         </ul>
       </div>
 
-      <div className="rounded-xl border border-dashed border-emerald-200 bg-emerald-50/50 px-3.5 py-3">
-        <p className="mb-1 text-xs font-medium text-emerald-700">Vista previa (con datos de ejemplo)</p>
+      <div className="rounded-xl border border-dashed border-brand-200 bg-brand-50/50 px-3.5 py-3">
+        <p className="mb-1 text-xs font-medium text-brand-700">Vista previa (con datos de ejemplo)</p>
         <p className="text-sm leading-5 text-slate-700">{preview}</p>
       </div>
     </div>
@@ -118,7 +118,7 @@ export function ReminderTemplatesForm({ clinicName, controlReminderTemplate, app
   return (
     <div className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
       <div className="flex items-center gap-3 border-b border-slate-100 p-5">
-        <span className="grid size-10 place-items-center rounded-2xl bg-emerald-50 text-emerald-600">
+        <span className="grid size-10 place-items-center rounded-2xl bg-brand-50 text-brand-600">
           <MessageSquareText size={19} />
         </span>
         <div>
@@ -167,7 +167,7 @@ export function ReminderTemplatesForm({ clinicName, controlReminderTemplate, app
               type="button"
               onClick={handleSave}
               disabled={pending}
-              className="flex h-11 items-center justify-center gap-2 rounded-xl bg-emerald-600 px-5 text-sm font-semibold text-white shadow-sm shadow-emerald-200 transition hover:bg-emerald-700 disabled:cursor-wait disabled:opacity-60"
+              className="flex h-11 items-center justify-center gap-2 rounded-xl bg-brand-600 px-5 text-sm font-semibold text-white shadow-sm shadow-brand-200 transition hover:bg-brand-700 disabled:cursor-wait disabled:opacity-60"
             >
               {pending ? <Loader2 size={17} className="animate-spin" /> : <Save size={17} />}
               {pending ? "Guardando..." : "Guardar cambios"}

@@ -70,7 +70,7 @@ export function RescheduleForm({ appointmentId, veterinarianId, defaultDate }: {
             <input
               id="date"
               type="date"
-              className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3.5 text-sm outline-none focus:border-emerald-400"
+              className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3.5 text-sm outline-none focus:border-brand-400"
               name={field.name}
               value={field.value}
               onChange={(event) => field.onChange(event.target.value)}
@@ -103,7 +103,7 @@ export function RescheduleForm({ appointmentId, veterinarianId, defaultDate }: {
                     type="button"
                     onClick={() => field.onChange(slot)}
                     className={`rounded-lg border px-3 py-1.5 text-xs tabular-nums font-medium transition-colors ${
-                      field.value === slot ? "border-emerald-500 bg-emerald-600 text-white" : "border-slate-200 text-slate-600 hover:bg-slate-50"
+                      field.value === slot ? "border-brand-500 bg-brand-600 text-white" : "border-slate-200 text-slate-600 hover:bg-slate-50"
                     }`}
                   >
                     {slot}
@@ -129,7 +129,7 @@ export function RescheduleForm({ appointmentId, veterinarianId, defaultDate }: {
         <button
           type="submit"
           disabled={isPending}
-          className="flex h-11 flex-1 items-center justify-center gap-2 rounded-xl bg-emerald-600 text-sm font-medium text-white shadow-sm shadow-emerald-200 disabled:opacity-60"
+          className="flex h-11 flex-1 items-center justify-center gap-2 rounded-xl bg-brand-600 text-sm font-medium text-white shadow-sm shadow-brand-200 disabled:opacity-60"
         >
           {isPending && <Loader2 size={16} className="animate-spin" />}
           Confirmar nuevo horario

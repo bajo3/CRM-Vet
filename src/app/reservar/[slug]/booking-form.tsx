@@ -7,7 +7,7 @@ import { CheckCircle2, Loader2 } from "lucide-react";
 import { onlineBookingSchema, type OnlineBookingFormInput } from "@/lib/validation/online-booking";
 import { getPublicSlots, submitOnlineBooking } from "@/lib/actions/online-booking";
 
-const INPUT_CLASS = "h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm outline-none focus:border-emerald-400";
+const INPUT_CLASS = "h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm outline-none focus:border-brand-400";
 const LABEL_CLASS = "mb-1.5 block text-sm font-medium text-slate-700";
 
 function formatDate(date: string) {
@@ -134,7 +134,7 @@ export function BookingForm({ slug, minDate, maxDate }: { slug: string; minDate:
                   aria-checked={selectedTime === time}
                   onClick={() => setValue("time", time, { shouldValidate: true })}
                   className={`h-10 rounded-xl border text-sm font-medium ${
-                    selectedTime === time ? "border-emerald-600 bg-emerald-600 text-white" : "border-slate-200 text-slate-700 hover:border-emerald-300"
+                    selectedTime === time ? "border-brand-600 bg-brand-600 text-white" : "border-slate-200 text-slate-700 hover:border-brand-300"
                   }`}
                 >
                   {time}
@@ -151,7 +151,7 @@ export function BookingForm({ slug, minDate, maxDate }: { slug: string; minDate:
       <button
         type="submit"
         disabled={isPending}
-        className="flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-emerald-600 text-sm font-medium text-white shadow-sm shadow-emerald-200 disabled:opacity-60"
+        className="flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-brand-600 text-sm font-medium text-white shadow-sm shadow-brand-200 disabled:opacity-60"
       >
         {isPending && <Loader2 size={16} className="animate-spin" />}
         Reservar turno

@@ -26,14 +26,14 @@ export default async function ClientAccountPage({ params }: { params: Promise<{ 
       </Link>
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Cuenta corriente</h1>
+          <h1 className="text-2xl font-bold tracking-tight">Cuenta corriente</h1>
           <p className="mt-1 text-sm text-slate-500">
             {client.name} · {formatPhone(client.phone)}
           </p>
         </div>
         <div className="text-right">
           <p className="text-xs font-medium uppercase tracking-wide text-slate-400">{balance > 0 ? "Debe" : balance < 0 ? "A favor" : "Saldo"}</p>
-          <p className={`text-3xl font-semibold tabular-nums ${balance > 0 ? "text-rose-700" : balance < 0 ? "text-emerald-700" : ""}`}>{formatMoney(Math.abs(balance))}</p>
+          <p className={`text-3xl font-semibold tabular-nums ${balance > 0 ? "text-rose-700" : balance < 0 ? "text-brand-700" : ""}`}>{formatMoney(Math.abs(balance))}</p>
         </div>
       </div>
 
@@ -58,7 +58,7 @@ export default async function ClientAccountPage({ params }: { params: Promise<{ 
                     {entry.voided && " · anulada"}
                   </span>
                 </span>
-                <span className={`shrink-0 font-semibold tabular-nums ${entry.voided ? "text-slate-400 line-through" : entry.kind === "payment" ? "text-emerald-700" : "text-rose-700"}`}>
+                <span className={`shrink-0 font-semibold tabular-nums ${entry.voided ? "text-slate-400 line-through" : entry.kind === "payment" ? "text-brand-700" : "text-rose-700"}`}>
                   {entry.kind === "payment" ? "−" : "+"} {formatMoney(entry.amount)}
                 </span>
               </li>

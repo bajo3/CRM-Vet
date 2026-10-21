@@ -47,7 +47,7 @@ export function MessageComposer({
           <span>Podés escribir directamente. Al enviar, el bot se pausa y la conversación queda a tu cargo.</span>
         </div>
       )}
-      <div className="flex items-end gap-2 rounded-2xl border border-slate-200 bg-slate-50 p-2 focus-within:border-emerald-400 focus-within:ring-4 focus-within:ring-emerald-500/10">
+      <div className="flex items-end gap-2 rounded-2xl border border-slate-200 bg-slate-50 p-2 focus-within:border-brand-400 focus-within:ring-4 focus-within:ring-brand-500/10">
         <textarea
           value={text}
           onChange={(event) => setText(event.target.value)}
@@ -64,7 +64,7 @@ export function MessageComposer({
           rows={2}
           className="max-h-32 min-h-11 flex-1 resize-none bg-transparent px-2 py-2 text-sm outline-none placeholder:text-slate-400"
         />
-        <button type="submit" aria-label="Enviar mensaje" disabled={pending || !text.trim()} className="grid size-11 shrink-0 place-items-center rounded-xl bg-emerald-600 text-white shadow-sm transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-40">
+        <button type="submit" aria-label="Enviar mensaje" disabled={pending || !text.trim()} className="grid size-11 shrink-0 place-items-center rounded-xl bg-brand-600 text-white shadow-sm transition hover:bg-brand-700 disabled:cursor-not-allowed disabled:opacity-40">
           {pending ? <Loader2 size={18} className="animate-spin" /> : <Send size={18} />}
         </button>
       </div>

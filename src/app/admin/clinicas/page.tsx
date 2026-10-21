@@ -38,7 +38,7 @@ export default async function AdminClinicasPage() {
   return (
     <div className="mx-auto max-w-4xl space-y-7 px-4 py-6 sm:px-7 lg:py-9">
       <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Clínicas</h1>
+        <h1 className="text-2xl font-bold tracking-tight">Clínicas</h1>
         <p className="mt-1 text-sm text-slate-500">Las clínicas se registran y activan solas. Desde acá podés suspender una (y reactivarla) si hace falta.</p>
       </div>
 

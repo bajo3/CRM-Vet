@@ -6,7 +6,7 @@ import { Loader2 } from "lucide-react";
 import { registerClientPaymentAction } from "@/lib/actions/sales";
 import { MONEY_PAYMENT_METHODS, PAYMENT_METHOD_LABELS } from "@/lib/validation/sales";
 
-const INPUT_CLASS = "h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm outline-none focus:border-emerald-400";
+const INPUT_CLASS = "h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm outline-none focus:border-brand-400";
 
 export function PaymentForm({ clientId, suggestedAmount }: { clientId: string; suggestedAmount: number | null }) {
   const router = useRouter();
@@ -49,16 +49,16 @@ export function PaymentForm({ clientId, suggestedAmount }: { clientId: string; s
             role="radio"
             aria-checked={method === value}
             onClick={() => setMethod(value)}
-            className={`h-9 rounded-xl border px-3 text-xs font-medium ${method === value ? "border-emerald-600 bg-emerald-600 text-white" : "border-slate-200 text-slate-700 hover:border-emerald-300"}`}
+            className={`h-9 rounded-xl border px-3 text-xs font-medium ${method === value ? "border-brand-600 bg-brand-600 text-white" : "border-slate-200 text-slate-700 hover:border-brand-300"}`}
           >
             {PAYMENT_METHOD_LABELS[value]}
           </button>
         ))}
       </div>
       {error && <p className="rounded-lg bg-rose-50 px-3 py-2 text-xs text-rose-700">{error}</p>}
-      {saved && !error && <p className="rounded-lg bg-emerald-50 px-3 py-2 text-xs text-emerald-700">Pago registrado.</p>}
+      {saved && !error && <p className="rounded-lg bg-brand-50 px-3 py-2 text-xs text-brand-700">Pago registrado.</p>}
       <div className="flex justify-end">
-        <button type="submit" disabled={isPending} className="flex h-9 items-center gap-2 rounded-xl bg-emerald-600 px-4 text-xs font-semibold text-white disabled:opacity-60">
+        <button type="submit" disabled={isPending} className="flex h-9 items-center gap-2 rounded-xl bg-brand-600 px-4 text-xs font-semibold text-white disabled:opacity-60">
           {isPending && <Loader2 size={13} className="animate-spin" />}
           Registrar pago
         </button>

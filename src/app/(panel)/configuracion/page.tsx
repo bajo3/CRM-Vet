@@ -38,11 +38,11 @@ export default async function ConfiguracionPage({ searchParams }: { searchParams
     <div className="mx-auto max-w-6xl space-y-7 px-4 py-6 sm:px-7 lg:px-10 lg:py-9">
       <header className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <div className="mb-2 flex items-center gap-2 text-sm font-medium text-emerald-700">
+          <div className="mb-2 flex items-center gap-2 text-sm font-medium text-brand-700">
             <Building2 size={16} />
             Administración
           </div>
-          <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">Configuración</h1>
+          <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">Configuración</h1>
           <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-500">Gestioná la clínica, los horarios de atención, el equipo, la conexión de WhatsApp y los recordatorios automáticos desde un solo lugar.</p>
         </div>
         <span className="w-fit rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-600 shadow-sm">

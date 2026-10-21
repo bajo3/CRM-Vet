@@ -23,7 +23,7 @@ export default async function NuevaVentaPage({ searchParams }: { searchParams: P
         <ChevronLeft size={16} />
         Caja
       </Link>
-      <h1 className="mb-5 text-xl font-semibold tracking-tight">Nueva venta</h1>
+      <h1 className="mb-5 text-xl font-bold tracking-tight">Nueva venta</h1>
       <SaleForm
         products={products}
         pets={pets.map((pet) => ({ id: pet.id, label: `${pet.name} · ${pet.client.name}` }))}

@@ -94,10 +94,10 @@ const TRUST_POINTS = [
 
 export default function BienvenidaPage() {
   return (
-    <main className="bg-[#f6f8f5] text-slate-900">
+    <main className="bg-background text-slate-900">
       <header className="mx-auto flex max-w-6xl items-center justify-between px-4 py-6 sm:px-7 lg:px-10">
         <div className="flex items-center gap-2.5">
-          <span className="grid size-9 place-items-center rounded-xl bg-emerald-600 text-white shadow-sm shadow-emerald-200">
+          <span className="grid size-9 place-items-center rounded-xl bg-brand-600 text-white shadow-sm shadow-brand-200">
             <PawPrint size={18} />
           </span>
           <span className="font-semibold">Vet Simple</span>
@@ -112,11 +112,11 @@ export default function BienvenidaPage() {
 
       {/* Hero */}
       <section className="mx-auto max-w-4xl px-4 py-14 text-center sm:px-7 sm:py-20 lg:px-10">
-        <span className="mb-5 inline-flex items-center gap-2 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-xs font-medium text-emerald-700">
+        <span className="mb-5 inline-flex items-center gap-2 rounded-full border border-brand-200 bg-brand-50 px-3 py-1.5 text-xs font-medium text-brand-700">
           <Bot size={14} />
           Recordatorios automáticos por WhatsApp
         </span>
-        <h1 className="text-3xl font-semibold tracking-tight text-balance sm:text-5xl">
+        <h1 className="text-3xl font-bold tracking-tight text-balance sm:text-5xl">
           Configurá tu clínica una vez. Los recordatorios por WhatsApp se mandan solos.
         </h1>
         <p className="mx-auto mt-5 max-w-2xl text-base leading-7 text-slate-600 sm:text-lg">
@@ -126,7 +126,7 @@ export default function BienvenidaPage() {
         <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
           <Link
             href="/registro"
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-emerald-600 px-6 text-sm font-medium text-white shadow-sm shadow-emerald-200 hover:bg-emerald-700 sm:w-auto"
+            className="flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-brand-600 px-6 text-sm font-medium text-white shadow-sm shadow-brand-200 hover:bg-brand-700 sm:w-auto"
           >
             Registrá tu clínica
             <ArrowRight size={16} />
@@ -149,7 +149,7 @@ export default function BienvenidaPage() {
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {FEATURES.map((feature) => (
             <article key={feature.title} className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-              <div className="mb-4 grid size-10 place-items-center rounded-xl bg-emerald-50 text-emerald-700">
+              <div className="mb-4 grid size-10 place-items-center rounded-xl bg-brand-50 text-brand-700">
                 <feature.icon size={20} />
               </div>
               <h3 className="font-semibold">{feature.title}</h3>
@@ -168,7 +168,7 @@ export default function BienvenidaPage() {
         <div className="grid gap-4 sm:grid-cols-3">
           {STEPS.map((step, index) => (
             <article key={step.title} className="relative rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-              <span className="mb-4 inline-flex size-8 items-center justify-center rounded-full bg-emerald-600 text-sm font-semibold text-white">
+              <span className="mb-4 inline-flex size-8 items-center justify-center rounded-full bg-brand-600 text-sm font-semibold text-white">
                 {index + 1}
               </span>
               <div className="mb-3 grid size-10 place-items-center rounded-xl bg-slate-100 text-slate-600">
@@ -190,7 +190,7 @@ export default function BienvenidaPage() {
           <div className="grid gap-6 sm:grid-cols-3">
             {TRUST_POINTS.map((point) => (
               <div key={point.title} className="text-center sm:text-left">
-                <div className="mx-auto mb-3 grid size-10 place-items-center rounded-xl bg-emerald-50 text-emerald-700 sm:mx-0">
+                <div className="mx-auto mb-3 grid size-10 place-items-center rounded-xl bg-brand-50 text-brand-700 sm:mx-0">
                   <point.icon size={20} />
                 </div>
                 <h3 className="font-semibold">{point.title}</h3>
@@ -210,7 +210,7 @@ export default function BienvenidaPage() {
         <div className="mt-7 flex justify-center">
           <Link
             href="/registro"
-            className="flex h-12 items-center justify-center gap-2 rounded-xl bg-emerald-600 px-6 text-sm font-medium text-white shadow-sm shadow-emerald-200 hover:bg-emerald-700"
+            className="flex h-12 items-center justify-center gap-2 rounded-xl bg-brand-600 px-6 text-sm font-medium text-white shadow-sm shadow-brand-200 hover:bg-brand-700"
           >
             Registrá tu clínica
             <ArrowRight size={16} />
@@ -221,7 +221,7 @@ export default function BienvenidaPage() {
       <footer className="border-t border-slate-200 bg-white px-4 py-8 sm:px-7 lg:px-10">
         <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-3 text-sm text-slate-500 sm:flex-row">
           <div className="flex items-center gap-2">
-            <span className="grid size-7 place-items-center rounded-lg bg-emerald-600 text-white">
+            <span className="grid size-7 place-items-center rounded-lg bg-brand-600 text-white">
               <PawPrint size={14} />
             </span>
             <span>Vet Simple</span>

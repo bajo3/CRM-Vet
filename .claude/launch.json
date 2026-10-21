@@ -9,6 +9,12 @@
       "autoPort": true
     },
     {
+      "name": "next-dev-clean-env",
+      "runtimeExecutable": "node",
+      "runtimeArgs": ["-e", "delete process.env.DATABASE_URL; delete process.env.NODE_ENV; require('child_process').spawn('npx next dev -p ' + (process.env.PORT || 3108), { stdio: 'inherit', shell: true }).on('exit', (code) => process.exit(code ?? 0));"],
+      "port": 3108
+    },
+    {
       "name": "next-dev-localdb",
       "runtimeExecutable": "npx",
       "runtimeArgs": ["next", "dev", "-p", "3107"],

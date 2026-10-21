@@ -16,7 +16,7 @@ export default function MensajesLoading() {
           ))}
         </div>
       </aside>
-      <section className="hidden flex-col bg-[#f4f7f5] lg:flex" />
+      <section className="hidden flex-col bg-background lg:flex" />
     </div>
   );
 }

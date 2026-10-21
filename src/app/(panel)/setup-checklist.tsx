@@ -52,10 +52,10 @@ export async function SetupChecklist({ clinicId, welcome }: { clinicId: string; 
   if (completed === steps.length) return null;
 
   return (
-    <section className="mb-8 overflow-hidden rounded-3xl border border-emerald-100 bg-white shadow-sm">
-      <div className="flex flex-col gap-3 border-b border-slate-100 bg-emerald-50/60 p-5 sm:flex-row sm:items-center sm:justify-between">
+    <section className="mb-8 overflow-hidden rounded-3xl border border-brand-100 bg-white shadow-sm">
+      <div className="flex flex-col gap-3 border-b border-slate-100 bg-brand-50/60 p-5 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-start gap-3">
-          <span className="grid size-10 shrink-0 place-items-center rounded-2xl bg-emerald-600 text-white">
+          <span className="grid size-10 shrink-0 place-items-center rounded-2xl bg-brand-600 text-white">
             <Sparkles size={19} />
           </span>
           <div>
@@ -63,7 +63,7 @@ export async function SetupChecklist({ clinicId, welcome }: { clinicId: string; 
             <p className="text-sm text-slate-600">Seguí estos pasos y en unos minutos queda todo funcionando.</p>
           </div>
         </div>
-        <p className="shrink-0 text-sm font-medium text-emerald-700">
+        <p className="shrink-0 text-sm font-medium text-brand-700">
           {completed} de {steps.length} listos
         </p>
       </div>
@@ -72,7 +72,7 @@ export async function SetupChecklist({ clinicId, welcome }: { clinicId: string; 
           <li key={step.title}>
             <Link
               href={step.href}
-              className="flex items-center gap-3 px-5 py-4 transition-colors hover:bg-slate-50 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-emerald-600"
+              className="flex items-center gap-3 px-5 py-4 transition-colors hover:bg-slate-50 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-brand-600"
             >
               {step.done ? (
                 <CheckCircle2 size={20} className="shrink-0 text-emerald-600" aria-label="Hecho" />

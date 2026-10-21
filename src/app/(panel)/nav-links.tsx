@@ -14,21 +14,22 @@ function isActive(pathname: string, href: string) {
 export function SidebarNav({ unreadConversations }: { unreadConversations: number }) {
   const pathname = usePathname();
   return (
-    <nav className="space-y-1 text-sm">
+    <nav className="space-y-0.5 text-sm">
       {NAV_ITEMS.map((item) => {
         const active = isActive(pathname, item.href);
         return (
           <Link
             key={item.href}
             href={item.href}
-            className={`flex items-center gap-3 rounded-xl px-3 py-3 font-medium transition-colors ${
-              active ? "bg-emerald-50 text-emerald-800" : "text-slate-600 hover:bg-slate-50"
+            className={`relative flex items-center gap-3 rounded-lg px-2.5 py-2 font-medium transition-colors ${
+              active ? "bg-white/[0.08] text-white" : "text-slate-400 hover:bg-white/[0.04] hover:text-slate-100"
             }`}
           >
-            <item.icon size={18} />
+            {active && <span className="absolute inset-y-1.5 left-0 w-[3px] rounded-full bg-brand-400" aria-hidden />}
+            <item.icon size={17} className={active ? "text-brand-300" : ""} />
             {item.label}
             {item.href === "/mensajes" && unreadConversations > 0 && (
-              <span className="ml-auto rounded-full bg-rose-500 px-2 py-0.5 text-xs text-white">{unreadConversations}</span>
+              <span className="ml-auto min-w-5 rounded-full bg-rose-500 px-1.5 py-0.5 text-center text-[11px] font-semibold leading-none text-white">{unreadConversations}</span>
             )}
           </Link>
         );
@@ -65,7 +66,7 @@ export function BottomNav({ unreadConversations }: { unreadConversations: number
                       href={item.href}
                       onClick={() => setOpen(false)}
                       className={`flex flex-col items-center gap-1.5 rounded-2xl px-2 py-3.5 text-center text-xs font-medium ${
-                        active ? "bg-emerald-50 text-emerald-800" : "text-slate-600 hover:bg-slate-50"
+                        active ? "bg-brand-50 text-brand-700" : "text-slate-600 hover:bg-slate-50"
                       }`}
                     >
                       <item.icon size={20} />
@@ -85,8 +86,9 @@ export function BottomNav({ unreadConversations }: { unreadConversations: number
             <Link
               key={item.href}
               href={item.href}
-              className={`relative flex flex-1 flex-col items-center gap-1 py-2.5 text-[11px] font-medium ${active ? "text-emerald-700" : "text-slate-500"}`}
+              className={`relative flex flex-1 flex-col items-center gap-1 py-2.5 text-[11px] font-medium ${active ? "text-brand-600" : "text-slate-500"}`}
             >
+              {active && <span className="absolute inset-x-5 top-0 h-0.5 rounded-full bg-brand-500" aria-hidden />}
               <item.icon size={20} />
               {item.shortLabel ?? item.label}
               {item.href === "/mensajes" && unreadConversations > 0 && <span className="absolute right-1/2 top-1.5 mr-[-14px] size-2 rounded-full bg-rose-500" />}
@@ -97,7 +99,7 @@ export function BottomNav({ unreadConversations }: { unreadConversations: number
           type="button"
           onClick={() => setOpen(true)}
           aria-haspopup="dialog"
-          className={`flex flex-1 flex-col items-center gap-1 py-2.5 text-[11px] font-medium ${moreActive ? "text-emerald-700" : "text-slate-500"}`}
+          className={`flex flex-1 flex-col items-center gap-1 py-2.5 text-[11px] font-medium ${moreActive ? "text-brand-700" : "text-slate-500"}`}
         >
           <Menu size={20} />
           Más

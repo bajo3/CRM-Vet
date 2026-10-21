@@ -112,12 +112,12 @@ export function AppointmentForm({
         <label className="mb-1.5 block text-sm font-medium text-slate-700">Mascota</label>
         <input type="hidden" defaultValue={defaultValues.petId} {...register("petId")} />
         {selectedPet ? (
-          <div className="flex items-center justify-between gap-3 rounded-xl border border-emerald-200 bg-emerald-50 px-3.5 py-2.5">
+          <div className="flex items-center justify-between gap-3 rounded-xl border border-brand-200 bg-brand-50 px-3.5 py-2.5">
             <div className="flex items-center gap-2 min-w-0">
-              <PawPrint size={16} className="shrink-0 text-emerald-700" />
+              <PawPrint size={16} className="shrink-0 text-brand-700" />
               <div className="min-w-0">
-                <div className="truncate text-sm font-medium text-emerald-900">{selectedPet.name}</div>
-                <div className="truncate text-xs text-emerald-700">
+                <div className="truncate text-sm font-medium text-brand-900">{selectedPet.name}</div>
+                <div className="truncate text-xs text-brand-700">
                   {selectedPet.clientName} · {formatPhone(selectedPet.clientPhone)}
                 </div>
               </div>
@@ -128,7 +128,7 @@ export function AppointmentForm({
                 setValue("petId", "");
                 setPetQuery("");
               }}
-              className="grid size-7 shrink-0 place-items-center rounded-lg text-emerald-700 hover:bg-emerald-100"
+              className="grid size-7 shrink-0 place-items-center rounded-lg text-brand-700 hover:bg-brand-100"
               aria-label="Cambiar mascota"
             >
               <X size={15} />
@@ -187,7 +187,7 @@ export function AppointmentForm({
                 setValue("reason", chip === "Otro" ? "" : chip, { shouldValidate: true });
               }}
               className={`rounded-full border px-3 py-1.5 text-xs font-medium transition-colors ${
-                selectedChip === chip ? "border-emerald-500 bg-emerald-50 text-emerald-800" : "border-slate-200 text-slate-600 hover:bg-slate-50"
+                selectedChip === chip ? "border-brand-500 bg-brand-50 text-brand-800" : "border-slate-200 text-slate-600 hover:bg-slate-50"
               }`}
             >
               {chip}
@@ -196,7 +196,7 @@ export function AppointmentForm({
         </div>
         {selectedChip === "Otro" ? (
           <input
-            className="mt-3 h-11 w-full rounded-xl border border-slate-200 bg-white px-3.5 text-sm outline-none focus:border-emerald-400"
+            className="mt-3 h-11 w-full rounded-xl border border-slate-200 bg-white px-3.5 text-sm outline-none focus:border-brand-400"
             placeholder="Describí el motivo del turno"
             {...register("reason")}
           />
@@ -218,7 +218,7 @@ export function AppointmentForm({
               <input
                 id="date"
                 type="date"
-                className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3.5 text-sm outline-none focus:border-emerald-400"
+                className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3.5 text-sm outline-none focus:border-brand-400"
                 name={field.name}
                 value={field.value}
                 onChange={(event) => field.onChange(event.target.value)}
@@ -239,7 +239,7 @@ export function AppointmentForm({
             render={({ field }) => (
               <select
                 id="veterinarianId"
-                className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3.5 text-sm outline-none focus:border-emerald-400"
+                className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3.5 text-sm outline-none focus:border-brand-400"
                 name={field.name}
                 value={field.value}
                 onChange={(event) => field.onChange(event.target.value)}
@@ -282,7 +282,7 @@ export function AppointmentForm({
                     type="button"
                     onClick={() => field.onChange(slot)}
                     className={`rounded-lg border px-3 py-1.5 text-xs tabular-nums font-medium transition-colors ${
-                      field.value === slot ? "border-emerald-500 bg-emerald-600 text-white" : "border-slate-200 text-slate-600 hover:bg-slate-50"
+                      field.value === slot ? "border-brand-500 bg-brand-600 text-white" : "border-slate-200 text-slate-600 hover:bg-slate-50"
                     }`}
                   >
                     {slot}
@@ -308,7 +308,7 @@ export function AppointmentForm({
         <button
           type="submit"
           disabled={isPending}
-          className="flex h-11 flex-1 items-center justify-center gap-2 rounded-xl bg-emerald-600 text-sm font-medium text-white shadow-sm shadow-emerald-200 disabled:opacity-60"
+          className="flex h-11 flex-1 items-center justify-center gap-2 rounded-xl bg-brand-600 text-sm font-medium text-white shadow-sm shadow-brand-200 disabled:opacity-60"
         >
           {isPending && <Loader2 size={16} className="animate-spin" />}
           Crear turno

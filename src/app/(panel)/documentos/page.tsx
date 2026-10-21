@@ -26,7 +26,7 @@ export default async function DocumentosPage({ searchParams }: { searchParams: P
   return (
     <section className="px-4 py-5 sm:px-7 lg:px-10 lg:py-8">
       <header className="mb-6">
-        <h1 className="text-2xl font-semibold tracking-tight">Documentos</h1>
+        <h1 className="text-2xl font-bold tracking-tight">Documentos</h1>
         <p className="mt-1 text-sm text-slate-500">Presupuestos y recetas generados, de todos los clientes.</p>
       </header>
 
@@ -57,9 +57,9 @@ export default async function DocumentosPage({ searchParams }: { searchParams: P
             <Link
               key={`${doc.kind}-${doc.id}`}
               href={`/clientes/mascotas/${doc.petId}`}
-              className="flex items-center gap-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm transition-colors hover:border-emerald-200 hover:bg-emerald-50/30 sm:p-5"
+              className="flex items-center gap-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm transition-colors hover:border-brand-200 hover:bg-brand-50/30 sm:p-5"
             >
-              <span className={`grid size-11 shrink-0 place-items-center rounded-xl ${doc.kind === "quote" ? "bg-blue-50 text-blue-600" : "bg-emerald-50 text-emerald-600"}`}>
+              <span className={`grid size-11 shrink-0 place-items-center rounded-xl ${doc.kind === "quote" ? "bg-blue-50 text-blue-600" : "bg-brand-50 text-brand-600"}`}>
                 {doc.kind === "quote" ? <Receipt size={19} /> : <FileText size={19} />}
               </span>
               <div className="min-w-0 flex-1">

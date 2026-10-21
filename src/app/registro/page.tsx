@@ -4,10 +4,10 @@ import { RegistrationForm } from "./registration-form";
 
 export default function RegistroPage() {
   return (
-    <main className="flex min-h-screen items-center justify-center bg-[#f6f8f5] px-4 py-10">
+    <main className="flex min-h-screen items-center justify-center bg-background px-4 py-10">
       <div className="w-full max-w-sm">
         <div className="mb-8 flex flex-col items-center gap-3 text-center">
-          <span className="grid size-14 place-items-center rounded-2xl bg-emerald-600 text-white shadow-sm shadow-emerald-200">
+          <span className="grid size-14 place-items-center rounded-2xl bg-brand-600 text-white shadow-sm shadow-brand-200">
             <PawPrint size={28} />
           </span>
           <div>
@@ -20,7 +20,7 @@ export default function RegistroPage() {
         </div>
         <p className="mt-4 text-center text-sm text-slate-500">
           ¿Ya tenés cuenta?{" "}
-          <Link href="/login" className="font-medium text-emerald-700 hover:underline">
+          <Link href="/login" className="font-medium text-brand-700 hover:underline">
             Iniciá sesión
           </Link>
         </p>

@@ -38,7 +38,7 @@ export default async function ProductStockPage({ params }: { params: Promise<{ p
 
       <header className="mb-5 flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h1 className="text-xl font-semibold tracking-tight">{product.name}</h1>
+          <h1 className="text-xl font-bold tracking-tight">{product.name}</h1>
           <p className="mt-0.5 text-sm text-slate-500">{product.kind === "SERVICE" ? "Servicio" : "Producto"}{!product.active && " · dado de baja"}</p>
         </div>
       </header>
@@ -121,7 +121,7 @@ export default async function ProductStockPage({ params }: { params: Promise<{ p
                             .join(" · ")}
                         </span>
                       </span>
-                      <span className={`font-semibold tabular-nums ${movement.quantity > 0 ? "text-emerald-700" : "text-slate-700"}`}>
+                      <span className={`font-semibold tabular-nums ${movement.quantity > 0 ? "text-brand-700" : "text-slate-700"}`}>
                         {movement.quantity > 0 ? `+${movement.quantity}` : movement.quantity}
                       </span>
                     </li>

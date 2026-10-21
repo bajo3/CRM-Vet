@@ -61,7 +61,7 @@ export function ClientForm({ mode, clientId, defaultValues }: ClientFormProps) {
         </label>
         <input
           id="name"
-          className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3.5 text-sm outline-none focus:border-emerald-400"
+          className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3.5 text-sm outline-none focus:border-brand-400"
           placeholder="María González"
           {...register("name")}
         />
@@ -75,7 +75,7 @@ export function ClientForm({ mode, clientId, defaultValues }: ClientFormProps) {
         <input
           id="phone"
           type="tel"
-          className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3.5 text-sm outline-none focus:border-emerald-400"
+          className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3.5 text-sm outline-none focus:border-brand-400"
           placeholder="11 6001-1001"
           {...register("phone")}
         />
@@ -89,7 +89,7 @@ export function ClientForm({ mode, clientId, defaultValues }: ClientFormProps) {
         <input
           id="email"
           type="email"
-          className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3.5 text-sm outline-none focus:border-emerald-400"
+          className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3.5 text-sm outline-none focus:border-brand-400"
           placeholder="maria@correo.com"
           {...register("email")}
         />
@@ -102,7 +102,7 @@ export function ClientForm({ mode, clientId, defaultValues }: ClientFormProps) {
         </label>
         <input
           id="address"
-          className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3.5 text-sm outline-none focus:border-emerald-400"
+          className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3.5 text-sm outline-none focus:border-brand-400"
           placeholder="Av. Rivadavia 4520, CABA"
           {...register("address")}
         />
@@ -116,7 +116,7 @@ export function ClientForm({ mode, clientId, defaultValues }: ClientFormProps) {
             Si está activado, este cliente recibe automáticamente los avisos de próximos controles y turnos de sus mascotas.
           </span>
         </span>
-        <input type="checkbox" className="size-5 shrink-0 accent-emerald-600" {...register("remindersEnabled")} />
+        <input type="checkbox" className="size-5 shrink-0 accent-brand-600" {...register("remindersEnabled")} />
       </label>
 
       {formError && <p className="rounded-xl bg-rose-50 px-3 py-2 text-sm text-rose-700">{formError}</p>}
@@ -132,7 +132,7 @@ export function ClientForm({ mode, clientId, defaultValues }: ClientFormProps) {
         <button
           type="submit"
           disabled={isPending}
-          className="flex h-11 flex-1 items-center justify-center gap-2 rounded-xl bg-emerald-600 text-sm font-medium text-white shadow-sm shadow-emerald-200 disabled:opacity-60"
+          className="flex h-11 flex-1 items-center justify-center gap-2 rounded-xl bg-brand-600 text-sm font-medium text-white shadow-sm shadow-brand-200 disabled:opacity-60"
         >
           {isPending && <Loader2 size={16} className="animate-spin" />}
           Guardar

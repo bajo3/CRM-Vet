@@ -40,7 +40,7 @@ export function OnlineBookingCard({ initialSlug, appUrl }: { initialSlug: string
     <section className="overflow-hidden rounded-3xl border border-slate-200 bg-white p-5 shadow-sm lg:p-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-start gap-3">
-          <span className="grid size-11 shrink-0 place-items-center rounded-2xl bg-emerald-600 text-white shadow-sm shadow-emerald-200">
+          <span className="grid size-11 shrink-0 place-items-center rounded-2xl bg-brand-600 text-white shadow-sm shadow-brand-200">
             <CalendarPlus size={21} />
           </span>
           <div>
@@ -55,7 +55,7 @@ export function OnlineBookingCard({ initialSlug, appUrl }: { initialSlug: string
           onClick={() => toggle(!slug)}
           disabled={isPending}
           className={`inline-flex h-10 shrink-0 items-center justify-center gap-2 rounded-xl px-4 text-sm font-semibold disabled:opacity-60 ${
-            slug ? "border border-slate-200 text-slate-600 hover:bg-slate-50" : "bg-emerald-600 text-white shadow-sm hover:bg-emerald-700"
+            slug ? "border border-slate-200 text-slate-600 hover:bg-slate-50" : "bg-brand-600 text-white shadow-sm hover:bg-brand-700"
           }`}
         >
           {isPending && <Loader2 size={15} className="animate-spin" />}
@@ -73,7 +73,7 @@ export function OnlineBookingCard({ initialSlug, appUrl }: { initialSlug: string
               onClick={() => void copy()}
               className="flex h-10 items-center gap-1.5 rounded-xl border border-slate-200 px-3 text-sm font-medium text-slate-600 hover:bg-slate-50"
             >
-              {copied ? <Check size={15} className="text-emerald-600" /> : <Copy size={15} />}
+              {copied ? <Check size={15} className="text-brand-600" /> : <Copy size={15} />}
               {copied ? "Copiado" : "Copiar"}
             </button>
             <a

@@ -54,7 +54,7 @@ export function ReminderRulesForm({
                   type="checkbox"
                   checked={value.enabled}
                   onChange={(event) => setValues((current) => ({ ...current, [option.value]: { ...current[option.value], enabled: event.target.checked } }))}
-                  className="size-4 rounded accent-emerald-600"
+                  className="size-4 rounded accent-brand-600"
                 />
                 {option.label}
               </label>
@@ -68,7 +68,7 @@ export function ReminderRulesForm({
                   disabled={!value.enabled}
                   value={value.months}
                   onChange={(event) => setValues((current) => ({ ...current, [option.value]: { ...current[option.value], months: Number(event.target.value) } }))}
-                  className="h-9 w-16 rounded-lg border border-slate-200 px-2 text-center text-sm outline-none focus:border-emerald-500 disabled:bg-slate-50"
+                  className="h-9 w-16 rounded-lg border border-slate-200 px-2 text-center text-sm outline-none focus:border-brand-500 disabled:bg-slate-50"
                 />
                 meses
               </div>
@@ -79,7 +79,7 @@ export function ReminderRulesForm({
         <p className="rounded-xl bg-slate-50 px-3.5 py-3 text-xs leading-5 text-slate-500">
           El profesional puede ajustar la fecha sugerida en cada visita, y podés desactivar los envíos para un cliente puntual desde su
           ficha. Todo lo programado y lo ya enviado se ve en{" "}
-          <a href="/recordatorios" className="font-medium text-emerald-700 hover:underline">
+          <a href="/recordatorios" className="font-medium text-brand-700 hover:underline">
             Recordatorios
           </a>
           .
@@ -97,7 +97,7 @@ export function ReminderRulesForm({
             <button
               type="button"
               onClick={handleSave}
-              className="flex h-11 items-center justify-center gap-2 rounded-xl bg-emerald-600 px-5 text-sm font-semibold text-white shadow-sm shadow-emerald-200 transition hover:bg-emerald-700 disabled:cursor-wait disabled:opacity-60"
+              className="flex h-11 items-center justify-center gap-2 rounded-xl bg-brand-600 px-5 text-sm font-semibold text-white shadow-sm shadow-brand-200 transition hover:bg-brand-700 disabled:cursor-wait disabled:opacity-60"
             >
               {pending ? <Loader2 size={17} className="animate-spin" /> : <Save size={17} />}
               {pending ? "Guardando..." : "Guardar cambios"}

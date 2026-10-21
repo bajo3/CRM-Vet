@@ -75,9 +75,9 @@ export function QuoteForm({ petId }: { petId: string }) {
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-5" noValidate>
-      <div className="flex gap-3 rounded-2xl border border-emerald-100 bg-emerald-50/70 p-4">
-        <FileCheck2 size={19} className="mt-0.5 shrink-0 text-emerald-700" />
-        <div><p className="text-sm font-semibold text-emerald-950">Documento listo para compartir</p><p className="mt-0.5 text-xs leading-5 text-emerald-800/80">Completá los conceptos; calculamos el total y generamos un PDF profesional automáticamente.</p></div>
+      <div className="flex gap-3 rounded-2xl border border-brand-100 bg-brand-50/70 p-4">
+        <FileCheck2 size={19} className="mt-0.5 shrink-0 text-brand-700" />
+        <div><p className="text-sm font-semibold text-brand-950">Documento listo para compartir</p><p className="mt-0.5 text-xs leading-5 text-brand-800/80">Completá los conceptos; calculamos el total y generamos un PDF profesional automáticamente.</p></div>
       </div>
       <div>
         <label htmlFor="quote-title" className="mb-1.5 block text-sm font-medium text-slate-700">
@@ -85,7 +85,7 @@ export function QuoteForm({ petId }: { petId: string }) {
         </label>
         <input
           id="quote-title"
-          className="h-12 w-full rounded-xl border border-slate-200 bg-white px-3.5 text-sm shadow-sm outline-none transition focus:border-emerald-400 focus:ring-4 focus:ring-emerald-500/10"
+          className="h-12 w-full rounded-xl border border-slate-200 bg-white px-3.5 text-sm shadow-sm outline-none transition focus:border-brand-400 focus:ring-4 focus:ring-brand-500/10"
           placeholder="Presupuesto cirugía"
           {...register("title")}
         />
@@ -101,7 +101,7 @@ export function QuoteForm({ petId }: { petId: string }) {
                 <label htmlFor={`quote-item-${field.id}`} className="mb-1 block text-[11px] font-medium uppercase tracking-wide text-slate-400 sm:hidden">Descripción</label>
                 <input
                   id={`quote-item-${field.id}`}
-                  className="h-11 w-full rounded-xl border border-slate-200 bg-slate-50/60 px-3.5 text-sm outline-none transition focus:border-emerald-400 focus:bg-white focus:ring-4 focus:ring-emerald-500/10"
+                  className="h-11 w-full rounded-xl border border-slate-200 bg-slate-50/60 px-3.5 text-sm outline-none transition focus:border-brand-400 focus:bg-white focus:ring-4 focus:ring-brand-500/10"
                   placeholder="Ej. Consulta clínica"
                   {...register(`items.${index}.description` as const)}
                 />
@@ -117,7 +117,7 @@ export function QuoteForm({ petId }: { petId: string }) {
                   step="0.01"
                   min="0"
                   inputMode="decimal"
-                  className="h-11 w-full rounded-xl border border-slate-200 bg-slate-50/60 px-3.5 text-sm outline-none transition focus:border-emerald-400 focus:bg-white focus:ring-4 focus:ring-emerald-500/10"
+                  className="h-11 w-full rounded-xl border border-slate-200 bg-slate-50/60 px-3.5 text-sm outline-none transition focus:border-brand-400 focus:bg-white focus:ring-4 focus:ring-brand-500/10"
                   placeholder="$ 0,00"
                   {...register(`items.${index}.amount` as const)}
                 />
@@ -143,14 +143,14 @@ export function QuoteForm({ petId }: { petId: string }) {
         <button
           type="button"
           onClick={() => append({ description: "", amount: undefined as unknown as number })}
-          className="mt-3 flex h-10 items-center gap-1.5 rounded-xl border border-dashed border-emerald-300 bg-emerald-50/40 px-3 text-xs font-semibold text-emerald-700 transition hover:bg-emerald-50"
+          className="mt-3 flex h-10 items-center gap-1.5 rounded-xl border border-dashed border-brand-300 bg-brand-50/40 px-3 text-xs font-semibold text-brand-700 transition hover:bg-brand-50"
         >
           <Plus size={14} />
           Agregar ítem
         </button>
       </div>
 
-      <div className="flex items-center justify-between rounded-2xl bg-gradient-to-r from-emerald-700 to-teal-600 px-4 py-4 text-white shadow-lg shadow-emerald-900/10">
+      <div className="flex items-center justify-between rounded-2xl bg-gradient-to-r from-brand-700 to-teal-600 px-4 py-4 text-white shadow-lg shadow-brand-900/10">
         <span className="flex items-center gap-2 text-sm font-medium"><CircleDollarSign size={18} />Total del presupuesto</span>
         <span className="text-xl font-semibold tracking-tight">{formatCurrency(total)}</span>
       </div>
@@ -162,7 +162,7 @@ export function QuoteForm({ petId }: { petId: string }) {
         <textarea
           id="quote-notes"
           rows={2}
-          className="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-3 text-sm shadow-sm outline-none transition focus:border-emerald-400 focus:ring-4 focus:ring-emerald-500/10"
+          className="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-3 text-sm shadow-sm outline-none transition focus:border-brand-400 focus:ring-4 focus:ring-brand-500/10"
           placeholder="Condiciones, validez, aclaraciones..."
           {...register("notes")}
         />
@@ -170,7 +170,7 @@ export function QuoteForm({ petId }: { petId: string }) {
 
       {formError && <p className="rounded-xl bg-rose-50 px-3 py-2 text-sm text-rose-700">{formError}</p>}
       {downloadUrl && (
-        <div className="flex flex-wrap items-center gap-3 rounded-xl bg-emerald-50 px-3 py-2 text-sm text-emerald-800">
+        <div className="flex flex-wrap items-center gap-3 rounded-xl bg-brand-50 px-3 py-2 text-sm text-brand-800">
           <span className="flex items-center gap-2">
             <CheckCircle2 size={16} />
             Presupuesto generado correctamente.

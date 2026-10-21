@@ -65,7 +65,7 @@ export function AgendaFilters({
           aria-label="Ir a la fecha"
           value={date}
           onChange={(event) => event.target.value && router.push(hrefFor({ date: event.target.value }))}
-          className="h-10 rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-700 outline-none focus:border-emerald-400"
+          className="h-10 rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-700 outline-none focus:border-brand-400"
         />
       </div>
 
@@ -73,13 +73,13 @@ export function AgendaFilters({
         <div className="flex h-10 items-center rounded-xl border border-slate-200 bg-white p-1 text-sm">
           <Link
             href={hrefFor({ view: "dia" })}
-            className={`flex h-8 items-center rounded-lg px-3 font-medium transition-colors ${view === "dia" ? "bg-emerald-600 text-white" : "text-slate-600"}`}
+            className={`flex h-8 items-center rounded-lg px-3 font-medium transition-colors ${view === "dia" ? "bg-brand-600 text-white" : "text-slate-600"}`}
           >
             Día
           </Link>
           <Link
             href={hrefFor({ view: "semana" })}
-            className={`flex h-8 items-center rounded-lg px-3 font-medium transition-colors ${view === "semana" ? "bg-emerald-600 text-white" : "text-slate-600"}`}
+            className={`flex h-8 items-center rounded-lg px-3 font-medium transition-colors ${view === "semana" ? "bg-brand-600 text-white" : "text-slate-600"}`}
           >
             Semana
           </Link>
@@ -88,7 +88,7 @@ export function AgendaFilters({
           value={vetId ?? "todos"}
           aria-label="Filtrar por veterinario"
           onChange={(event) => router.push(hrefFor({ vet: event.target.value }))}
-          className="h-10 rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-700 outline-none focus:border-emerald-400"
+          className="h-10 rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-700 outline-none focus:border-brand-400"
         >
           <option value="todos">Todos los veterinarios</option>
           {vets.map((vet) => (

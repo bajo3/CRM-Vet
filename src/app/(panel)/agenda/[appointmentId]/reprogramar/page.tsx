@@ -33,7 +33,7 @@ export default async function ReprogramarTurnoPage({ params }: { params: Promise
         Volver al turno
       </Link>
 
-      <h1 className="mb-1 text-xl font-semibold">Reprogramar turno</h1>
+      <h1 className="mb-1 text-xl font-bold tracking-tight">Reprogramar turno</h1>
       <p className="mb-6 text-sm text-slate-500">
         {appointment.pet.name} con {appointment.veterinarian.name} · Actualmente: {formatDateTime(appointment.startAt, timezone)}
       </p>

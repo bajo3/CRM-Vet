@@ -67,14 +67,14 @@ export default async function MensajesPage({ searchParams }: { searchParams: Pro
     <div className="grid h-[calc(100dvh-7.5625rem)] min-h-0 overflow-hidden bg-white lg:h-screen lg:grid-cols-[380px_1fr]">
       <aside className={`${mobileHasSelection ? "hidden lg:flex" : "flex"} h-full min-h-0 flex-col border-r border-slate-200 bg-white`}>
         <header className="border-b border-slate-100 p-4 sm:p-5">
-          <h1 className="text-2xl font-semibold tracking-tight">Mensajes</h1>
+          <h1 className="text-2xl font-bold tracking-tight">Mensajes</h1>
           <div className="mt-3 flex flex-wrap gap-2">
             <Link href="/mensajes/programados" className="flex h-9 w-fit items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 text-xs font-medium text-slate-600 hover:bg-slate-50">
-              <CalendarClock size={14} className="text-emerald-600" />
+              <CalendarClock size={14} className="text-brand-600" />
               Programar
             </Link>
             <Link href="/recordatorios" className="flex h-9 w-fit items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 text-xs font-medium text-slate-600 hover:bg-slate-50">
-              <BellRing size={14} className="text-emerald-600" />
+              <BellRing size={14} className="text-brand-600" />
               Recordatorios
             </Link>
           </div>
@@ -94,17 +94,17 @@ export default async function MensajesPage({ searchParams }: { searchParams: Pro
             const lastMessage = conversation.messages[0];
             const initials = (conversation.contactName || conversation.client?.name || conversation.phone).split(" ").map((part) => part[0]).slice(0, 2).join("").toUpperCase();
             return (
-              <Link key={conversation.id} href={`/mensajes?conversation=${conversation.id}${validStatus ? `&status=${validStatus}` : ""}`} className={`group grid grid-cols-[44px_1fr_auto] gap-3 border-b border-slate-100 p-4 transition hover:bg-slate-50 ${selected?.id === conversation.id ? "bg-emerald-50/70 lg:border-l-2 lg:border-l-emerald-500" : ""}`}>
+              <Link key={conversation.id} href={`/mensajes?conversation=${conversation.id}${validStatus ? `&status=${validStatus}` : ""}`} className={`group grid grid-cols-[44px_1fr_auto] gap-3 border-b border-slate-100 p-4 transition hover:bg-slate-50 ${selected?.id === conversation.id ? "bg-brand-50/70 lg:border-l-2 lg:border-l-brand-500" : ""}`}>
                 <span className="grid size-11 place-items-center rounded-full bg-slate-100 text-xs font-semibold text-slate-600">{initials}</span>
                 <div className="min-w-0"><div className="flex items-center gap-2"><p className="truncate text-sm font-semibold">{conversation.contactName || conversation.client?.name || formatPhone(conversation.phone)}</p>{conversation.pet && <span className="flex shrink-0 items-center gap-1 text-[11px] text-slate-400"><PawPrint size={11} />{conversation.pet.name}</span>}</div><p className="mt-1 truncate text-xs text-slate-500">{lastMessage?.direction === "OUTBOUND" ? "Vos: " : ""}{lastMessage?.content ?? "Sin mensajes"}</p><span className={`mt-2 inline-flex rounded-full px-2 py-0.5 text-[10px] font-semibold ${meta.className}`}>{meta.label}</span></div>
-                <div className="flex flex-col items-end justify-between"><span className="text-[10px] text-slate-400">{DateTime.fromJSDate(conversation.lastMessageAt).setZone(timezone).toFormat("HH:mm")}</span>{conversation.unreadCount > 0 ? <span className="grid min-w-5 place-items-center rounded-full bg-emerald-600 px-1.5 text-[10px] font-semibold text-white">{conversation.unreadCount}</span> : <ChevronRight size={15} className="text-slate-300 transition group-hover:translate-x-0.5" />}</div>
+                <div className="flex flex-col items-end justify-between"><span className="text-[10px] text-slate-400">{DateTime.fromJSDate(conversation.lastMessageAt).setZone(timezone).toFormat("HH:mm")}</span>{conversation.unreadCount > 0 ? <span className="grid min-w-5 place-items-center rounded-full bg-brand-600 px-1.5 text-[10px] font-semibold text-white">{conversation.unreadCount}</span> : <ChevronRight size={15} className="text-slate-300 transition group-hover:translate-x-0.5" />}</div>
               </Link>
             );
           })}
         </div>
       </aside>
 
-      <section className={`${mobileHasSelection ? "flex" : "hidden lg:flex"} h-full min-h-0 flex-col overflow-hidden bg-[#f4f7f5]`}>
+      <section className={`${mobileHasSelection ? "flex" : "hidden lg:flex"} h-full min-h-0 flex-col overflow-hidden bg-background`}>
         {selected ? (
           <>
             <ConversationReadMarker conversationId={selected.id} unreadCount={selected.unreadCount} />
@@ -112,13 +112,13 @@ export default async function MensajesPage({ searchParams }: { searchParams: Pro
               <div className="flex min-w-0 items-center gap-3"><Link href="/mensajes" aria-label="Volver a conversaciones" className="grid size-9 shrink-0 place-items-center rounded-xl text-slate-500 hover:bg-slate-100 lg:hidden"><ArrowLeft size={18} /></Link><div className="min-w-0"><h2 className="truncate font-semibold">{selected.contactName || selected.client?.name || formatPhone(selected.phone)}</h2><div className="mt-0.5 flex flex-wrap items-center gap-2 text-xs text-slate-500"><span>{formatPhone(selected.phone)}</span><span>·</span><span className={STATUS_META[selected.status].className.split(" ").at(-1)}>{STATUS_META[selected.status].label}</span>{selected.assignedUser && <><span>·</span><span>Atiende {selected.assignedUser.name}</span></>}</div></div></div>
               <div className="flex items-center gap-2">
                 <WhatsappChannelStatus />
-                {selected.status === "REQUIRES_HUMAN" && <form action={openConversation.bind(null, selected.id)}><button className="flex h-9 items-center gap-1.5 rounded-xl bg-emerald-600 px-3 text-xs font-semibold text-white hover:bg-emerald-700"><UserRound size={14} />Tomar</button></form>}
+                {selected.status === "REQUIRES_HUMAN" && <form action={openConversation.bind(null, selected.id)}><button className="flex h-9 items-center gap-1.5 rounded-xl bg-brand-600 px-3 text-xs font-semibold text-white hover:bg-brand-700"><UserRound size={14} />Tomar</button></form>}
                 {selected.status === "HUMAN_ACTIVE" && <form action={returnConversationToAutomation.bind(null, selected.id)}><button title="Volver al bot" className="flex h-9 items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 text-xs font-semibold text-slate-600 hover:bg-slate-50"><Bot size={14} />Automatizar</button></form>}
                 {selected.status !== "RESOLVED" && <form action={resolveConversation.bind(null, selected.id)}><button title="Marcar como resuelta" className="grid size-9 place-items-center rounded-xl border border-slate-200 bg-white text-slate-600 hover:bg-slate-50"><Check size={16} /></button></form>}
               </div>
             </header>
 
-            {selected.pet && <div className="border-b border-slate-200 bg-white px-4 py-2.5"><Link href={`/clientes/mascotas/${selected.pet.id}`} className="inline-flex items-center gap-2 rounded-lg text-xs font-medium text-emerald-700 hover:underline"><PawPrint size={14} />Ver ficha de {selected.pet.name}</Link></div>}
+            {selected.pet && <div className="border-b border-slate-200 bg-white px-4 py-2.5"><Link href={`/clientes/mascotas/${selected.pet.id}`} className="inline-flex items-center gap-2 rounded-lg text-xs font-medium text-brand-700 hover:underline"><PawPrint size={14} />Ver ficha de {selected.pet.name}</Link></div>}
 
             <MessageDeliveryPoller active={hasPendingDelivery} />
             <MessageViewport lastMessageId={selected.messages.at(-1)?.id}>
@@ -126,7 +126,7 @@ export default async function MensajesPage({ searchParams }: { searchParams: Pro
                 const outbound = message.direction === "OUTBOUND";
                 const failed = message.status === "FAILED";
                 const pending = ["HUMAN_QUEUED", "SENDING"].includes(message.status);
-                return <div key={message.id} className={`flex ${outbound ? "justify-end" : "justify-start"}`}><div className={`max-w-[85%] rounded-2xl px-3.5 py-2.5 text-sm shadow-sm sm:max-w-[70%] ${outbound ? failed ? "rounded-br-md border border-rose-200 bg-rose-50 text-slate-800" : "rounded-br-md bg-emerald-600 text-white" : "rounded-bl-md border border-slate-200 bg-white text-slate-800"}`}><p className="whitespace-pre-wrap leading-5">{message.content}</p><div className={`mt-1.5 flex items-center justify-end gap-1 text-[10px] ${outbound ? failed ? "text-rose-600" : "text-emerald-100" : "text-slate-400"}`}><span>{DateTime.fromJSDate(message.createdAt).setZone(timezone).toFormat("HH:mm")}</span>{outbound && <>{pending ? <Clock3 size={12} className={message.status === "SENDING" ? "animate-pulse" : ""} /> : <CheckCheck size={12} className={message.status === "READ" ? "text-sky-200" : ""} />}<span>{MESSAGE_STATUS[message.status] ?? "En proceso"}</span></>}</div>{failed && <form action={retryFailedMessage.bind(null, message.id)} className="mt-2 flex justify-end"><button className="inline-flex items-center gap-1 rounded-lg bg-white px-2 py-1 text-[11px] font-semibold text-rose-700 shadow-sm ring-1 ring-rose-200 hover:bg-rose-100"><RotateCcw size={11} />Reintentar</button></form>}</div></div>;
+                return <div key={message.id} className={`flex ${outbound ? "justify-end" : "justify-start"}`}><div className={`max-w-[85%] rounded-2xl px-3.5 py-2.5 text-sm shadow-sm sm:max-w-[70%] ${outbound ? failed ? "rounded-br-md border border-rose-200 bg-rose-50 text-slate-800" : "rounded-br-md bg-brand-600 text-white" : "rounded-bl-md border border-slate-200 bg-white text-slate-800"}`}><p className="whitespace-pre-wrap leading-5">{message.content}</p><div className={`mt-1.5 flex items-center justify-end gap-1 text-[10px] ${outbound ? failed ? "text-rose-600" : "text-brand-100" : "text-slate-400"}`}><span>{DateTime.fromJSDate(message.createdAt).setZone(timezone).toFormat("HH:mm")}</span>{outbound && <>{pending ? <Clock3 size={12} className={message.status === "SENDING" ? "animate-pulse" : ""} /> : <CheckCheck size={12} className={message.status === "READ" ? "text-sky-200" : ""} />}<span>{MESSAGE_STATUS[message.status] ?? "En proceso"}</span></>}</div>{failed && <form action={retryFailedMessage.bind(null, message.id)} className="mt-2 flex justify-end"><button className="inline-flex items-center gap-1 rounded-lg bg-white px-2 py-1 text-[11px] font-semibold text-rose-700 shadow-sm ring-1 ring-rose-200 hover:bg-rose-100"><RotateCcw size={11} />Reintentar</button></form>}</div></div>;
               })}
             </MessageViewport>
             <MessageComposer conversationId={selected.id} conversationStatus={selected.status} />

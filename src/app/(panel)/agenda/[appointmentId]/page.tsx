@@ -14,7 +14,7 @@ type SearchParams = { ok?: string; confirm?: string };
 
 const NEXT_STATUS: Record<AppointmentStatus, { status: AppointmentStatus; label: string; tone: string }[]> = {
   PENDING: [
-    { status: "CONFIRMED", label: "Confirmar", tone: "bg-emerald-600 text-white shadow-emerald-200" },
+    { status: "CONFIRMED", label: "Confirmar", tone: "bg-brand-600 text-white shadow-brand-200" },
     { status: "ATTENDED", label: "Marcar atendido", tone: "bg-blue-600 text-white shadow-blue-200" },
     { status: "NO_SHOW", label: "Marcar ausente", tone: "bg-rose-500 text-white shadow-rose-200" },
   ],
@@ -69,17 +69,17 @@ export default async function AppointmentDetailPage({
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
             <span className={`mb-2 inline-block rounded-full px-2.5 py-1 text-xs font-medium ${badge.className}`}>{badge.label}</span>
-            <h1 className="text-xl font-semibold">{formatDateTime(appointment.startAt, timezone)}</h1>
+            <h1 className="text-xl font-bold tracking-tight">{formatDateTime(appointment.startAt, timezone)}</h1>
             <p className="mt-1 text-sm text-slate-500">{appointment.reason}</p>
           </div>
         </div>
 
         <div className="mt-5 grid gap-4 border-t border-slate-100 pt-5 sm:grid-cols-2">
           <div className="flex items-start gap-2.5">
-            <PawPrint size={16} className="mt-0.5 shrink-0 text-emerald-600" />
+            <PawPrint size={16} className="mt-0.5 shrink-0 text-brand-600" />
             <div>
               <div className="font-medium">{appointment.pet.name}</div>
-              <Link href={`/clientes/mascotas/${appointment.pet.id}`} className="text-xs font-medium text-emerald-700 hover:underline">
+              <Link href={`/clientes/mascotas/${appointment.pet.id}`} className="text-xs font-medium text-brand-700 hover:underline">
                 Ver ficha
               </Link>
             </div>
@@ -160,11 +160,11 @@ export default async function AppointmentDetailPage({
         {appointment.status === "ATTENDED" && (
           <div className="mt-5 flex flex-wrap items-center gap-3 border-t border-slate-100 pt-5 text-sm">
             {appointment.chargedSaleId ? (
-              <span className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-medium text-emerald-700">Cobrado</span>
+              <span className="rounded-full bg-brand-50 px-3 py-1 text-xs font-medium text-brand-700">Cobrado</span>
             ) : appointment.chargeWaivedAt ? (
               <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-600">Marcado como «no se cobra»</span>
             ) : (
-              <Link href={`/ventas/nueva?petId=${appointment.pet.id}`} className="flex h-10 items-center rounded-xl bg-emerald-600 px-4 text-sm font-medium text-white shadow-sm">
+              <Link href={`/ventas/nueva?petId=${appointment.pet.id}`} className="flex h-10 items-center rounded-xl bg-brand-600 px-4 text-sm font-medium text-white shadow-sm">
                 Cobrar este turno
               </Link>
             )}

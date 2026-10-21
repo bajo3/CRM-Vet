@@ -45,11 +45,11 @@ export default async function AgendaPage({ searchParams }: { searchParams: Promi
   return (
     <section className="px-4 py-5 sm:px-7 lg:px-10 lg:py-8">
       <header className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">Agenda</h1>
+        <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">Agenda</h1>
         {canCreate && (
           <Link
             href={`/agenda/nuevo?date=${date}${vetId ? `&vetId=${vetId}` : ""}`}
-            className="flex h-11 w-fit items-center gap-2 rounded-xl bg-emerald-600 px-5 text-sm font-medium text-white shadow-sm shadow-emerald-200"
+            className="flex h-11 w-fit items-center gap-2 rounded-xl bg-brand-600 px-5 text-sm font-medium text-white shadow-sm shadow-brand-200"
           >
             <Plus size={17} />
             Nuevo turno

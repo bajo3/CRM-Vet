@@ -92,7 +92,7 @@ export function PetForm({ mode, petId, clients, defaultValues }: PetFormProps) {
           </label>
           <input
             id="name"
-            className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3.5 text-sm outline-none focus:border-emerald-400"
+            className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3.5 text-sm outline-none focus:border-brand-400"
             placeholder="Lola"
             {...register("name")}
           />
@@ -105,7 +105,7 @@ export function PetForm({ mode, petId, clients, defaultValues }: PetFormProps) {
           </label>
           <input
             id="species"
-            className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3.5 text-sm outline-none focus:border-emerald-400"
+            className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3.5 text-sm outline-none focus:border-brand-400"
             placeholder="Perro, gato..."
             {...register("species")}
           />
@@ -119,7 +119,7 @@ export function PetForm({ mode, petId, clients, defaultValues }: PetFormProps) {
         </label>
         <select
           id="clientId"
-          className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3.5 text-sm outline-none focus:border-emerald-400"
+          className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3.5 text-sm outline-none focus:border-brand-400"
           {...register("clientId")}
         >
           <option value="">Elegí un cliente</option>
@@ -139,7 +139,7 @@ export function PetForm({ mode, petId, clients, defaultValues }: PetFormProps) {
           </label>
           <input
             id="breed"
-            className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3.5 text-sm outline-none focus:border-emerald-400"
+            className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3.5 text-sm outline-none focus:border-brand-400"
             {...register("breed")}
           />
         </div>
@@ -147,7 +147,7 @@ export function PetForm({ mode, petId, clients, defaultValues }: PetFormProps) {
           <label htmlFor="sex" className="mb-1.5 block text-sm font-medium text-slate-700">
             Sexo <span className="font-normal text-slate-400">(opcional)</span>
           </label>
-          <select id="sex" className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3.5 text-sm outline-none focus:border-emerald-400" {...register("sex")}>
+          <select id="sex" className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3.5 text-sm outline-none focus:border-brand-400" {...register("sex")}>
             <option value="">Sin especificar</option>
             <option value="Macho">Macho</option>
             <option value="Hembra">Hembra</option>
@@ -163,7 +163,7 @@ export function PetForm({ mode, petId, clients, defaultValues }: PetFormProps) {
           <input
             id="birthDate"
             type="date"
-            className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3.5 text-sm outline-none focus:border-emerald-400"
+            className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3.5 text-sm outline-none focus:border-brand-400"
             {...register("birthDate")}
           />
           {errors.birthDate && <p className="mt-1 text-xs text-rose-600">{errors.birthDate.message}</p>}
@@ -174,7 +174,7 @@ export function PetForm({ mode, petId, clients, defaultValues }: PetFormProps) {
           </label>
           <input
             id="approximateAge"
-            className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3.5 text-sm outline-none focus:border-emerald-400"
+            className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3.5 text-sm outline-none focus:border-brand-400"
             placeholder="3 años"
             {...register("approximateAge")}
           />
@@ -189,7 +189,7 @@ export function PetForm({ mode, petId, clients, defaultValues }: PetFormProps) {
           id="weight"
           type="number"
           step="0.1"
-          className="h-11 w-full max-w-[calc(50%-0.5rem)] rounded-xl border border-slate-200 bg-white px-3.5 text-sm outline-none focus:border-emerald-400"
+          className="h-11 w-full max-w-[calc(50%-0.5rem)] rounded-xl border border-slate-200 bg-white px-3.5 text-sm outline-none focus:border-brand-400"
           {...register("weight")}
         />
         {errors.weight && <p className="mt-1 text-xs text-rose-600">{errors.weight.message}</p>}
@@ -242,7 +242,7 @@ export function PetForm({ mode, petId, clients, defaultValues }: PetFormProps) {
         <textarea
           id="notes"
           rows={3}
-          className="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm outline-none focus:border-emerald-400"
+          className="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm outline-none focus:border-brand-400"
           placeholder="Alergias, condiciones a tener en cuenta..."
           {...register("notes")}
         />
@@ -261,7 +261,7 @@ export function PetForm({ mode, petId, clients, defaultValues }: PetFormProps) {
         <button
           type="submit"
           disabled={isPending}
-          className="flex h-11 flex-1 items-center justify-center gap-2 rounded-xl bg-emerald-600 text-sm font-medium text-white shadow-sm shadow-emerald-200 disabled:opacity-60"
+          className="flex h-11 flex-1 items-center justify-center gap-2 rounded-xl bg-brand-600 text-sm font-medium text-white shadow-sm shadow-brand-200 disabled:opacity-60"
         >
           {isPending && <Loader2 size={16} className="animate-spin" />}
           Guardar

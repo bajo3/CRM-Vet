@@ -44,9 +44,9 @@ export function WeekView({
 
           return (
             <div key={date} className="flex flex-col border-r border-slate-100 last:border-r-0">
-              <div className={`border-b border-slate-100 p-3 text-center ${isToday ? "bg-emerald-50" : ""}`}>
+              <div className={`border-b border-slate-100 p-3 text-center ${isToday ? "bg-brand-50" : ""}`}>
                 <div className="text-xs font-medium uppercase text-slate-400">{dt.toFormat("ccc")}</div>
-                <div className={`text-lg font-semibold ${isToday ? "text-emerald-700" : "text-slate-800"}`}>{dt.toFormat("d")}</div>
+                <div className={`text-lg font-semibold ${isToday ? "text-brand-700" : "text-slate-800"}`}>{dt.toFormat("d")}</div>
               </div>
               <div className="flex-1 space-y-1.5 p-2">
                 {dayAppointments.length === 0 ? (
@@ -74,7 +74,7 @@ export function WeekView({
               {canCreate && (
                 <Link
                   href={`/agenda/nuevo?date=${date}${vetId ? `&vetId=${vetId}` : ""}`}
-                  className="flex items-center justify-center gap-1 border-t border-slate-100 p-2 text-[11px] font-medium text-emerald-600 hover:bg-emerald-50"
+                  className="flex items-center justify-center gap-1 border-t border-slate-100 p-2 text-[11px] font-medium text-brand-600 hover:bg-brand-50"
                 >
                   <Plus size={12} />
                   Nuevo

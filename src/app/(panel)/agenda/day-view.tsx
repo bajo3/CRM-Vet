@@ -180,7 +180,7 @@ export function DayView({
                     <div
                       key={`${vet.id}-${slot}`}
                       className={`border-b border-l border-slate-100 p-1.5 ${past && !appointment ? "opacity-40" : ""} ${
-                        canDropHere ? "rounded-xl outline-dashed outline-1 outline-transparent transition-colors hover:outline-emerald-300 hover:bg-emerald-50/40" : ""
+                        canDropHere ? "rounded-xl outline-dashed outline-1 outline-transparent transition-colors hover:outline-brand-300 hover:bg-brand-50/40" : ""
                       }`}
                       onDragOver={(event) => {
                         if (!canDropHere) return;
@@ -209,7 +209,7 @@ export function DayView({
                         <Link
                           href={`/agenda/nuevo?date=${date}&time=${slot}&vetId=${vet.id}`}
                           aria-label={`Nuevo turno a las ${slot} con ${vet.name}`}
-                          className="flex h-[74px] items-center justify-center rounded-xl text-transparent transition-colors hover:bg-emerald-50/70 hover:text-emerald-600 focus-visible:text-emerald-600"
+                          className="flex h-[74px] items-center justify-center rounded-xl text-transparent transition-colors hover:bg-brand-50/70 hover:text-brand-600 focus-visible:text-brand-600"
                         >
                           <PlusCircle size={18} />
                         </Link>

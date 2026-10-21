@@ -29,7 +29,7 @@ export default async function NuevoTurnoPage({ searchParams }: { searchParams: P
         Agenda
       </Link>
 
-      <h1 className="mb-6 text-xl font-semibold">Nuevo turno</h1>
+      <h1 className="mb-6 text-xl font-bold tracking-tight">Nuevo turno</h1>
 
       <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
         <AppointmentForm

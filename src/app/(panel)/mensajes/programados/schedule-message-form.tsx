@@ -80,7 +80,7 @@ export function ScheduleMessageForm({ clients }: { clients: ClientOption[] }) {
   return (
     <form onSubmit={onSubmit} className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5" noValidate>
       <p className="mb-3 flex items-center gap-2 text-sm font-semibold text-slate-800">
-        <CalendarClock size={16} className="text-emerald-600" />
+        <CalendarClock size={16} className="text-brand-600" />
         Programar mensaje
       </p>
 
@@ -88,10 +88,10 @@ export function ScheduleMessageForm({ clients }: { clients: ClientOption[] }) {
         <label className="mb-1.5 block text-sm font-medium text-slate-700">Cliente</label>
         {selected ? (
           <div className="flex flex-wrap items-center gap-3">
-            <div className="flex min-w-0 flex-1 items-center gap-2 rounded-xl bg-emerald-50 px-3 py-2">
-              <span className="truncate text-sm font-medium text-emerald-900">{selected.name}</span>
-              <span className="truncate text-xs text-emerald-700">{formatPhone(selected.phone)}</span>
-              <button type="button" onClick={clearClient} className="ml-auto shrink-0 text-emerald-700 hover:text-emerald-900">
+            <div className="flex min-w-0 flex-1 items-center gap-2 rounded-xl bg-brand-50 px-3 py-2">
+              <span className="truncate text-sm font-medium text-brand-900">{selected.name}</span>
+              <span className="truncate text-xs text-brand-700">{formatPhone(selected.phone)}</span>
+              <button type="button" onClick={clearClient} className="ml-auto shrink-0 text-brand-700 hover:text-brand-900">
                 <X size={15} />
               </button>
             </div>
@@ -148,7 +148,7 @@ export function ScheduleMessageForm({ clients }: { clients: ClientOption[] }) {
           maxLength={1000}
           rows={3}
           placeholder="Escribí el mensaje que se va a enviar por WhatsApp..."
-          className="w-full resize-none rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm outline-none focus:border-emerald-400"
+          className="w-full resize-none rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm outline-none focus:border-brand-400"
         />
         <div className="mt-1 flex justify-between text-xs text-slate-400">
           <span>{errors.content && <span className="text-rose-600">{errors.content.message}</span>}</span>
@@ -168,7 +168,7 @@ export function ScheduleMessageForm({ clients }: { clients: ClientOption[] }) {
               <input
                 id="date"
                 type="date"
-                className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3.5 text-sm outline-none focus:border-emerald-400"
+                className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3.5 text-sm outline-none focus:border-brand-400"
                 name={field.name}
                 value={field.value}
                 onChange={(event) => field.onChange(event.target.value)}
@@ -190,7 +190,7 @@ export function ScheduleMessageForm({ clients }: { clients: ClientOption[] }) {
               <input
                 id="time"
                 type="time"
-                className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3.5 text-sm outline-none focus:border-emerald-400"
+                className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3.5 text-sm outline-none focus:border-brand-400"
                 name={field.name}
                 value={field.value}
                 onChange={(event) => field.onChange(event.target.value)}
@@ -209,7 +209,7 @@ export function ScheduleMessageForm({ clients }: { clients: ClientOption[] }) {
       <button
         type="submit"
         disabled={isSubmitting}
-        className="flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-emerald-600 text-sm font-medium text-white shadow-sm shadow-emerald-200 disabled:opacity-60"
+        className="flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-brand-600 text-sm font-medium text-white shadow-sm shadow-brand-200 disabled:opacity-60"
       >
         {isSubmitting ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />}
         Programar

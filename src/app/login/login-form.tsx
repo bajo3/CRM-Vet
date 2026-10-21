@@ -53,7 +53,7 @@ export function LoginForm() {
         <label htmlFor="email" className="mb-1.5 block text-sm font-medium text-slate-700">
           Correo
         </label>
-        <div className="flex h-11 items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 focus-within:border-emerald-400">
+        <div className="flex h-11 items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 focus-within:border-brand-400">
           <Mail size={17} className="shrink-0 text-slate-400" />
           <input
             id="email"
@@ -71,7 +71,7 @@ export function LoginForm() {
         <label htmlFor="password" className="mb-1.5 block text-sm font-medium text-slate-700">
           Contraseña
         </label>
-        <div className="flex h-11 items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 focus-within:border-emerald-400">
+        <div className="flex h-11 items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 focus-within:border-brand-400">
           <Lock size={17} className="shrink-0 text-slate-400" />
           <input
             id="password"
@@ -90,7 +90,7 @@ export function LoginForm() {
       <button
         type="submit"
         disabled={isPending || isDemoPending}
-        className="flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-emerald-600 text-sm font-medium text-white shadow-sm shadow-emerald-200 disabled:opacity-60"
+        className="flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-brand-600 text-sm font-medium text-white shadow-sm shadow-brand-200 disabled:opacity-60"
       >
         {isPending && <Loader2 size={16} className="animate-spin" />}
         Entrar
@@ -106,7 +106,7 @@ export function LoginForm() {
         type="button"
         onClick={onDemo}
         disabled={isPending || isDemoPending}
-        className="flex h-11 w-full items-center justify-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 text-sm font-medium text-emerald-700 hover:bg-emerald-100 disabled:opacity-60"
+        className="flex h-11 w-full items-center justify-center gap-2 rounded-xl border border-brand-200 bg-brand-50 text-sm font-medium text-brand-700 hover:bg-brand-100 disabled:opacity-60"
       >
         {isDemoPending ? <Loader2 size={16} className="animate-spin" /> : <Sparkles size={16} />}
         Probar con la cuenta demo

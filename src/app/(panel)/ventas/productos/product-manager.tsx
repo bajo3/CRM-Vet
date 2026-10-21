@@ -9,7 +9,7 @@ import type { ProductRow } from "@/lib/services/sales";
 
 export type ProductFilter = "todos" | "bajo" | "servicios" | "baja";
 
-const FIELD_CLASS = "h-9 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm outline-none focus:border-emerald-500";
+const FIELD_CLASS = "h-9 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm outline-none focus:border-brand-500";
 const LABEL_CLASS = "mb-1 block text-xs font-medium text-slate-500";
 const money = new Intl.NumberFormat("es-AR", { style: "currency", currency: "ARS", minimumFractionDigits: 2 });
 
@@ -77,7 +77,7 @@ function ProductForm({ draft, onDone }: { draft: Draft; onDone: () => void }) {
       {form.kind === "PRODUCT" && (
         <div className="flex flex-wrap items-end gap-x-6 gap-y-3">
           <label className="flex h-9 items-center gap-2 text-sm text-slate-700">
-            <input type="checkbox" checked={form.trackStock} onChange={(event) => set("trackStock", event.target.checked)} className="size-4 accent-emerald-600" />
+            <input type="checkbox" checked={form.trackStock} onChange={(event) => set("trackStock", event.target.checked)} className="size-4 accent-brand-600" />
             Controlar stock
           </label>
           {form.trackStock && (
@@ -103,7 +103,7 @@ function ProductForm({ draft, onDone }: { draft: Draft; onDone: () => void }) {
         <button type="button" onClick={onDone} disabled={isPending} className="h-8 rounded-lg px-3 text-xs font-medium text-slate-500 hover:text-slate-700">
           Cancelar
         </button>
-        <button type="submit" disabled={isPending} className="flex h-8 items-center gap-1.5 rounded-lg bg-emerald-600 px-3.5 text-xs font-semibold text-white disabled:opacity-60">
+        <button type="submit" disabled={isPending} className="flex h-8 items-center gap-1.5 rounded-lg bg-brand-600 px-3.5 text-xs font-semibold text-white disabled:opacity-60">
           {isPending && <Loader2 size={12} className="animate-spin" />}
           Guardar
         </button>
@@ -174,11 +174,11 @@ export function ProductManager({ products, canEdit, initialFilter }: { products:
     <div>
       <header className="mb-4 flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-xl font-semibold tracking-tight">Productos y stock</h1>
+          <h1 className="text-xl font-bold tracking-tight">Productos y stock</h1>
           <p className="mt-0.5 text-sm text-slate-500">Lo que la clínica vende, con sus existencias, lotes y vencimientos.</p>
         </div>
         {canEdit && editing !== "new" && (
-          <button type="button" onClick={() => setEditing("new")} className="flex h-9 items-center gap-2 rounded-lg bg-emerald-600 px-3.5 text-sm font-semibold text-white hover:bg-emerald-700">
+          <button type="button" onClick={() => setEditing("new")} className="flex h-9 items-center gap-2 rounded-lg bg-brand-600 px-3.5 text-sm font-semibold text-white hover:bg-brand-700">
             <Plus size={15} />
             Agregar
           </button>
@@ -246,7 +246,7 @@ export function ProductManager({ products, canEdit, initialFilter }: { products:
                 ) : (
                   <tr key={product.id} className="group hover:bg-slate-50/70">
                     <td className="px-4 py-2.5">
-                      <Link href={`/ventas/productos/${product.id}`} className={`font-medium hover:text-emerald-700 ${product.active ? "text-slate-800" : "text-slate-400 line-through"}`}>
+                      <Link href={`/ventas/productos/${product.id}`} className={`font-medium hover:text-brand-700 ${product.active ? "text-slate-800" : "text-slate-400 line-through"}`}>
                         {product.name}
                       </Link>
                       {product.kind === "SERVICE" && <span className="ml-2 text-xs text-slate-400">Servicio</span>}

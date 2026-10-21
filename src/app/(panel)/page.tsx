@@ -32,7 +32,7 @@ export default async function InicioPage({ searchParams }: { searchParams: Promi
   const stats = [
     { label: "Turnos de hoy", value: todayAppointments.length, hint: `${pendingTodayCount} por confirmar`, icon: CalendarDays, tone: "text-blue-600 bg-blue-50" },
     { label: "Sin confirmar", value: pendingTodayCount, hint: "Revisar ahora", icon: Clock3, tone: "text-amber-600 bg-amber-50" },
-    { label: "Próximos controles", value: upcomingControlsCount, hint: "Próximos 7 días", icon: PawPrint, tone: "text-emerald-600 bg-emerald-50" },
+    { label: "Próximos controles", value: upcomingControlsCount, hint: "Próximos 7 días", icon: PawPrint, tone: "text-brand-600 bg-brand-50" },
     { label: "Controles vencidos", value: overdueControlsCount, hint: "Sin turno agendado", icon: Clock3, tone: "text-rose-600 bg-rose-50" },
   ];
 
@@ -41,7 +41,7 @@ export default async function InicioPage({ searchParams }: { searchParams: Promi
       <header className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <p className="mb-1 text-sm text-slate-500">{capitalize(now.toFormat("cccc d 'de' LLLL"))}</p>
-          <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">
+          <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">
             {greeting(now.hour)}, {firstName}
           </h1>
         </div>
@@ -62,7 +62,7 @@ export default async function InicioPage({ searchParams }: { searchParams: Promi
           </Link>
           <Link
             href={hasRole(session, AGENDA_MANAGE_ROLES) ? "/agenda/nuevo" : "/agenda"}
-            className="flex h-11 flex-1 items-center justify-center gap-2 whitespace-nowrap rounded-xl bg-emerald-600 px-4 text-sm font-medium text-white shadow-sm shadow-emerald-200 sm:flex-none"
+            className="flex h-11 flex-1 items-center justify-center gap-2 whitespace-nowrap rounded-xl bg-brand-600 px-4 text-sm font-medium text-white shadow-sm shadow-brand-200 sm:flex-none"
           >
             <Plus size={17} />
             {hasRole(session, AGENDA_MANAGE_ROLES) ? "Nuevo turno" : "Ver agenda"}
@@ -99,12 +99,18 @@ export default async function InicioPage({ searchParams }: { searchParams: Promi
               <h2 className="font-semibold">Turnos de hoy</h2>
               <p className="mt-1 text-xs text-slate-500">Agenda del día</p>
             </div>
-            <Link href="/agenda" className="text-sm font-medium text-emerald-700">
+            <Link href="/agenda" className="text-sm font-medium text-brand-700">
               Ver agenda
             </Link>
           </div>
           {todayAppointments.length === 0 ? (
-            <p className="p-6 text-sm text-slate-500">No hay turnos agendados para hoy.</p>
+            <div className="flex flex-col items-center px-6 py-10 text-center">
+              <span className="mb-3 grid size-11 place-items-center rounded-xl bg-brand-50 text-brand-600">
+                <CalendarDays size={20} />
+              </span>
+              <p className="text-sm font-medium text-slate-800">Día libre en la agenda</p>
+              <p className="mt-1 text-xs text-slate-500">No hay turnos agendados para hoy.</p>
+            </div>
           ) : (
             <div className="divide-y divide-slate-100">
               {todayAppointments.map((appointment) => {
@@ -142,7 +148,13 @@ export default async function InicioPage({ searchParams }: { searchParams: Promi
             )}
           </div>
           {requiresHumanConversations.length === 0 ? (
-            <p className="text-sm text-slate-500">No hay conversaciones que requieran atención.</p>
+            <div className="flex flex-col items-center py-6 text-center">
+              <span className="mb-3 grid size-11 place-items-center rounded-xl bg-emerald-50 text-emerald-600">
+                <MessageCircle size={20} />
+              </span>
+              <p className="text-sm font-medium text-slate-800">Todo al día</p>
+              <p className="mt-1 text-xs text-slate-500">No hay conversaciones que requieran atención.</p>
+            </div>
           ) : (
             <div className="space-y-3">
               {requiresHumanConversations.map((conversation) => {
@@ -154,7 +166,7 @@ export default async function InicioPage({ searchParams }: { searchParams: Promi
                   .toUpperCase();
                 return (
                   <div key={conversation.id} className="flex items-center gap-3 rounded-xl border border-slate-100 p-3">
-                    <span className="grid size-10 shrink-0 place-items-center rounded-full bg-emerald-100 text-xs font-semibold text-emerald-800">
+                    <span className="grid size-10 shrink-0 place-items-center rounded-full bg-brand-100 text-xs font-semibold text-brand-800">
                       {initials}
                     </span>
                     <div className="min-w-0 flex-1">
@@ -169,7 +181,7 @@ export default async function InicioPage({ searchParams }: { searchParams: Promi
               })}
             </div>
           )}
-          <Link href="/mensajes" className="mt-4 flex h-10 w-full items-center justify-center rounded-xl bg-slate-100 text-sm font-medium text-slate-700">
+          <Link href="/mensajes" className="mt-4 flex h-10 w-full items-center justify-center rounded-xl border border-slate-200 text-sm font-medium text-slate-700 hover:bg-slate-50">
             <MessageCircle size={16} className="mr-2" />
             Abrir mensajes
           </Link>

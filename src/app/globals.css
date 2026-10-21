@@ -1,8 +1,8 @@
 @import "tailwindcss";
 
 :root {
-  --background: #f6f8f5;
-  --foreground: #17201b;
+  --background: #f6f6f9;
+  --foreground: #16161f;
   --surface: #ffffff;
   --muted: #64748b;
 }
@@ -10,22 +10,46 @@
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  /* next/font registra las fuentes con nombres generados: hay que usar sus variables, no "Geist". */
-  --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+  /* next/font registra las fuentes con nombres generados: hay que usar sus variables, no el nombre. */
+  --font-sans: var(--font-jakarta), ui-sans-serif, system-ui, sans-serif;
   --font-mono: var(--font-geist-mono), ui-monospace, monospace;
+}
+
+/* Identidad Vet Simple: índigo propio como color de marca y tinta oscura para la barra lateral. */
+@theme {
+  --color-brand-50: #f3f3fe;
+  --color-brand-100: #e7e6fd;
+  --color-brand-200: #d1cffb;
+  --color-brand-300: #b1adf7;
+  --color-brand-400: #8f87f1;
+  --color-brand-500: #7368e8;
+  --color-brand-600: #5f51db;
+  --color-brand-700: #5042c0;
+  --color-brand-800: #42389b;
+  --color-brand-900: #38327b;
+  --color-brand-950: #221d4a;
+
+  --color-ink-700: #2a2a3a;
+  --color-ink-800: #1f1f2c;
+  --color-ink-900: #16161f;
+
+  /* Bordes más ajustados que los de Tailwind por defecto: se ve más preciso y menos "burbuja". */
+  --radius-xl: 0.625rem;
+  --radius-2xl: 0.875rem;
+  --radius-3xl: 1.125rem;
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+  font-family: var(--font-jakarta), ui-sans-serif, system-ui, sans-serif;
   min-width: 320px;
   text-rendering: optimizeLegibility;
 }
 
 ::selection {
-  background: #a7f3d0;
-  color: #064e3b;
+  background: #d1cffb;
+  color: #221d4a;
 }
 
 button,
@@ -48,7 +72,7 @@ a:active {
 }
 
 :focus-visible {
-  outline: 2px solid #059669;
+  outline: 2px solid #5f51db;
   outline-offset: 2px;
 }
 

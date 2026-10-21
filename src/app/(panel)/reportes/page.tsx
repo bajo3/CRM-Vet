@@ -27,7 +27,7 @@ function Bar({ label, value, max, hint }: { label: string; value: number; max: n
         </span>
       </div>
       <div className="h-2 rounded-full bg-slate-100">
-        <div className="h-2 rounded-full bg-emerald-500" style={{ width: `${width}%` }} />
+        <div className="h-2 rounded-full bg-brand-500" style={{ width: `${width}%` }} />
       </div>
     </li>
   );
@@ -38,7 +38,7 @@ export default async function ReportesPage({ searchParams }: { searchParams: Pro
   if (!hasRole(session, CLINIC_CONFIG_ROLES)) {
     return (
       <section className="px-4 py-5 sm:px-7 lg:px-10 lg:py-8">
-        <h1 className="text-2xl font-semibold tracking-tight">Reportes</h1>
+        <h1 className="text-2xl font-bold tracking-tight">Reportes</h1>
         <p className="mt-3 max-w-xl rounded-2xl border border-slate-200 bg-white p-5 text-sm text-slate-600 shadow-sm">
           Los reportes de gestión solo están disponibles para quienes administran la clínica.
         </p>
@@ -61,7 +61,7 @@ export default async function ReportesPage({ searchParams }: { searchParams: Pro
       icon: UserX,
       tone: "text-rose-600 bg-rose-50",
     },
-    { label: "Clientes nuevos", value: String(report.newClients), hint: `${report.totalClients} en total`, icon: UserPlus, tone: "text-emerald-600 bg-emerald-50" },
+    { label: "Clientes nuevos", value: String(report.newClients), hint: `${report.totalClients} en total`, icon: UserPlus, tone: "text-brand-600 bg-brand-50" },
     { label: "Clientes inactivos", value: String(report.inactiveCount), hint: `Sin visitas hace más de ${INACTIVE_AFTER_MONTHS} meses`, icon: UsersRound, tone: "text-amber-600 bg-amber-50" },
   ];
 
@@ -78,11 +78,11 @@ export default async function ReportesPage({ searchParams }: { searchParams: Pro
     <section className="px-4 py-5 sm:px-7 lg:px-10 lg:py-8">
       <header className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <div className="mb-2 flex items-center gap-2 text-sm font-medium text-emerald-700">
+          <div className="mb-2 flex items-center gap-2 text-sm font-medium text-brand-700">
             <BarChart3 size={16} />
             Gestión
           </div>
-          <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">Reportes</h1>
+          <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">Reportes</h1>
           <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-500">Cómo viene la clínica: turnos, ausentismo, de dónde llegan las reservas y qué clientes conviene volver a contactar.</p>
         </div>
         <nav aria-label="Período" className="flex w-fit gap-1 rounded-xl border border-slate-200 bg-white p-1 shadow-sm">
@@ -91,7 +91,7 @@ export default async function ReportesPage({ searchParams }: { searchParams: Pro
               key={value}
               href={`/reportes?periodo=${value}`}
               aria-current={value === period ? "page" : undefined}
-              className={`rounded-lg px-3 py-1.5 text-xs font-medium ${value === period ? "bg-emerald-600 text-white" : "text-slate-600 hover:bg-slate-50"}`}
+              className={`rounded-lg px-3 py-1.5 text-xs font-medium ${value === period ? "bg-brand-600 text-white" : "text-slate-600 hover:bg-slate-50"}`}
             >
               {PERIOD_LABELS[value]}
             </Link>
@@ -180,7 +180,7 @@ export default async function ReportesPage({ searchParams }: { searchParams: Pro
               <ul className="mt-4 divide-y divide-slate-100">
                 {report.inactiveClients.map((client) => (
                   <li key={client.id}>
-                    <Link href={`/clientes?q=${encodeURIComponent(client.phone)}`} className="flex items-center justify-between gap-3 py-3 text-sm hover:text-emerald-700">
+                    <Link href={`/clientes?q=${encodeURIComponent(client.phone)}`} className="flex items-center justify-between gap-3 py-3 text-sm hover:text-brand-700">
                       <span className="min-w-0">
                         <span className="block truncate font-medium">{client.name}</span>
                         <span className="block truncate text-xs text-slate-500">{client.pets.join(", ")}</span>

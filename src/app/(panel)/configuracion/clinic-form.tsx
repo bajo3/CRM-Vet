@@ -15,7 +15,7 @@ type ClinicFormProps = {
   editable: boolean;
 };
 
-const inputClass = "mt-1.5 h-11 w-full rounded-xl border border-slate-200 bg-white px-3.5 text-sm outline-none transition focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 disabled:bg-slate-50";
+const inputClass = "mt-1.5 h-11 w-full rounded-xl border border-slate-200 bg-white px-3.5 text-sm outline-none transition focus:border-brand-500 focus:ring-4 focus:ring-brand-500/10 disabled:bg-slate-50";
 const LOGO_MAX_SIDE = 320;
 
 /** Normaliza tanto el formato viejo (`[open, close]`) como el nuevo (lista de rangos) a lista de rangos. */
@@ -121,10 +121,10 @@ export function ClinicForm({ clinic, editable }: ClinicFormProps) {
               return (
                 <div key={key} className="space-y-2 border-b border-slate-100 p-3 last:border-b-0 sm:px-4">
                   <div className="grid gap-3 sm:grid-cols-[1fr_130px_16px_130px] sm:items-center">
-                    <label className="flex items-center gap-3 text-sm font-medium"><input type="checkbox" name={`${key}-enabled`} defaultChecked={ranges.length > 0} className="size-4 rounded accent-emerald-600" />{label}</label>
-                    <input aria-label={`Apertura ${label}`} name={`${key}-open`} type="time" defaultValue={firstOpen} className="h-10 rounded-xl border border-slate-200 px-3 text-sm outline-none focus:border-emerald-500" />
+                    <label className="flex items-center gap-3 text-sm font-medium"><input type="checkbox" name={`${key}-enabled`} defaultChecked={ranges.length > 0} className="size-4 rounded accent-brand-600" />{label}</label>
+                    <input aria-label={`Apertura ${label}`} name={`${key}-open`} type="time" defaultValue={firstOpen} className="h-10 rounded-xl border border-slate-200 px-3 text-sm outline-none focus:border-brand-500" />
                     <span className="hidden text-center text-xs text-slate-400 sm:block">a</span>
-                    <input aria-label={`Cierre ${label}`} name={`${key}-close`} type="time" defaultValue={firstClose} className="h-10 rounded-xl border border-slate-200 px-3 text-sm outline-none focus:border-emerald-500" />
+                    <input aria-label={`Cierre ${label}`} name={`${key}-close`} type="time" defaultValue={firstClose} className="h-10 rounded-xl border border-slate-200 px-3 text-sm outline-none focus:border-brand-500" />
                   </div>
                   <label className="flex items-center gap-2 pl-7 text-xs font-medium text-slate-500">
                     <input
@@ -132,16 +132,16 @@ export function ClinicForm({ clinic, editable }: ClinicFormProps) {
                       name={`${key}-split`}
                       checked={split[key] ?? false}
                       onChange={(event) => setSplit((current) => ({ ...current, [key]: event.target.checked }))}
-                      className="size-3.5 rounded accent-emerald-600"
+                      className="size-3.5 rounded accent-brand-600"
                     />
                     Segundo turno (ej. horario cortado)
                   </label>
                   {split[key] && (
                     <div className="grid gap-3 pl-7 sm:grid-cols-[1fr_130px_16px_130px] sm:items-center">
                       <span />
-                      <input aria-label={`Apertura turno tarde ${label}`} name={`${key}-open2`} type="time" defaultValue={secondOpen} className="h-10 rounded-xl border border-slate-200 px-3 text-sm outline-none focus:border-emerald-500" />
+                      <input aria-label={`Apertura turno tarde ${label}`} name={`${key}-open2`} type="time" defaultValue={secondOpen} className="h-10 rounded-xl border border-slate-200 px-3 text-sm outline-none focus:border-brand-500" />
                       <span className="hidden text-center text-xs text-slate-400 sm:block">a</span>
-                      <input aria-label={`Cierre turno tarde ${label}`} name={`${key}-close2`} type="time" defaultValue={secondClose} className="h-10 rounded-xl border border-slate-200 px-3 text-sm outline-none focus:border-emerald-500" />
+                      <input aria-label={`Cierre turno tarde ${label}`} name={`${key}-close2`} type="time" defaultValue={secondClose} className="h-10 rounded-xl border border-slate-200 px-3 text-sm outline-none focus:border-brand-500" />
                     </div>
                   )}
                 </div>
@@ -152,7 +152,7 @@ export function ClinicForm({ clinic, editable }: ClinicFormProps) {
 
         {result && <div role="status" className={`flex items-center gap-2 rounded-xl px-3.5 py-3 text-sm ${result.ok ? "bg-emerald-50 text-emerald-700" : "bg-rose-50 text-rose-700"}`}>{result.ok && <CheckCircle2 size={17} />}{result.message}</div>}
 
-        {editable && <div className="flex justify-end"><button className="flex h-11 items-center justify-center gap-2 rounded-xl bg-emerald-600 px-5 text-sm font-semibold text-white shadow-sm shadow-emerald-200 transition hover:bg-emerald-700 disabled:cursor-wait disabled:opacity-60">{pending ? <Loader2 size={17} className="animate-spin" /> : <Save size={17} />}{pending ? "Guardando..." : "Guardar cambios"}</button></div>}
+        {editable && <div className="flex justify-end"><button className="flex h-11 items-center justify-center gap-2 rounded-xl bg-brand-600 px-5 text-sm font-semibold text-white shadow-sm shadow-brand-200 transition hover:bg-brand-700 disabled:cursor-wait disabled:opacity-60">{pending ? <Loader2 size={17} className="animate-spin" /> : <Save size={17} />}{pending ? "Guardando..." : "Guardar cambios"}</button></div>}
       </fieldset>
     </form>
   );

@@ -22,10 +22,10 @@ export function QuickCreate({ pets, canCreatePrescription }: { pets: PetOption[]
       <p className="mb-3 text-sm font-semibold text-slate-800">Crear presupuesto o receta</p>
       {selected ? (
         <div className="flex flex-wrap items-center gap-3">
-          <div className="flex min-w-0 flex-1 items-center gap-2 rounded-xl bg-emerald-50 px-3 py-2">
-            <span className="truncate text-sm font-medium text-emerald-900">{selected.name}</span>
-            <span className="truncate text-xs text-emerald-700">{selected.clientName}</span>
-            <button type="button" onClick={() => setSelected(null)} className="ml-auto shrink-0 text-emerald-700 hover:text-emerald-900">
+          <div className="flex min-w-0 flex-1 items-center gap-2 rounded-xl bg-brand-50 px-3 py-2">
+            <span className="truncate text-sm font-medium text-brand-900">{selected.name}</span>
+            <span className="truncate text-xs text-brand-700">{selected.clientName}</span>
+            <button type="button" onClick={() => setSelected(null)} className="ml-auto shrink-0 text-brand-700 hover:text-brand-900">
               <X size={15} />
             </button>
           </div>

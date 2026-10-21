@@ -12,7 +12,7 @@ function ReminderRow({ reminder, timezone, showStatus }: { reminder: ClinicRemin
     <li>
       <Link
         href={`/clientes/mascotas/${reminder.petId}`}
-        className="flex flex-wrap items-center justify-between gap-3 p-5 transition-colors hover:bg-emerald-50/30"
+        className="flex flex-wrap items-center justify-between gap-3 p-5 transition-colors hover:bg-brand-50/30"
       >
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2">
@@ -54,7 +54,7 @@ export default async function RecordatoriosPage({ searchParams }: { searchParams
     <section className="px-4 py-5 sm:px-7 lg:px-10 lg:py-8">
       <header className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Recordatorios</h1>
+          <h1 className="text-2xl font-bold tracking-tight">Recordatorios</h1>
           <p className="mt-1 max-w-2xl text-sm text-slate-500">
             Los mensajes de WhatsApp que la clínica envía sola a tus clientes: avisos de próximos controles y de turnos. Acá ves qué está
             programado y qué ya se envió.
@@ -83,10 +83,10 @@ export default async function RecordatoriosPage({ searchParams }: { searchParams
       <div className="space-y-6">
         <section className="rounded-2xl border border-slate-200 bg-white shadow-sm">
           <div className="flex items-center gap-2 border-b border-slate-100 p-5">
-            <CalendarClock size={18} className="text-emerald-600" />
+            <CalendarClock size={18} className="text-brand-600" />
             <h2 className="font-semibold">Próximos envíos</h2>
             {upcoming.length > 0 && (
-              <span className="rounded-full bg-emerald-100 px-2.5 py-0.5 text-xs font-medium text-emerald-800">{upcoming.length}</span>
+              <span className="rounded-full bg-brand-100 px-2.5 py-0.5 text-xs font-medium text-brand-800">{upcoming.length}</span>
             )}
           </div>
           {upcoming.length === 0 ? (
@@ -96,7 +96,7 @@ export default async function RecordatoriosPage({ searchParams }: { searchParams
               {!q && (
                 <p className="max-w-md text-sm text-slate-500">
                   Se programan solos: al registrar una visita con próximo control, o al agendar un turno. Definí cada cuánto en{" "}
-                  <Link href="/configuracion" className="font-medium text-emerald-700 hover:underline">
+                  <Link href="/configuracion" className="font-medium text-brand-700 hover:underline">
                     Configuración
                   </Link>
                   .
@@ -114,7 +114,7 @@ export default async function RecordatoriosPage({ searchParams }: { searchParams
 
         <section className="rounded-2xl border border-slate-200 bg-white shadow-sm">
           <div className="flex items-center gap-2 border-b border-slate-100 p-5">
-            <History size={18} className="text-emerald-600" />
+            <History size={18} className="text-brand-600" />
             <h2 className="font-semibold">Historial</h2>
           </div>
           {history.length === 0 ? (

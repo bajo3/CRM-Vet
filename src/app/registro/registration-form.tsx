@@ -48,7 +48,7 @@ export function RegistrationForm() {
         <label htmlFor="registro-1" className="mb-1.5 block text-sm font-medium text-slate-700">Nombre de la clínica</label>
         <input
           id="registro-1"
-          className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm outline-none focus:border-emerald-400"
+          className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm outline-none focus:border-brand-400"
           placeholder="Veterinaria San Martín"
           {...register("clinicName")}
         />
@@ -59,7 +59,7 @@ export function RegistrationForm() {
         <label htmlFor="registro-2" className="mb-1.5 block text-sm font-medium text-slate-700">Teléfono de la clínica (opcional)</label>
         <input
           id="registro-2"
-          className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm outline-none focus:border-emerald-400"
+          className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm outline-none focus:border-brand-400"
           placeholder="+54 9 11 1234-5678"
           {...register("clinicPhone")}
         />
@@ -72,7 +72,7 @@ export function RegistrationForm() {
         <label htmlFor="registro-3" className="mb-1.5 block text-sm font-medium text-slate-700">Tu nombre y apellido</label>
         <input
           id="registro-3"
-          className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm outline-none focus:border-emerald-400"
+          className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm outline-none focus:border-brand-400"
           placeholder="Julia Pérez"
           {...register("name")}
         />
@@ -85,7 +85,7 @@ export function RegistrationForm() {
           id="registro-4"
           type="email"
           autoComplete="email"
-          className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm outline-none focus:border-emerald-400"
+          className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm outline-none focus:border-brand-400"
           placeholder="vos@clinica.com"
           {...register("email")}
         />
@@ -99,7 +99,7 @@ export function RegistrationForm() {
           type="password"
           autoComplete="new-password"
           placeholder="Mínimo 8 caracteres"
-          className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm outline-none focus:border-emerald-400"
+          className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm outline-none focus:border-brand-400"
           {...register("password")}
         />
         {errors.password && <p className="mt-1 text-xs text-rose-600">{errors.password.message}</p>}
@@ -111,7 +111,7 @@ export function RegistrationForm() {
           id="registro-6"
           type="password"
           autoComplete="new-password"
-          className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm outline-none focus:border-emerald-400"
+          className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm outline-none focus:border-brand-400"
           {...register("confirmPassword")}
         />
         {errors.confirmPassword && <p className="mt-1 text-xs text-rose-600">{errors.confirmPassword.message}</p>}
@@ -122,7 +122,7 @@ export function RegistrationForm() {
       <button
         type="submit"
         disabled={isPending}
-        className="flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-emerald-600 text-sm font-medium text-white shadow-sm shadow-emerald-200 disabled:opacity-60"
+        className="flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-brand-600 text-sm font-medium text-white shadow-sm shadow-brand-200 disabled:opacity-60"
       >
         {isPending && <Loader2 size={16} className="animate-spin" />}
         Crear mi cuenta y entrar

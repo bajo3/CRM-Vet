@@ -23,19 +23,19 @@ export default async function ReservarPage({ params }: { params: Promise<{ slug:
   const today = DateTime.now().setZone(clinic.timezone).startOf("day");
 
   return (
-    <main className="flex min-h-screen justify-center bg-[#f6f8f5] px-4 py-10">
+    <main className="flex min-h-screen justify-center bg-background px-4 py-10">
       <div className="w-full max-w-md">
         <div className="mb-8 flex flex-col items-center gap-3 text-center">
           {clinic.logoUrl ? (
             // eslint-disable-next-line @next/next/no-img-element -- el logo es una URL/data URI subida por la clínica
             <img src={clinic.logoUrl} alt={`Logo de ${clinic.name}`} className="size-16 rounded-2xl bg-white object-contain shadow-sm" />
           ) : (
-            <span className="grid size-14 place-items-center rounded-2xl bg-emerald-600 text-white shadow-sm shadow-emerald-200">
+            <span className="grid size-14 place-items-center rounded-2xl bg-brand-600 text-white shadow-sm shadow-brand-200">
               <PawPrint size={28} />
             </span>
           )}
           <div>
-            <h1 className="text-lg font-semibold">{clinic.name}</h1>
+            <h1 className="text-lg font-bold tracking-tight">{clinic.name}</h1>
             <p className="text-sm text-slate-500">Reservá tu turno online</p>
           </div>
         </div>

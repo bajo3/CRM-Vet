@@ -83,7 +83,7 @@ export function PrescriptionForm({ petId }: { petId: string }) {
 
       {formError && <p className="rounded-xl bg-rose-50 px-3 py-2 text-sm text-rose-700">{formError}</p>}
       {downloadUrl && (
-        <div className="flex flex-wrap items-center gap-3 rounded-xl bg-emerald-50 px-3 py-2 text-sm text-emerald-800">
+        <div className="flex flex-wrap items-center gap-3 rounded-xl bg-brand-50 px-3 py-2 text-sm text-brand-800">
           <span className="flex items-center gap-2">
             <CheckCircle2 size={16} />
             Receta generada correctamente.
