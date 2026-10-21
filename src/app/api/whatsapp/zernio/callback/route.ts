@@ -13,7 +13,7 @@ export async function GET(request: NextRequest) {
   const params = request.nextUrl.searchParams;
   const profileId = params.get("profileId");
   const accountId = params.get("accountId");
-  const settingsUrl = new URL("/configuracion", request.nextUrl.origin);
+  const settingsUrl = new URL("/configuracion/whatsapp", request.nextUrl.origin);
 
   if (!profileId) {
     settingsUrl.searchParams.set("whatsapp", "error");

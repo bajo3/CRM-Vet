@@ -28,7 +28,7 @@ export async function updateClinic(input: ClinicFormInput): Promise<ActionResult
       logoUrl: parsed.data.logoUrl || null,
     },
   });
-  revalidatePath("/configuracion"); revalidatePath("/", "layout");
+  revalidatePath("/configuracion", "layout"); revalidatePath("/", "layout");
   return { ok: true };
 }
 

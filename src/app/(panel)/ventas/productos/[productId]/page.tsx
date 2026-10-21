@@ -30,15 +30,15 @@ export default async function ProductStockPage({ params }: { params: Promise<{ p
   ];
 
   return (
-    <section className="mx-auto max-w-6xl px-4 py-5 sm:px-7 lg:px-10 lg:py-8">
+    <div>
       <Link href="/ventas/productos" className="mb-3 inline-flex items-center gap-1 text-sm text-slate-500 hover:text-slate-700">
         <ChevronLeft size={15} />
-        Productos y stock
+        Todo el stock
       </Link>
 
       <header className="mb-5 flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h1 className="text-xl font-bold tracking-tight">{product.name}</h1>
+          <h2 className="text-xl font-bold tracking-tight">{product.name}</h2>
           <p className="mt-0.5 text-sm text-slate-500">{product.kind === "SERVICE" ? "Servicio" : "Producto"}{!product.active && " · dado de baja"}</p>
         </div>
       </header>
@@ -132,6 +132,6 @@ export default async function ProductStockPage({ params }: { params: Promise<{ p
           </div>
         </>
       )}
-    </section>
+    </div>
   );
 }

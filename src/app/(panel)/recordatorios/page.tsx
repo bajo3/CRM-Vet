@@ -61,7 +61,7 @@ export default async function RecordatoriosPage({ searchParams }: { searchParams
           </p>
         </div>
         <Link
-          href="/configuracion"
+          href="/configuracion/recordatorios"
           className="flex h-10 w-fit shrink-0 items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 text-sm font-medium text-slate-600 shadow-sm hover:bg-slate-50"
         >
           <Settings size={16} />
@@ -96,7 +96,7 @@ export default async function RecordatoriosPage({ searchParams }: { searchParams
               {!q && (
                 <p className="max-w-md text-sm text-slate-500">
                   Se programan solos: al registrar una visita con próximo control, o al agendar un turno. Definí cada cuánto en{" "}
-                  <Link href="/configuracion" className="font-medium text-brand-700 hover:underline">
+                  <Link href="/configuracion/recordatorios" className="font-medium text-brand-700 hover:underline">
                     Configuración
                   </Link>
                   .

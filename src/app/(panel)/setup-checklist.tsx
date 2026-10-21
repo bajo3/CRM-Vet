@@ -26,7 +26,7 @@ export async function SetupChecklist({ clinicId, welcome }: { clinicId: string; 
       done: Boolean(clinic.zernioAccountId),
       title: "Conectá el WhatsApp de la veterinaria",
       detail: "Para que el bot reserve turnos solo y salgan los recordatorios.",
-      href: "/configuracion#whatsapp",
+      href: "/configuracion/whatsapp",
     },
     {
       done: Boolean(clinic.phone && clinic.logoUrl),
@@ -38,7 +38,7 @@ export async function SetupChecklist({ clinicId, welcome }: { clinicId: string; 
       done: memberCount > 1,
       title: "Sumá a tu equipo",
       detail: "Veterinarios y recepción, cada uno con su usuario y permisos.",
-      href: "/configuracion",
+      href: "/configuracion/equipo",
     },
     {
       done: clientCount > 0,

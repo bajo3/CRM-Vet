@@ -18,10 +18,10 @@ export default async function NuevaVentaPage({ searchParams }: { searchParams: P
   const pending = initialPetId ? (await listPendingCharges(session.clinicId, initialPetId))[0] : undefined;
 
   return (
-    <section className="mx-auto max-w-6xl px-4 py-5 sm:px-7 lg:px-10 lg:py-8">
+    <div>
       <Link href="/ventas" className="mb-3 inline-flex items-center gap-1 text-sm text-slate-500 hover:text-slate-700">
         <ChevronLeft size={16} />
-        Caja
+        Volver a ventas
       </Link>
       <h1 className="mb-5 text-xl font-bold tracking-tight">Nueva venta</h1>
       <SaleForm
@@ -31,6 +31,6 @@ export default async function NuevaVentaPage({ searchParams }: { searchParams: P
         pendingUsages={pending?.usages ?? []}
         pendingAppointments={(pending?.appointments ?? []).map((row) => ({ id: row.id, label: `${row.reason} · ${formatDateShort(row.startAt, timezone)}` }))}
       />
-    </section>
+    </div>
   );
 }

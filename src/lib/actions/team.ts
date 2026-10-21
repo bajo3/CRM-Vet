@@ -65,7 +65,7 @@ export async function addTeamMember(input: AddTeamMemberInput): Promise<AddTeamM
     const membership = await prisma.clinicMember.create({
       data: { clinicId: session.clinicId, userId: existingUser.id, role: parsed.data.role, active: true },
     });
-    revalidatePath("/configuracion");
+    revalidatePath("/configuracion", "layout");
     return { ok: true, id: membership.id };
   }
 
@@ -80,7 +80,7 @@ export async function addTeamMember(input: AddTeamMemberInput): Promise<AddTeamM
       },
       include: { memberships: true },
     });
-    revalidatePath("/configuracion");
+    revalidatePath("/configuracion", "layout");
     return { ok: true, id: created.memberships[0].id };
   } catch (error) {
     if (isUniqueEmailViolation(error)) {
@@ -122,7 +122,7 @@ export async function changeMemberRole(input: ChangeMemberRoleInput): Promise<Ch
   }
 
   await prisma.clinicMember.update({ where: { id: member.id }, data: { role: parsed.data.role } });
-  revalidatePath("/configuracion");
+  revalidatePath("/configuracion", "layout");
   return { ok: true };
 }
 
@@ -158,7 +158,7 @@ export async function toggleMemberActive(input: ToggleMemberActiveInput): Promis
   }
 
   await prisma.clinicMember.update({ where: { id: member.id }, data: { active: parsed.data.active } });
-  revalidatePath("/configuracion");
+  revalidatePath("/configuracion", "layout");
   revalidatePath("/agenda");
   return { ok: true };
 }
@@ -249,7 +249,7 @@ export async function updateOwnLicenseNumber(input: UpdateOwnLicenseNumberInput)
     where: { id: session.userId },
     data: { licenseNumber: parsed.data.licenseNumber || null },
   });
-  revalidatePath("/configuracion");
+  revalidatePath("/configuracion", "layout");
   return { ok: true };
 }
 

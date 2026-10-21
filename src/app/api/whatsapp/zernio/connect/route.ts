@@ -17,7 +17,7 @@ export async function GET(request: NextRequest) {
 
   // La demo pública no puede vincular un WhatsApp real: cualquiera entra ahí como dueña.
   if (await isDemoClinic(session.clinicId)) {
-    const demoUrl = new URL("/configuracion", request.nextUrl.origin);
+    const demoUrl = new URL("/configuracion/whatsapp", request.nextUrl.origin);
     demoUrl.searchParams.set("whatsapp", "demo");
     return NextResponse.redirect(demoUrl);
   }
@@ -29,7 +29,7 @@ export async function GET(request: NextRequest) {
   });
   if (!clinic) return NextResponse.json({ error: "Clínica no encontrada." }, { status: 404 });
 
-  const settingsUrl = new URL("/configuracion", request.nextUrl.origin);
+  const settingsUrl = new URL("/configuracion/whatsapp", request.nextUrl.origin);
   try {
     let profileId = clinic.zernioProfileId;
     if (!profileId) {

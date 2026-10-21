@@ -66,7 +66,7 @@ function stockErrorMessage(error: StockError): string {
 }
 
 function revalidateSales() {
-  revalidatePath("/ventas");
+  revalidatePath("/ventas", "layout");
   revalidatePath("/ventas/productos", "layout");
 }
 
@@ -197,7 +197,7 @@ export async function waivePendingChargesAction(petId: string): Promise<ActionRe
   if (!session) return NO_SESSION;
   if (!hasRole(session, CLIENT_MANAGE_ROLES)) return NOT_AUTHORIZED;
   await waivePendingCharges(session.clinicId, petId);
-  revalidatePath("/ventas");
+  revalidatePath("/ventas", "layout");
   return { ok: true };
 }
 
@@ -224,7 +224,7 @@ export async function registerClientPaymentAction(clientId: string, input: Clien
   }
   revalidatePath(`/clientes/${clientId}/cuenta`);
   revalidatePath("/clientes");
-  revalidatePath("/ventas");
+  revalidatePath("/ventas", "layout");
   return { ok: true };
 }
 
@@ -238,6 +238,6 @@ export async function createCashMovementAction(input: CashMovementInput): Promis
   if (!parsed.success) return invalid(parsed.error);
 
   await createCashMovement({ clinicId: session.clinicId, userId: session.userId, ...parsed.data });
-  revalidatePath("/ventas");
+  revalidatePath("/ventas", "layout");
   return { ok: true };
 }

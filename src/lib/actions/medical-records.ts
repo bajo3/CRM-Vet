@@ -68,7 +68,7 @@ export async function registerMedicalRecord(petId: string, input: MedicalRecordF
     revalidatePath(`/clientes/mascotas/${petId}`);
     revalidatePath("/");
     revalidatePath("/recordatorios");
-    revalidatePath("/ventas");
+    revalidatePath("/ventas", "layout");
     return { ok: true, id: record.id, remindersScheduled };
   } catch (error) {
     if (error instanceof Error && error.message === "INVALID_NEXT_DUE_DATE") {

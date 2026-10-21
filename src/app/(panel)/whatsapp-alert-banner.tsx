@@ -53,7 +53,7 @@ export function WhatsappAlertBanner() {
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1 border-b border-amber-100 bg-amber-50 px-4 py-2.5 text-sm text-amber-900 sm:px-7">
         <MessageCircleOff size={16} className="shrink-0" />
         <span className="min-w-0 flex-1">Todavía no conectaste el WhatsApp de la veterinaria: el bot y los recordatorios no van a salir.</span>
-        <Link href="/configuracion#whatsapp" className="shrink-0 font-semibold underline underline-offset-2 hover:text-amber-950">
+        <Link href="/configuracion/whatsapp" className="shrink-0 font-semibold underline underline-offset-2 hover:text-amber-950">
           Conectarlo ahora
         </Link>
       </div>
@@ -69,7 +69,7 @@ export function WhatsappAlertBanner() {
       <span className="min-w-0 flex-1">
         El número de WhatsApp figura desconectado: los mensajes automáticos pueden estar demorados.
       </span>
-      <Link href="/configuracion" className="shrink-0 font-semibold underline underline-offset-2 hover:text-rose-900">
+      <Link href="/configuracion/whatsapp" className="shrink-0 font-semibold underline underline-offset-2 hover:text-rose-900">
         Ver estado
       </Link>
     </div>

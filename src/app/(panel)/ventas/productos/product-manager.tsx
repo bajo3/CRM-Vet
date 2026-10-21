@@ -174,13 +174,13 @@ export function ProductManager({ products, canEdit, initialFilter }: { products:
     <div>
       <header className="mb-4 flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-xl font-bold tracking-tight">Productos y stock</h1>
-          <p className="mt-0.5 text-sm text-slate-500">Lo que la clínica vende, con sus existencias, lotes y vencimientos.</p>
+          <h2 className="text-base font-semibold">Productos y servicios</h2>
+          <p className="mt-0.5 text-sm text-slate-500">Tocá un producto para cargar mercadería, ajustar el stock o ver sus lotes.</p>
         </div>
         {canEdit && editing !== "new" && (
           <button type="button" onClick={() => setEditing("new")} className="flex h-9 items-center gap-2 rounded-lg bg-brand-600 px-3.5 text-sm font-semibold text-white hover:bg-brand-700">
             <Plus size={15} />
-            Agregar
+            Agregar producto
           </button>
         )}
       </header>

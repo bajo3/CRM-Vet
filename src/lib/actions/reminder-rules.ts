@@ -27,6 +27,6 @@ export async function updateReminderRules(input: ReminderRulesFormInput): Promis
     )
   );
 
-  revalidatePath("/configuracion");
+  revalidatePath("/configuracion", "layout");
   return { ok: true };
 }

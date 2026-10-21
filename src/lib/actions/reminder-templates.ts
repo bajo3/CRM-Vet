@@ -31,6 +31,6 @@ export async function updateReminderTemplates(input: ReminderTemplatesFormInput)
     },
   });
 
-  revalidatePath("/configuracion");
+  revalidatePath("/configuracion", "layout");
   return { ok: true };
 }

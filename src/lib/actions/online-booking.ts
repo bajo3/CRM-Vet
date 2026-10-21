@@ -90,6 +90,6 @@ export async function setOnlineBooking(enabled: boolean): Promise<SetOnlineBooki
   if (enabled) slug = clinic.bookingSlug ?? `${slugify(clinic.name)}-${randomBytes(2).toString("hex")}`;
 
   await prisma.clinic.update({ where: { id: session.clinicId }, data: { bookingSlug: slug } });
-  revalidatePath("/configuracion");
+  revalidatePath("/configuracion", "layout");
   return { ok: true, slug };
 }
